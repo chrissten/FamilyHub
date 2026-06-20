@@ -16,6 +16,18 @@
   </label>
   <label>Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else '09:00' }}"></label>
   <label>End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else '10:00' }}"></label>
+  <label>Attendees</label>
+  <div class="attendee-checkboxes">
+    {% for member in members %}
+    <label class="inline">
+      <input type="checkbox" name="attendee_ids" value="{{ member.id }}"
+             {% if event and member in event.attendees %}checked
+             {% elif not event and member.id == current_user.id %}checked{% endif %}>
+      <span class="swatch" style="background-color: {{ member.color_hex }}"></span>
+      {{ member.display_name }}
+    </label>
+    {% endfor %}
+  </div>
   <div class="form-actions">
     <button type="submit">{{ "Save" if event else "Add event" }}</button>
     <button type="button" @click="modalOpen = false">Cancel</button>

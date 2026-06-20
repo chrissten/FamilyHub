@@ -1,9 +1,16 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+event_attendees = Table(
+    "event_attendees",
+    Base.metadata,
+    Column("event_id", ForeignKey("calendar_events.id"), primary_key=True),
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+)
 
 
 def utcnow() -> datetime:
@@ -39,6 +46,7 @@ class CalendarEvent(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     owner: Mapped["User"] = relationship(back_populates="events")
+    attendees: Mapped[list["User"]] = relationship(secondary=event_attendees)
 
 
 class GroceryList(Base):

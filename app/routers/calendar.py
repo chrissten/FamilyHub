@@ -87,10 +87,14 @@ def calendar_month_partial(
 def calendar_new_form(
     request: Request,
     date_str: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    members = db.query(User).order_by(User.display_name).all()
     return templates.TemplateResponse(
-        request, "_event_form.html", {"event": None, "default_date": date_str}
+        request,
+        "_event_form.html",
+        {"event": None, "default_date": date_str, "members": members, "current_user": current_user},
     )
 
 
@@ -104,7 +108,12 @@ def calendar_edit_form(
     event = db.get(CalendarEvent, event_id)
     if not event:
         raise HTTPException(status_code=404)
-    return templates.TemplateResponse(request, "_event_form.html", {"event": event, "default_date": None})
+    members = db.query(User).order_by(User.display_name).all()
+    return templates.TemplateResponse(
+        request,
+        "_event_form.html",
+        {"event": event, "default_date": None, "members": members, "current_user": current_user},
+    )
 
 
 def _month_response(request: Request, db: Session, year: int, month: int):
@@ -126,6 +135,7 @@ def calendar_create_event(
     start_time_str: str = Form("09:00"),
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
+    attendee_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -146,6 +156,7 @@ def calendar_create_event(
         end_time=end_dt,
         all_day=all_day,
     )
+    event.attendees = db.query(User).filter(User.id.in_(attendee_ids or [current_user.id])).all()
     db.add(event)
     db.commit()
     return _month_response(request, db, day.year, day.month)
@@ -162,6 +173,7 @@ def calendar_update_event(
     start_time_str: str = Form("09:00"),
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
+    attendee_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -183,6 +195,7 @@ def calendar_update_event(
     event.start_time = start_dt
     event.end_time = end_dt
     event.all_day = all_day
+    event.attendees = db.query(User).filter(User.id.in_(attendee_ids)).all()
     db.commit()
     return _month_response(request, db, day.year, day.month)
 
@@ -212,7 +225,9 @@ def api_list_events(db: Session = Depends(get_db), current_user: User = Depends(
 def api_create_event(
     payload: EventCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    event = CalendarEvent(owner_id=current_user.id, **payload.model_dump())
+    data = payload.model_dump(exclude={"attendee_ids"})
+    event = CalendarEvent(owner_id=current_user.id, **data)
+    event.attendees = db.query(User).filter(User.id.in_(payload.attendee_ids or [current_user.id])).all()
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -229,8 +244,9 @@ def api_update_event(
     event = db.get(CalendarEvent, event_id)
     if not event:
         raise HTTPException(status_code=404)
-    for key, value in payload.model_dump().items():
+    for key, value in payload.model_dump(exclude={"attendee_ids"}).items():
         setattr(event, key, value)
+    event.attendees = db.query(User).filter(User.id.in_(payload.attendee_ids)).all()
     db.commit()
     db.refresh(event)
     return event

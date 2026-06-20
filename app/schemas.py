@@ -35,7 +35,7 @@ class EventBase(BaseModel):
 
 
 class EventCreate(EventBase):
-    pass
+    attendee_ids: list[int] = []
 
 
 class EventOut(EventBase):
@@ -44,6 +44,7 @@ class EventOut(EventBase):
     id: int
     owner_id: int
     owner: UserOut
+    attendees: list[UserOut]
 
 
 class GroceryListCreate(BaseModel):
