@@ -1,0 +1,10 @@
+<li id="todo-item-{{ item.id }}" class="grocery-item {% if item.checked %}checked{% endif %}"
+  {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#todo-items"{% endif %}>
+  <label class="item-label">
+    <input type="checkbox" {% if item.checked %}checked{% endif %}
+           hx-post="/todo/items/{{ item.id }}/toggle" hx-target="this" hx-swap="none">
+    <span class="item-name">{{ item.text }}</span>
+  </label>
+  <span class="item-meta">added by {{ item.added_by.display_name }}</span>
+  <a href="#" class="item-delete" hx-post="/todo/items/{{ item.id }}/delete" hx-target="this" hx-swap="none">&times;</a>
+</li>

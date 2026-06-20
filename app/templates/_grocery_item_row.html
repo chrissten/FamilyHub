@@ -1,0 +1,11 @@
+<li id="item-{{ item.id }}" class="grocery-item {% if item.checked %}checked{% endif %}"
+  {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#category-{{ item.category_id }}-items"{% endif %}>
+  <label class="item-label">
+    <input type="checkbox" {% if item.checked %}checked{% endif %}
+           hx-post="/grocery/items/{{ item.id }}/toggle" hx-target="this" hx-swap="none">
+    <span class="item-name">{{ item.name }}</span>
+    {% if item.quantity %}<span class="item-qty">({{ item.quantity }})</span>{% endif %}
+  </label>
+  <span class="item-meta">added by {{ item.added_by.display_name }}</span>
+  <a href="#" class="item-delete" hx-post="/grocery/items/{{ item.id }}/delete" hx-target="this" hx-swap="none">&times;</a>
+</li>

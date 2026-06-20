@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FamilyHub{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://unpkg.com/htmx-ext-ws@2.0.1/ws.js"></script>
+  <script src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+</head>
+<body>
+  {% if current_user %}
+  <nav class="topnav">
+    <div class="brand">FamilyHub</div>
+    <a href="/calendar">Calendar</a>
+    <a href="/grocery">Grocery</a>
+    <a href="/todo">To-Do</a>
+    {% if current_user.is_admin %}<a href="/users">Family</a>{% endif %}
+    <span class="spacer"></span>
+    <span class="who" style="border-color: {{ current_user.color_hex }}">{{ current_user.display_name }}</span>
+    <a href="/logout">Logout</a>
+  </nav>
+  {% endif %}
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

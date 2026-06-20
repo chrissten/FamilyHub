@@ -1,0 +1,29 @@
+<h2>{{ "Edit event" if event else "New event" }}</h2>
+<form
+  hx-post="{{ '/calendar/events/' + event.id|string if event else '/calendar/events' }}"
+  hx-target="#calendar-grid" hx-swap="innerHTML"
+  hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">
+  <label>Title<input type="text" name="title" value="{{ event.title if event else '' }}" required></label>
+  <label>Description<textarea name="description">{{ event.description if event else '' }}</textarea></label>
+  <label>Location<input type="text" name="location" value="{{ event.location if event else '' }}"></label>
+  <label>Date
+    <input type="date" name="start_date"
+           value="{{ event.start_time.date().isoformat() if event else default_date }}" required>
+  </label>
+  <label class="inline">
+    <input type="checkbox" name="all_day" value="true" {% if event and event.all_day %}checked{% endif %}>
+    All day
+  </label>
+  <label>Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else '09:00' }}"></label>
+  <label>End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else '10:00' }}"></label>
+  <div class="form-actions">
+    <button type="submit">{{ "Save" if event else "Add event" }}</button>
+    <button type="button" @click="modalOpen = false">Cancel</button>
+    {% if event %}
+    <button type="button" class="danger"
+            hx-post="/calendar/events/{{ event.id }}/delete"
+            hx-target="#calendar-grid" hx-swap="innerHTML"
+            hx-on::after-request="window.dispatchEvent(new Event('close-modal'))">Delete</button>
+    {% endif %}
+  </div>
+</form>

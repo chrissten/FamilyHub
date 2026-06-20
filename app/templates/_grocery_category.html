@@ -1,0 +1,16 @@
+<section class="grocery-category" id="category-{{ category.id }}"
+  {% if oob_mode == "insert" %}hx-swap-oob="beforeend:#grocery-categories"{% endif %}>
+  <h2>{{ category.name }}</h2>
+  <ul id="category-{{ category.id }}-items">
+    {% for item in category.items %}
+      {% include "_grocery_item_row.html" %}
+    {% endfor %}
+  </ul>
+  <form class="add-item-form" hx-post="/grocery/lists/{{ category.list_id }}/items" hx-target="this" hx-swap="none"
+        hx-on::after-request="if(event.detail.successful) this.reset()">
+    <input type="hidden" name="category_id" value="{{ category.id }}">
+    <input type="text" name="name" placeholder="Item" required>
+    <input type="text" name="quantity" placeholder="Qty" class="qty">
+    <button type="submit">Add</button>
+  </form>
+</section>

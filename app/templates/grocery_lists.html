@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Grocery Lists - FamilyHub{% endblock %}
+{% block content %}
+<h1>Grocery Lists</h1>
+
+<ul class="list-of-lists">
+  {% for l in lists %}
+  <li>
+    <a href="/grocery/lists/{{ l.id }}">{{ l.name }}</a>
+    <span class="visibility-badge {{ 'public' if l.is_public else 'private' }}">
+      {{ "Shared" if l.is_public else "Private" }}
+    </span>
+    <span class="item-meta">by {{ l.owner.display_name }}</span>
+  </li>
+  {% else %}
+  <li class="empty">No grocery lists yet — create one below.</li>
+  {% endfor %}
+</ul>
+
+<h2>New grocery list</h2>
+<form method="post" action="/grocery/lists" class="new-list-form">
+  <label>Name<input type="text" name="name" placeholder="e.g. Weekly groceries" required></label>
+  <label class="inline"><input type="checkbox" name="is_public" value="true" checked> Shared with the whole family</label>
+  <button type="submit">Create list</button>
+</form>
+{% endblock %}

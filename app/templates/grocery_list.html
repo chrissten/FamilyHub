@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ grocery_list.name }} - FamilyHub{% endblock %}
+{% block content %}
+<p><a href="/grocery">&laquo; All grocery lists</a></p>
+<h1>{{ grocery_list.name }}
+  <span class="visibility-badge {{ 'public' if grocery_list.is_public else 'private' }}">
+    {{ "Shared" if grocery_list.is_public else "Private" }}
+  </span>
+</h1>
+
+<div id="grocery-categories" hx-ext="ws" hx-ws="connect:/ws/grocery/{{ grocery_list.id }}">
+  {% for category in categories %}
+    {% include "_grocery_category.html" %}
+  {% endfor %}
+</div>
+
+<form class="add-category-form" hx-post="/grocery/lists/{{ grocery_list.id }}/categories" hx-target="this" hx-swap="none" hx-on::after-request="if(event.detail.successful) this.reset()">
+  <input type="text" name="name" placeholder="New category (e.g. Produce)" required>
+  <button type="submit">Add category</button>
+</form>
+{% endblock %}

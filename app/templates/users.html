@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Family - FamilyHub{% endblock %}
+{% block content %}
+<h1>Family Members</h1>
+
+<ul class="member-list">
+  {% for member in members %}
+  <li>
+    <span class="swatch" style="background-color: {{ member.color_hex }}"></span>
+    {{ member.display_name }} (@{{ member.username }}){% if member.is_admin %} — admin{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+{% if current_user.is_admin %}
+<h2>Add a family member</h2>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post" action="/users" class="add-member-form">
+  <label>Username<input type="text" name="username" required></label>
+  <label>Display name<input type="text" name="display_name" required></label>
+  <label>Password<input type="password" name="password" required></label>
+  <label>Color<input type="color" name="color_hex" value="#4A90D9"></label>
+  <button type="submit">Add member</button>
+</form>
+{% endif %}
+{% endblock %}

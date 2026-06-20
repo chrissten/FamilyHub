@@ -1,0 +1,30 @@
+<div class="month-grid">
+  <div class="weekday-row">
+    {% for wd in ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] %}
+    <div class="weekday">{{ wd }}</div>
+    {% endfor %}
+  </div>
+  {% for week in grid %}
+  <div class="week-row">
+    {% for day in week %}
+    <div class="day-cell {% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}">
+      <div class="day-cell-header">
+        <span class="day-number">{{ day.date.day }}</span>
+        <a href="#" class="add-event"
+           hx-get="/calendar/new?date_str={{ day.date.isoformat() }}"
+           hx-target="#modal-content" hx-swap="innerHTML"
+           @click="modalOpen = true">+</a>
+      </div>
+      <div class="day-events">
+        {% for event in day.events %}
+        <a href="#" class="event-chip" style="background-color: {{ event.owner.color_hex }}"
+           hx-get="/calendar/events/{{ event.id }}/edit"
+           hx-target="#modal-content" hx-swap="innerHTML"
+           @click="modalOpen = true">{{ event.title }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>

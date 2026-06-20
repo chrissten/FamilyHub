@@ -1,0 +1,82 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f4f6f8;
+  color: #1f2933;
+}
+[x-cloak] { display: none !important; }
+
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.75rem 1.5rem;
+  background: #1f2933;
+  color: white;
+}
+.topnav a { color: white; text-decoration: none; }
+.topnav a:hover { text-decoration: underline; }
+.topnav .brand { font-weight: 700; font-size: 1.1rem; }
+.topnav .spacer { flex: 1; }
+.topnav .who { padding: 0.15rem 0.6rem; border: 2px solid; border-radius: 999px; font-size: 0.9rem; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+
+.login-card { max-width: 320px; margin: 4rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.login-card h1 { text-align: center; }
+
+form label { display: block; margin-bottom: 0.75rem; font-size: 0.9rem; }
+form input, form textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; border: 1px solid #cbd2d9; border-radius: 4px; font-size: 1rem; }
+form label.inline { display: flex; align-items: center; gap: 0.5rem; }
+form label.inline input { width: auto; }
+button { padding: 0.5rem 1rem; border: none; border-radius: 4px; background: #4A90D9; color: white; cursor: pointer; font-size: 0.95rem; }
+button.danger { background: #d9534f; }
+button[type="button"] { background: #9aa5b1; }
+
+.error { color: #d9534f; }
+
+.member-list { list-style: none; padding: 0; }
+.member-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; }
+.swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+
+/* Calendar */
+.calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.month-grid { display: flex; flex-direction: column; gap: 2px; background: #cbd2d9; border: 1px solid #cbd2d9; }
+.weekday-row, .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.weekday { background: #1f2933; color: white; text-align: center; padding: 0.4rem; font-size: 0.8rem; }
+.day-cell { background: white; min-height: 90px; padding: 0.3rem; position: relative; }
+.day-cell.out-of-month { background: #f0f2f5; color: #9aa5b1; }
+.day-cell.today { outline: 2px solid #4A90D9; }
+.day-cell-header { display: flex; justify-content: space-between; align-items: center; }
+.day-number { font-size: 0.85rem; font-weight: 600; }
+.add-event { text-decoration: none; color: #9aa5b1; font-weight: 700; }
+.day-events { display: flex; flex-direction: column; gap: 2px; margin-top: 0.25rem; }
+.event-chip { display: block; color: white; font-size: 0.75rem; padding: 1px 4px; border-radius: 3px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
+.modal { background: white; padding: 1.5rem; border-radius: 8px; width: 360px; max-height: 90vh; overflow-y: auto; }
+.form-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+
+.list-of-lists { list-style: none; padding: 0; }
+.list-of-lists li { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid #e4e7eb; }
+.list-of-lists li.empty { color: #9aa5b1; border-bottom: none; }
+.list-of-lists a { font-weight: 600; text-decoration: none; color: #1f2933; }
+.visibility-badge { font-size: 0.7rem; padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
+.visibility-badge.public { background: #e3f2e1; color: #2f7a3a; }
+.visibility-badge.private { background: #fde8e8; color: #b13a3a; }
+.new-list-form label.inline { display: flex; align-items: center; gap: 0.5rem; }
+.new-list-form label.inline input { width: auto; }
+
+/* Grocery */
+.grocery-category { background: white; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.grocery-category h2 { margin-top: 0; }
+.grocery-category ul { list-style: none; padding: 0; margin: 0 0 0.75rem; }
+.grocery-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid #f0f2f5; }
+.grocery-item.checked .item-name { text-decoration: line-through; color: #9aa5b1; }
+.item-label { display: flex; align-items: center; gap: 0.5rem; flex: 1; cursor: pointer; }
+.item-meta { font-size: 0.75rem; color: #9aa5b1; }
+.item-delete { color: #d9534f; text-decoration: none; font-size: 1.1rem; padding: 0 0.25rem; }
+.add-item-form, .add-category-form { display: flex; gap: 0.5rem; align-items: center; }
+.add-item-form input[type="text"], .add-category-form input[type="text"] { width: auto; flex: 1; margin: 0; }
+.add-item-form .qty { flex: 0 0 70px; }

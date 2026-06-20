@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ todo_list.name }} - FamilyHub{% endblock %}
+{% block content %}
+<p><a href="/todo">&laquo; All to-do lists</a></p>
+<h1>{{ todo_list.name }}
+  <span class="visibility-badge {{ 'public' if todo_list.is_public else 'private' }}">
+    {{ "Shared" if todo_list.is_public else "Private" }}
+  </span>
+</h1>
+
+<section class="grocery-category">
+  <ul id="todo-items" hx-ext="ws" hx-ws="connect:/ws/todo/{{ todo_list.id }}">
+    {% for item in items %}
+      {% include "_todo_item_row.html" %}
+    {% endfor %}
+  </ul>
+  <form class="add-item-form" hx-post="/todo/lists/{{ todo_list.id }}/items" hx-target="this" hx-swap="none"
+        hx-on::after-request="if(event.detail.successful) this.reset()">
+    <input type="text" name="text" placeholder="To-do item" required>
+    <button type="submit">Add</button>
+  </form>
+</section>
+{% endblock %}
