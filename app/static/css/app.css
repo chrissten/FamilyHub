@@ -69,14 +69,14 @@ button[type="button"] { background: #9aa5b1; }
 
 /* Week view */
 .week-grid { --hour-h: max(40px, calc((100vh - 320px) / 24)); border: 1px solid #cbd2d9; background: white; }
-.week-grid-header, .week-allday-row { display: grid; grid-template-columns: 56px repeat(7, 1fr); border-bottom: 1px solid #cbd2d9; }
+.week-grid-header, .week-allday-row { display: grid; border-bottom: 1px solid #cbd2d9; }
 .week-time-col { font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; }
 .week-day-header { text-align: center; padding: 0.4rem 0.2rem; border-left: 1px solid #e4e7eb; font-size: 0.8rem; position: relative; }
 .week-day-header.today { background: #eef4fb; }
 .week-day-number { font-weight: 600; }
 .week-day-header .add-event { position: absolute; top: 2px; right: 6px; }
 .week-allday-cell { border-left: 1px solid #e4e7eb; padding: 2px 4px; display: flex; flex-direction: column; gap: 2px; min-height: 22px; }
-.week-body { display: grid; grid-template-columns: 56px repeat(7, 1fr); position: relative; }
+.week-body { display: grid; position: relative; }
 .hour-label { height: var(--hour-h); font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; box-sizing: border-box; border-top: 1px solid #f0f2f5; }
 .week-day-col { height: calc(var(--hour-h) * 24); position: relative; border-left: 1px solid #e4e7eb; box-sizing: border-box; }
 .week-day-col.today { background: #fafcff; }
@@ -110,7 +110,7 @@ button[type="button"] { background: #9aa5b1; }
 .agenda-empty { color: #9aa5b1; padding: 0.6rem 0; }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
-.modal { background: white; padding: 1.5rem; border-radius: 8px; width: 360px; max-height: 90vh; overflow-y: auto; }
+.modal { background: white; padding: 1.5rem; border-radius: 8px; width: min(360px, 92vw); max-height: 90vh; overflow-y: auto; }
 .form-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
 
 .list-of-lists { list-style: none; padding: 0; }
@@ -135,3 +135,31 @@ button[type="button"] { background: #9aa5b1; }
 .add-item-form, .add-category-form { display: flex; gap: 0.5rem; align-items: center; }
 .add-item-form input[type="text"], .add-category-form input[type="text"] { width: auto; flex: 1; margin: 0; }
 .add-item-form .qty { flex: 0 0 70px; }
+
+/* Mobile (vertical) layout */
+@media (max-width: 640px) {
+  .topnav { flex-wrap: wrap; gap: 0.6rem 0.9rem; padding: 0.6rem 0.9rem; font-size: 0.9rem; }
+  .topnav .brand { flex: 1 0 auto; }
+
+  .container, .container-wide { padding: 0.85rem; }
+
+  .calendar-header { flex-wrap: wrap; gap: 0.4rem; justify-content: center; text-align: center; }
+  .calendar-header h2 { order: -1; flex: 1 0 100%; font-size: 1rem; }
+
+  .view-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .view-tabs a { padding: 0.3rem 0.7rem; font-size: 0.8rem; white-space: nowrap; }
+
+  .weekday { font-size: 0.7rem; padding: 0.3rem 0.1rem; }
+  .day-cell { min-height: max(60px, calc((100vh - 340px) / 6)); padding: 0.2rem; }
+  .day-number { font-size: 0.75rem; }
+  .event-chip { font-size: 0.68rem; }
+
+  .week-grid { --time-col-w: 38px; --hour-h: max(34px, calc((100vh - 360px) / 24)); }
+  .week-day-header { font-size: 0.7rem; padding: 0.3rem 0.1rem; }
+  .week-time-col { font-size: 0.62rem; }
+
+  .agenda-time { flex: 0 0 80px; font-size: 0.75rem; }
+  .agenda-item { gap: 0.5rem; }
+
+  .modal { padding: 1rem; }
+}

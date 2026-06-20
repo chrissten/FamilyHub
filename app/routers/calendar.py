@@ -98,13 +98,9 @@ def layout_day_blocks(events: list[CalendarEvent], day: date) -> list[dict]:
     return blocks
 
 
-def build_week_view(db: Session, anchor: date) -> dict:
-    weekday_from_sunday = (anchor.weekday() + 1) % 7
-    week_start = anchor - timedelta(days=weekday_from_sunday)
-    week_dates = [week_start + timedelta(days=i) for i in range(7)]
-
-    range_start = datetime.combine(week_dates[0], time.min)
-    range_end = datetime.combine(week_dates[-1], time.max)
+def build_multi_day_view(db: Session, day_dates: list[date]) -> dict:
+    range_start = datetime.combine(day_dates[0], time.min)
+    range_end = datetime.combine(day_dates[-1], time.max)
     events = (
         db.query(CalendarEvent)
         .filter(CalendarEvent.start_time <= range_end, CalendarEvent.end_time >= range_start)
@@ -113,7 +109,7 @@ def build_week_view(db: Session, anchor: date) -> dict:
     )
 
     days = []
-    for day in week_dates:
+    for day in day_dates:
         day_start = datetime.combine(day, time.min)
         day_end = datetime.combine(day, time.max)
         day_events = [e for e in events if _naive(e.start_time) <= day_end and _naive(e.end_time) >= day_start]
@@ -126,18 +122,18 @@ def build_week_view(db: Session, anchor: date) -> dict:
             }
         )
 
-    week_end = week_dates[-1]
-    if week_start.month == week_end.month:
-        label = f"{cal.month_name[week_start.month]} {week_start.day}–{week_end.day}, {week_start.year}"
-    elif week_start.year == week_end.year:
+    range_start_date, range_end_date = day_dates[0], day_dates[-1]
+    if range_start_date.month == range_end_date.month:
+        label = f"{cal.month_name[range_start_date.month]} {range_start_date.day}–{range_end_date.day}, {range_start_date.year}"
+    elif range_start_date.year == range_end_date.year:
         label = (
-            f"{cal.month_name[week_start.month]} {week_start.day} – "
-            f"{cal.month_name[week_end.month]} {week_end.day}, {week_start.year}"
+            f"{cal.month_name[range_start_date.month]} {range_start_date.day} – "
+            f"{cal.month_name[range_end_date.month]} {range_end_date.day}, {range_start_date.year}"
         )
     else:
         label = (
-            f"{cal.month_name[week_start.month]} {week_start.day}, {week_start.year} – "
-            f"{cal.month_name[week_end.month]} {week_end.day}, {week_end.year}"
+            f"{cal.month_name[range_start_date.month]} {range_start_date.day}, {range_start_date.year} – "
+            f"{cal.month_name[range_end_date.month]} {range_end_date.day}, {range_end_date.year}"
         )
 
     return {
@@ -145,6 +141,18 @@ def build_week_view(db: Session, anchor: date) -> dict:
         "hours": [(h, _hour_label(h)) for h in range(24)],
         "label": label,
     }
+
+
+def build_week_view(db: Session, anchor: date) -> dict:
+    weekday_from_sunday = (anchor.weekday() + 1) % 7
+    week_start = anchor - timedelta(days=weekday_from_sunday)
+    week_dates = [week_start + timedelta(days=i) for i in range(7)]
+    return build_multi_day_view(db, week_dates)
+
+
+def build_three_day_view(db: Session, anchor: date) -> dict:
+    day_dates = [anchor + timedelta(days=i) for i in range(3)]
+    return build_multi_day_view(db, day_dates)
 
 
 def build_day_agenda(db: Session, the_date: date) -> list[CalendarEvent]:
@@ -165,6 +173,7 @@ def build_view_context(db: Session, view: str, anchor: date) -> dict:
         "focus_date": focus,
         "month_url": f"/calendar/month?date={focus}",
         "week_url": f"/calendar/week?date={focus}",
+        "three_day_url": f"/calendar/3day?date={focus}",
         "day_url": f"/calendar/day?date={focus}",
         "family_size": db.query(User).count(),
     }
@@ -174,6 +183,12 @@ def build_view_context(db: Session, view: str, anchor: date) -> dict:
         ctx["next_url"] = f"/calendar/week?date={(anchor + timedelta(days=7)).isoformat()}"
         ctx["today_url"] = f"/calendar/week?date={date.today().isoformat()}"
         ctx.update(build_week_view(db, anchor))
+        ctx["partial"] = "_calendar_week.html"
+    elif view == "3day":
+        ctx["prev_url"] = f"/calendar/3day?date={(anchor - timedelta(days=3)).isoformat()}"
+        ctx["next_url"] = f"/calendar/3day?date={(anchor + timedelta(days=3)).isoformat()}"
+        ctx["today_url"] = f"/calendar/3day?date={date.today().isoformat()}"
+        ctx.update(build_three_day_view(db, anchor))
         ctx["partial"] = "_calendar_week.html"
     elif view == "day":
         ctx["prev_url"] = f"/calendar/day?date={(anchor - timedelta(days=1)).isoformat()}"
@@ -209,7 +224,7 @@ def calendar_page(
     current_user: User = Depends(get_current_user),
 ):
     anchor = date.fromisoformat(date_param) if date_param else date.today()
-    if view not in {"month", "week", "day"}:
+    if view not in {"month", "week", "3day", "day"}:
         view = "month"
     ctx = build_view_context(db, view, anchor)
     return templates.TemplateResponse(request, "calendar.html", {"current_user": current_user, **ctx})
@@ -234,6 +249,17 @@ def calendar_week_view(
     current_user: User = Depends(get_current_user),
 ):
     ctx = build_view_context(db, "week", date.fromisoformat(date_param))
+    return templates.TemplateResponse(request, ctx["partial"], ctx)
+
+
+@router.get("/calendar/3day", response_class=HTMLResponse)
+def calendar_three_day_view(
+    request: Request,
+    date_param: str = Query(..., alias="date"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ctx = build_view_context(db, "3day", date.fromisoformat(date_param))
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 

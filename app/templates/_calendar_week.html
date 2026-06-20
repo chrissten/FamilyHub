@@ -7,22 +7,23 @@
   <button hx-get="{{ next_url }}" hx-target="#calendar-view" hx-swap="innerHTML">Next &raquo;</button>
 </div>
 
+{% set grid_cols = "var(--time-col-w, 56px) repeat(" ~ week_days|length ~ ", 1fr)" %}
 <div class="week-grid">
-  <div class="week-grid-header">
+  <div class="week-grid-header" style="grid-template-columns: {{ grid_cols }};">
     <div class="week-time-col"></div>
     {% for day in week_days %}
     <div class="week-day-header {% if day.is_today %}today{% endif %}">
-      <div>{{ ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][loop.index0] }}</div>
+      <div>{{ ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][(day.date.weekday() + 1) % 7] }}</div>
       <div class="week-day-number">{{ day.date.month }}/{{ day.date.day }}</div>
       <a href="#" class="add-event"
-         hx-get="/calendar/new?date_str={{ day.date.isoformat() }}&return_view=week&return_date={{ focus_date }}"
+         hx-get="/calendar/new?date_str={{ day.date.isoformat() }}&return_view={{ view }}&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">+</a>
     </div>
     {% endfor %}
   </div>
 
-  <div class="week-allday-row">
+  <div class="week-allday-row" style="grid-template-columns: {{ grid_cols }};">
     <div class="week-time-col">All day</div>
     {% for day in week_days %}
     <div class="week-allday-cell">
@@ -30,7 +31,7 @@
       {% set attendees = event.attendees if event.attendees else [event.owner] %}
       <a href="#" class="event-chip"
          title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ event.title }}"
-         hx-get="/calendar/events/{{ event.id }}/edit?return_view=week&return_date={{ focus_date }}"
+         hx-get="/calendar/events/{{ event.id }}/edit?return_view={{ view }}&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">
         {{ attendee_dots(attendees, family_size) }}
@@ -41,7 +42,7 @@
     {% endfor %}
   </div>
 
-  <div class="week-body">
+  <div class="week-body" style="grid-template-columns: {{ grid_cols }};">
     <div class="week-time-col">
       {% for hour, label in hours %}
       <div class="hour-label">{{ label }}</div>
@@ -55,7 +56,7 @@
       <a href="#" class="week-event-block"
          style="top: calc(var(--hour-h) * {{ block.top_hours }}); height: calc(var(--hour-h) * {{ block.height_hours }}); left: {{ block.left_pct }}%; width: calc({{ block.width_pct }}% - 2px); border-left-color: {{ attendees[0].color_hex }};"
          title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ block.event.title }} ({{ block.event.start_time | fmt_time }}–{{ block.event.end_time | fmt_time }})"
-         hx-get="/calendar/events/{{ block.event.id }}/edit?return_view=week&return_date={{ focus_date }}"
+         hx-get="/calendar/events/{{ block.event.id }}/edit?return_view={{ view }}&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">
         {{ attendee_dots(attendees, family_size) }}
