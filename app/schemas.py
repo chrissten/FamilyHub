@@ -80,6 +80,11 @@ class ItemCreate(BaseModel):
     category_id: int
 
 
+class ItemUpdate(BaseModel):
+    name: str
+    quantity: str | None = None
+
+
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,0 +1,3 @@
+<datalist id="grocery-item-names-{{ grocery_list_id }}" {% if oob_mode == "replace" %}hx-swap-oob="true"{% endif %}>
+  {% for name in item_names %}<option value="{{ name }}"></option>{% endfor %}
+</datalist>

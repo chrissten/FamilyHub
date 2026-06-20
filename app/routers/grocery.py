@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -13,6 +14,7 @@ from app.schemas import (
     GroceryListOut,
     ItemCreate,
     ItemOut,
+    ItemUpdate,
 )
 from app.security import decode_access_token
 from app.templating import templates
@@ -29,6 +31,33 @@ def render_item(item: GroceryItem, oob_mode: str = "none") -> str:
 def render_category(category: GroceryCategory, oob_mode: str = "none") -> str:
     template = templates.get_template("_grocery_category.html")
     return template.render(category=category, oob_mode=oob_mode)
+
+
+def render_item_datalist(db: Session, list_id: int) -> str:
+    names = item_names_for_list(db, list_id)
+    template = templates.get_template("_grocery_item_datalist.html")
+    return template.render(grocery_list_id=list_id, item_names=names, oob_mode="replace")
+
+
+def item_names_for_list(db: Session, list_id: int) -> list[str]:
+    rows = (
+        db.query(GroceryItem.name)
+        .join(GroceryCategory)
+        .filter(GroceryCategory.list_id == list_id)
+        .distinct()
+        .order_by(GroceryItem.name)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def find_existing_item(db: Session, list_id: int, name: str) -> GroceryItem | None:
+    return (
+        db.query(GroceryItem)
+        .join(GroceryCategory)
+        .filter(GroceryCategory.list_id == list_id, func.lower(GroceryItem.name) == name.strip().lower())
+        .first()
+    )
 
 
 @router.get("/grocery", response_class=HTMLResponse)
@@ -74,7 +103,12 @@ def grocery_list_page(
     return templates.TemplateResponse(
         request,
         "grocery_list.html",
-        {"current_user": current_user, "grocery_list": grocery_list, "categories": categories},
+        {
+            "current_user": current_user,
+            "grocery_list": grocery_list,
+            "categories": categories,
+            "item_names": item_names_for_list(db, list_id),
+        },
     )
 
 
@@ -110,6 +144,18 @@ async def grocery_add_item(
     if not category or category.list_id != list_id:
         raise HTTPException(status_code=404, detail="Category not found in this list")
 
+    existing = find_existing_item(db, list_id, name)
+    if existing:
+        existing.quantity = quantity or existing.quantity
+        if existing.checked:
+            existing.checked = False
+            existing.checked_by_id = None
+        db.commit()
+        db.refresh(existing)
+        html = render_item(existing, oob_mode="replace")
+        await grocery_manager.broadcast(list_id, html)
+        return HTMLResponse(html)
+
     item = GroceryItem(
         name=name, quantity=quantity or None, category_id=category_id, added_by_id=current_user.id
     )
@@ -117,7 +163,7 @@ async def grocery_add_item(
     db.commit()
     db.refresh(item)
 
-    html = render_item(item, oob_mode="insert")
+    html = render_item(item, oob_mode="insert") + render_item_datalist(db, list_id)
     await grocery_manager.broadcast(list_id, html)
     return HTMLResponse(html)
 
@@ -146,6 +192,26 @@ async def grocery_toggle_item(
     db.refresh(item)
 
     html = render_item(item, oob_mode="replace")
+    await grocery_manager.broadcast(list_id, html)
+    return HTMLResponse(html)
+
+
+@router.post("/grocery/items/{item_id}/update", response_class=HTMLResponse)
+async def grocery_update_item(
+    item_id: int,
+    name: str = Form(...),
+    quantity: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item, list_id = _get_item_and_list(db, item_id, current_user)
+
+    item.name = name
+    item.quantity = quantity or None
+    db.commit()
+    db.refresh(item)
+
+    html = render_item(item, oob_mode="replace") + render_item_datalist(db, list_id)
     await grocery_manager.broadcast(list_id, html)
     return HTMLResponse(html)
 
@@ -259,6 +325,18 @@ async def api_create_item(
     if not category or category.list_id != list_id:
         raise HTTPException(status_code=404, detail="Category not found in this list")
 
+    existing = find_existing_item(db, list_id, payload.name)
+    if existing:
+        existing.quantity = payload.quantity or existing.quantity
+        if existing.checked:
+            existing.checked = False
+            existing.checked_by_id = None
+        db.commit()
+        db.refresh(existing)
+        html = render_item(existing, oob_mode="replace")
+        await grocery_manager.broadcast(list_id, html)
+        return existing
+
     item = GroceryItem(
         name=payload.name,
         quantity=payload.quantity,
@@ -269,7 +347,26 @@ async def api_create_item(
     db.commit()
     db.refresh(item)
 
-    html = render_item(item, oob_mode="insert")
+    html = render_item(item, oob_mode="insert") + render_item_datalist(db, list_id)
+    await grocery_manager.broadcast(list_id, html)
+    return item
+
+
+@router.patch("/api/grocery/items/{item_id}", response_model=ItemOut)
+async def api_update_item(
+    item_id: int,
+    payload: ItemUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item, list_id = _get_item_and_list(db, item_id, current_user)
+
+    item.name = payload.name
+    item.quantity = payload.quantity
+    db.commit()
+    db.refresh(item)
+
+    html = render_item(item, oob_mode="replace") + render_item_datalist(db, list_id)
     await grocery_manager.broadcast(list_id, html)
     return item
 

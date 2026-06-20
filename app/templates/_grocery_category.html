@@ -9,7 +9,7 @@
   <form class="add-item-form" hx-post="/grocery/lists/{{ category.list_id }}/items" hx-target="this" hx-swap="none"
         hx-on::after-request="if(event.detail.successful) this.reset()">
     <input type="hidden" name="category_id" value="{{ category.id }}">
-    <input type="text" name="name" placeholder="Item" required>
+    <input type="text" name="name" placeholder="Item" list="grocery-item-names-{{ category.list_id }}" autocomplete="off" required>
     <input type="text" name="quantity" placeholder="Qty" class="qty">
     <button type="submit">Add</button>
   </form>

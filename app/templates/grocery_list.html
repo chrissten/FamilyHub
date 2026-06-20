@@ -8,6 +8,10 @@
   </span>
 </h1>
 
+<datalist id="grocery-item-names-{{ grocery_list.id }}">
+  {% for name in item_names %}<option value="{{ name }}"></option>{% endfor %}
+</datalist>
+
 <div id="grocery-categories" hx-ext="ws" hx-ws="connect:/ws/grocery/{{ grocery_list.id }}">
   {% for category in categories %}
     {% include "_grocery_category.html" %}
