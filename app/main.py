@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -12,6 +13,13 @@ app = FastAPI(title="FamilyHub")
 
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+@app.exception_handler(HTTPException)
+async def redirect_unauthenticated_browsers_to_login(request: Request, exc: HTTPException):
+    if exc.status_code == 401 and "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse(url="/login")
+    return await http_exception_handler(request, exc)
 
 app.include_router(auth.router)
 app.include_router(users.router)
