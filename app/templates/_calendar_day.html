@@ -1,3 +1,4 @@
+{% from "_attendee_dots.html" import attendee_dots %}
 {% include "_calendar_tabs.html" %}
 <div class="calendar-header">
   <button hx-get="{{ prev_url }}" hx-target="#calendar-view" hx-swap="innerHTML">&laquo; Prev</button>
@@ -23,14 +24,13 @@
          hx-get="/calendar/events/{{ event.id }}/edit?return_view=day&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">
-        <span class="attendee-dots">
-          {% for person in attendees %}
-          <span class="attendee-dot" style="background-color: {{ person.color_hex }}"></span>
-          {% endfor %}
-        </span>
+        {{ attendee_dots(attendees, family_size) }}
         {{ event.title }}
       </a>
-      <div class="agenda-meta">{{ attendees | map(attribute='display_name') | join(', ') }}</div>
+      <div class="agenda-meta">
+        {% if family_size and family_size > 1 and attendees|length >= family_size %}Everyone
+        {% else %}{{ attendees | map(attribute='display_name') | join(', ') }}{% endif %}
+      </div>
       {% if event.location %}<div class="agenda-location">{{ event.location }}</div>{% endif %}
     </div>
   </li>

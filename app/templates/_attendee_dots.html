@@ -1,0 +1,11 @@
+{% macro attendee_dots(attendees, family_size) %}
+{% if family_size and family_size > 1 and attendees|length >= family_size %}
+<span class="attendee-dots"><span class="attendee-all-badge">All</span></span>
+{% else %}
+<span class="attendee-dots">
+  {% for person in attendees %}
+  <span class="attendee-dot" style="background-color: {{ person.color_hex }}"></span>
+  {% endfor %}
+</span>
+{% endif %}
+{% endmacro %}

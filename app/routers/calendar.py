@@ -13,8 +13,6 @@ from app.templating import templates
 
 router = APIRouter()
 
-PIXELS_PER_HOUR = 48
-
 
 def build_month_grid(db: Session, year: int, month: int) -> list[list[dict]]:
     month_calendar = cal.Calendar(firstweekday=6)  # weeks start on Sunday
@@ -91,8 +89,8 @@ def layout_day_blocks(events: list[CalendarEvent], day: date) -> list[dict]:
         blocks.append(
             {
                 "event": event,
-                "top": round(start_minutes / 60 * PIXELS_PER_HOUR, 1),
-                "height": round(duration / 60 * PIXELS_PER_HOUR, 1),
+                "top_hours": round(start_minutes / 60, 3),
+                "height_hours": round(duration / 60, 3),
                 "left_pct": round(col / total_cols * 100, 2),
                 "width_pct": round(100 / total_cols, 2),
             }
@@ -145,7 +143,6 @@ def build_week_view(db: Session, anchor: date) -> dict:
     return {
         "week_days": days,
         "hours": [(h, _hour_label(h)) for h in range(24)],
-        "pixels_per_hour": PIXELS_PER_HOUR,
         "label": label,
     }
 
@@ -169,6 +166,7 @@ def build_view_context(db: Session, view: str, anchor: date) -> dict:
         "month_url": f"/calendar/month?date={focus}",
         "week_url": f"/calendar/week?date={focus}",
         "day_url": f"/calendar/day?date={focus}",
+        "family_size": db.query(User).count(),
     }
 
     if view == "week":

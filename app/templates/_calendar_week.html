@@ -1,3 +1,4 @@
+{% from "_attendee_dots.html" import attendee_dots %}
 {% include "_calendar_tabs.html" %}
 <div class="calendar-header">
   <button hx-get="{{ prev_url }}" hx-target="#calendar-view" hx-swap="innerHTML">&laquo; Prev</button>
@@ -32,11 +33,7 @@
          hx-get="/calendar/events/{{ event.id }}/edit?return_view=week&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">
-        <span class="attendee-dots">
-          {% for person in attendees %}
-          <span class="attendee-dot" style="background-color: {{ person.color_hex }}"></span>
-          {% endfor %}
-        </span>
+        {{ attendee_dots(attendees, family_size) }}
         {{ event.title }}
       </a>
       {% endfor %}
@@ -47,25 +44,21 @@
   <div class="week-body">
     <div class="week-time-col">
       {% for hour, label in hours %}
-      <div class="hour-label" style="height: {{ pixels_per_hour }}px;">{{ label }}</div>
+      <div class="hour-label">{{ label }}</div>
       {% endfor %}
     </div>
     {% for day in week_days %}
-    <div class="week-day-col {% if day.is_today %}today{% endif %}" style="height: {{ pixels_per_hour * 24 }}px;">
-      {% for hour, label in hours %}<div class="hour-row" style="height: {{ pixels_per_hour }}px;"></div>{% endfor %}
+    <div class="week-day-col {% if day.is_today %}today{% endif %}">
+      {% for hour, label in hours %}<div class="hour-row"></div>{% endfor %}
       {% for block in day.blocks %}
       {% set attendees = block.event.attendees if block.event.attendees else [block.event.owner] %}
       <a href="#" class="week-event-block"
-         style="top: {{ block.top }}px; height: {{ block.height }}px; left: {{ block.left_pct }}%; width: calc({{ block.width_pct }}% - 2px); border-left-color: {{ attendees[0].color_hex }};"
+         style="top: calc(var(--hour-h) * {{ block.top_hours }}); height: calc(var(--hour-h) * {{ block.height_hours }}); left: {{ block.left_pct }}%; width: calc({{ block.width_pct }}% - 2px); border-left-color: {{ attendees[0].color_hex }};"
          title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ block.event.title }} ({{ block.event.start_time | fmt_time }}–{{ block.event.end_time | fmt_time }})"
          hx-get="/calendar/events/{{ block.event.id }}/edit?return_view=week&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">
-        <span class="attendee-dots">
-          {% for person in attendees %}
-          <span class="attendee-dot" style="background-color: {{ person.color_hex }}"></span>
-          {% endfor %}
-        </span>
+        {{ attendee_dots(attendees, family_size) }}
         <span class="week-event-title">{{ block.event.title }}</span>
       </a>
       {% endfor %}

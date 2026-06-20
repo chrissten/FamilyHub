@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Calendar - FamilyHub{% endblock %}
+{% block main_class %}container container-wide{% endblock %}
 {% block content %}
 <div x-data="{ modalOpen: false }" @close-modal.window="modalOpen = false">
   <div id="calendar-view">

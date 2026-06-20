@@ -22,6 +22,7 @@ body {
 .topnav .who { padding: 0.15rem 0.6rem; border: 2px solid; border-radius: 999px; font-size: 0.9rem; }
 
 .container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
+.container-wide { max-width: none; width: 100%; padding: 1.25rem 2vw; }
 
 .login-card { max-width: 320px; margin: 4rem auto; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
 .login-card h1 { text-align: center; }
@@ -49,7 +50,7 @@ button[type="button"] { background: #9aa5b1; }
 .month-grid { display: flex; flex-direction: column; gap: 2px; background: #cbd2d9; border: 1px solid #cbd2d9; }
 .weekday-row, .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .weekday { background: #1f2933; color: white; text-align: center; padding: 0.4rem; font-size: 0.8rem; }
-.day-cell { background: white; min-height: 90px; padding: 0.3rem; position: relative; }
+.day-cell { background: white; min-height: max(90px, calc((100vh - 280px) / 6)); padding: 0.3rem; position: relative; }
 .day-cell.out-of-month { background: #f0f2f5; color: #9aa5b1; }
 .day-cell.today { outline: 2px solid #4A90D9; }
 .day-cell-header { display: flex; justify-content: space-between; align-items: center; }
@@ -59,12 +60,15 @@ button[type="button"] { background: #9aa5b1; }
 .event-chip { display: flex; align-items: center; gap: 3px; background: #e4e7eb; color: #1f2933; font-size: 0.75rem; padding: 1px 4px; border-radius: 3px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attendee-dots { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .attendee-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.attendee-all-badge { background: #4A90D9; color: white; font-size: 0.6rem; font-weight: 700; line-height: 1; padding: 1px 4px; border-radius: 3px; letter-spacing: 0.02em; }
 .attendee-checkboxes { display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.75rem; }
 .attendee-checkboxes label.inline { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
 .attendee-checkboxes label.inline input { width: auto; }
+.attendees-label { display: flex; align-items: center; gap: 0.5rem; }
+.link-button { background: none; border: none; color: #4A90D9; padding: 0; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: underline; }
 
 /* Week view */
-.week-grid { border: 1px solid #cbd2d9; background: white; }
+.week-grid { --hour-h: max(40px, calc((100vh - 320px) / 24)); border: 1px solid #cbd2d9; background: white; }
 .week-grid-header, .week-allday-row { display: grid; grid-template-columns: 56px repeat(7, 1fr); border-bottom: 1px solid #cbd2d9; }
 .week-time-col { font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; }
 .week-day-header { text-align: center; padding: 0.4rem 0.2rem; border-left: 1px solid #e4e7eb; font-size: 0.8rem; position: relative; }
@@ -73,10 +77,10 @@ button[type="button"] { background: #9aa5b1; }
 .week-day-header .add-event { position: absolute; top: 2px; right: 6px; }
 .week-allday-cell { border-left: 1px solid #e4e7eb; padding: 2px 4px; display: flex; flex-direction: column; gap: 2px; min-height: 22px; }
 .week-body { display: grid; grid-template-columns: 56px repeat(7, 1fr); position: relative; }
-.hour-label { font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; box-sizing: border-box; border-top: 1px solid #f0f2f5; }
-.week-day-col { position: relative; border-left: 1px solid #e4e7eb; box-sizing: border-box; }
+.hour-label { height: var(--hour-h); font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; box-sizing: border-box; border-top: 1px solid #f0f2f5; }
+.week-day-col { height: calc(var(--hour-h) * 24); position: relative; border-left: 1px solid #e4e7eb; box-sizing: border-box; }
 .week-day-col.today { background: #fafcff; }
-.hour-row { border-top: 1px solid #f0f2f5; box-sizing: border-box; }
+.hour-row { height: var(--hour-h); border-top: 1px solid #f0f2f5; box-sizing: border-box; }
 .week-event-block {
   position: absolute;
   display: flex;
