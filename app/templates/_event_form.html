@@ -1,8 +1,10 @@
 <h2>{{ "Edit event" if event else "New event" }}</h2>
 <form
   hx-post="{{ '/calendar/events/' + event.id|string if event else '/calendar/events' }}"
-  hx-target="#calendar-grid" hx-swap="innerHTML"
+  hx-target="#calendar-view" hx-swap="innerHTML"
   hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">
+  <input type="hidden" name="return_view" value="{{ return_view }}">
+  <input type="hidden" name="return_date" value="{{ return_date }}">
   <label>Title<input type="text" name="title" value="{{ event.title if event else '' }}" required></label>
   <label>Description<textarea name="description">{{ event.description if event else '' }}</textarea></label>
   <label>Location<input type="text" name="location" value="{{ event.location if event else '' }}"></label>
@@ -34,7 +36,7 @@
     {% if event %}
     <button type="button" class="danger"
             hx-post="/calendar/events/{{ event.id }}/delete"
-            hx-target="#calendar-grid" hx-swap="innerHTML"
+            hx-target="#calendar-view" hx-swap="innerHTML"
             hx-on::after-request="window.dispatchEvent(new Event('close-modal'))">Delete</button>
     {% endif %}
   </div>

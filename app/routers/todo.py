@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -9,10 +8,10 @@ from app.list_access import get_visible_list, is_list_visible, visible_lists_que
 from app.models import TodoItem, TodoList, User
 from app.schemas import TodoItemCreate, TodoItemOut, TodoListCreate, TodoListOut
 from app.security import decode_access_token
+from app.templating import templates
 from app.ws_manager import todo_manager
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def render_todo_item(item: TodoItem, oob_mode: str = "none") -> str:

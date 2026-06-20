@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -16,10 +15,10 @@ from app.schemas import (
     ItemOut,
 )
 from app.security import decode_access_token
+from app.templating import templates
 from app.ws_manager import grocery_manager
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def render_item(item: GroceryItem, oob_mode: str = "none") -> str:

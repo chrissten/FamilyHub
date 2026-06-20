@@ -2,18 +2,8 @@
 {% block title %}Calendar - FamilyHub{% endblock %}
 {% block content %}
 <div x-data="{ modalOpen: false }" @close-modal.window="modalOpen = false">
-  <div class="calendar-header">
-    <button
-      hx-get="/calendar/month?year={{ year - 1 if month == 1 else year }}&month={{ 12 if month == 1 else month - 1 }}"
-      hx-target="#calendar-grid" hx-swap="innerHTML">&laquo; Prev</button>
-    <h1>{{ month_name }} {{ year }}</h1>
-    <button
-      hx-get="/calendar/month?year={{ year + 1 if month == 12 else year }}&month={{ 1 if month == 12 else month + 1 }}"
-      hx-target="#calendar-grid" hx-swap="innerHTML">Next &raquo;</button>
-  </div>
-
-  <div id="calendar-grid">
-    {% include "_calendar_month.html" %}
+  <div id="calendar-view">
+    {% include partial %}
   </div>
 
   <div class="modal-backdrop" x-show="modalOpen" x-cloak @click.self="modalOpen = false" style="display: none;">

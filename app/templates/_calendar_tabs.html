@@ -1,0 +1,5 @@
+<div class="view-tabs">
+  <a href="#" class="{% if view == 'month' %}active{% endif %}" hx-get="{{ month_url }}" hx-target="#calendar-view" hx-swap="innerHTML">Month</a>
+  <a href="#" class="{% if view == 'week' %}active{% endif %}" hx-get="{{ week_url }}" hx-target="#calendar-view" hx-swap="innerHTML">Week</a>
+  <a href="#" class="{% if view == 'day' %}active{% endif %}" hx-get="{{ day_url }}" hx-target="#calendar-view" hx-swap="innerHTML">Day</a>
+</div>
