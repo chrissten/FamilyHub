@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 60 * 24 * 30
 
-    admin_username: str = "admin"
+    admin_username: str = "christopher"
     admin_password: str = "change-me"
-    admin_display_name: str = "Admin"
+    admin_display_name: str = "Christopher"
     admin_color: str = "#4A90D9"
 
 
