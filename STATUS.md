@@ -5,7 +5,7 @@ A FastAPI + HTMX + WebSocket family management app, verified locally end-to-end:
 
 - **Auth**: session-cookie login for the web UI, JWT bearer tokens via `POST /api/auth/token` for the future Android app. First user is seeded as admin from `.env` on startup.
 - **Family members**: admin-only `/users` page to add family members with a display name + calendar color.
-- **Calendar**: month-grid view at `/calendar`, color-coded per member, full CRUD via HTMX modal + matching `/api/events`.
+- **Calendar**: Month/Week/Day views at `/calendar` (a unified `?date=` focus carries across views and prev/next/today nav), full CRUD via HTMX modal + matching `/api/events`. Events have separate **attendees** (who's actually going) from the owner (who created it) — month/day views show one colored dot per attendee, week view shows time-blocked, attendee-colored event blocks with a simple greedy overlap layout for same-time events.
 - **Grocery lists**: multiple lists at `/grocery`, each **public** (shared, anyone can edit) or **private** (owner-only). Each list has categories and items. Real-time sync over `/ws/grocery/{list_id}` — verified a public list updates live across sessions, and a private list's WebSocket rejects unauthorized users (403).
 - **To-do lists**: same multi-list/public-private model at `/todo`, but flat checklists (no categories). Real-time over `/ws/todo/{list_id}`, verified the same way.
 - **Persistence**: SQLAlchemy, SQLite locally / Postgres on Railway via `DATABASE_URL`. No Alembic yet — `Base.metadata.create_all()` on startup (deliberate v1 simplification, schema is still small).
@@ -30,8 +30,21 @@ A FastAPI + HTMX + WebSocket family management app, verified locally end-to-end:
 - Verified end-to-end against production: logged in as admin, created a real grocery list, confirmed it round-trips through the live Postgres database.
 - Gotcha hit during setup: the public domain's target port defaulted to 8000 (matching the Dockerfile's `EXPOSE`), but Railway actually auto-assigns its own `PORT` (was `8080`) and the app correctly binds to it (`uvicorn ... --port ${PORT:-8000}`) — caused a transient 502 until the domain's target port was updated to match with `railway domain update ... --port 8080`. If this ever recurs after a redeploy, check `railway logs` for the actual `Uvicorn running on http://0.0.0.0:<port>` line and make sure the domain's target port matches.
 
+## Login fix (2026-06-20)
+Unauthenticated browser page-loads used to show a bare `{"detail":"Not authenticated"}` JSON error instead of the login page. Added a global 401 handler in `app/main.py` that redirects requests with `Accept: text/html` to `/login`, while leaving the JSON 401 unchanged for API/JWT clients (needed for the future Android app). Live and verified.
+
+## Admin identity
+The production admin login is `christopher` / (password set at deploy time) — renamed directly in the production Postgres row from the generic seeded `admin`/`Admin`. Seed defaults in `app/config.py` / `.env.example` now default to `christopher`/`Christopher` too, but that only affects *fresh* installs — seeding never retroactively renames an existing row.
+
+## Cozi migration (2026-06-20)
+Migrated real family data from my.cozi.com into production:
+- **Family members**: created `dominic`, `monica`, `samuel`, `alexander`, `julia` (alongside existing `christopher`/`lindsay`), all sharing Christopher's password for now — recommend each person changes their own password once there's an in-app way to do so.
+- **Calendar**: imported 260 events (May–Sept 2026) from Cozi's calendar, including recurring series (e.g. weekly "Family Game Night") expanded into individual occurrences, and multi-day spans (e.g. vacations) imported as all-day events spanning the correct date range. Attendees mapped from Cozi's per-person household members; events with no specific Cozi attendee (e.g. "Family Movie Night") were assigned to the whole family.
+- **Groceries**: populated the existing public "Weekly Groceries" list with Cozi's 9 categories (Household, Dairy, Fruits & Vegetables, Meat, Baking, Non-Perishable, Snacks, Bread, Trader Joe's) and all 174 items, preserving checked/unchecked status from Cozi.
+- Used the unofficial `py-cozi` PyPI package to call Cozi's REST API (it's a JS SPA, not scrapable via plain HTML fetch) — installed temporarily in the local venv, used via one-off scripts, then uninstalled; no permanent dependency on Cozi was added to the app itself.
+
 ## Next steps when we resume
-Nothing is pending from the feature requests so far — calendar, multi-list grocery, multi-list to-do, public/private visibility, Docker, GitHub, and the live Railway deployment are all done and verified. Possible future asks: add other family members via the **Family** page on the live site, add Alembic migrations once the schema needs to change, or add an in-app password-change feature (currently the only way to change `ADMIN_PASSWORD` is via the Railway env var, which doesn't retroactively update the already-seeded admin row).
+Nothing is pending from the feature requests so far — calendar (month/week/day views + attendees), multi-list grocery, multi-list to-do, public/private visibility, Docker, GitHub, and the live Railway deployment are all done and verified. Possible future asks: add other family members via the **Family** page on the live site (Lindsay/Dominic/Monica only exist in local test data, not yet in production), add Alembic migrations once the schema needs to change, or add an in-app password-change feature (currently the only way to change a password is a direct DB update or the `ADMIN_PASSWORD` env var, which doesn't retroactively update an already-seeded row).
 
 ## Useful references
 - Plan file with full design rationale: `C:\Users\chris\.claude\plans\snuggly-waddling-sparrow.md`

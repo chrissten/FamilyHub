@@ -56,30 +56,37 @@ def _hour_label(hour: int) -> str:
     return f"{hour12} {period}"
 
 
+def _naive(dt: datetime) -> datetime:
+    """Strip tzinfo so comparisons work the same on Postgres (tz-aware) and SQLite (naive)."""
+    return dt.replace(tzinfo=None) if dt.tzinfo is not None else dt
+
+
 def layout_day_blocks(events: list[CalendarEvent], day: date) -> list[dict]:
     """Greedy column layout for overlapping timed events within a single day."""
     day_start = datetime.combine(day, time.min)
     sorted_events = sorted(events, key=lambda e: e.start_time)
 
     columns_end: list[datetime] = []
-    placements: list[tuple[CalendarEvent, int]] = []
+    placements: list[tuple[CalendarEvent, int, datetime, datetime]] = []
     for event in sorted_events:
+        ev_start = _naive(event.start_time)
+        ev_end = _naive(event.end_time)
         placed_col = None
         for idx, col_end in enumerate(columns_end):
-            if event.start_time >= col_end:
-                columns_end[idx] = event.end_time
+            if ev_start >= col_end:
+                columns_end[idx] = ev_end
                 placed_col = idx
                 break
         if placed_col is None:
-            columns_end.append(event.end_time)
+            columns_end.append(ev_end)
             placed_col = len(columns_end) - 1
-        placements.append((event, placed_col))
+        placements.append((event, placed_col, ev_start, ev_end))
 
     total_cols = len(columns_end) or 1
     blocks = []
-    for event, col in placements:
-        start_minutes = max(0.0, (event.start_time - day_start).total_seconds() / 60)
-        end_minutes = min(24 * 60.0, (event.end_time - day_start).total_seconds() / 60)
+    for event, col, ev_start, ev_end in placements:
+        start_minutes = max(0.0, (ev_start - day_start).total_seconds() / 60)
+        end_minutes = min(24 * 60.0, (ev_end - day_start).total_seconds() / 60)
         duration = max(end_minutes - start_minutes, 20.0)
         blocks.append(
             {
@@ -111,7 +118,7 @@ def build_week_view(db: Session, anchor: date) -> dict:
     for day in week_dates:
         day_start = datetime.combine(day, time.min)
         day_end = datetime.combine(day, time.max)
-        day_events = [e for e in events if e.start_time <= day_end and e.end_time >= day_start]
+        day_events = [e for e in events if _naive(e.start_time) <= day_end and _naive(e.end_time) >= day_start]
         days.append(
             {
                 "date": day,
