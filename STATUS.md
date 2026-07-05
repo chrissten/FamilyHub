@@ -43,6 +43,14 @@ Migrated real family data from my.cozi.com into production:
 - **Groceries**: populated the existing public "Weekly Groceries" list with Cozi's 9 categories (Household, Dairy, Fruits & Vegetables, Meat, Baking, Non-Perishable, Snacks, Bread, Trader Joe's) and all 174 items, preserving checked/unchecked status from Cozi.
 - Used the unofficial `py-cozi` PyPI package to call Cozi's REST API (it's a JS SPA, not scrapable via plain HTML fetch) — installed temporarily in the local venv, used via one-off scripts, then uninstalled; no permanent dependency on Cozi was added to the app itself.
 
+## Cozi sync #2 (2026-07-02)
+Re-synced from my.cozi.com into production, future events only (skipped anything with an end time in the past):
+- Pulled every month Jan 2026 – Jun 2027 from Cozi's calendar API (same unofficial `py-cozi` approach as the first migration — installed temporarily, used via a one-off script in the scratchpad, uninstalled after).
+- Deduped against existing rows by exact (title, start_time, end_time) match; inserted 241 new future events, bringing the total from 262 to 503.
+- Included 12 new "Dominic Working" shifts (through 2026-07-19) that were added to Cozi after the first migration's 6/20 export.
+- Did **not** backfill Jan–Apr 2026 (never migrated originally, but all in the past now) or anything already past-due — user explicitly asked for future-only.
+- Flagged during this sync, not yet built: (1) FamilyHub has no native recurring-event concept — Cozi's recurring items (weekly Family Game Night, etc.) are still being expanded into individual one-off rows at sync time, not stored as a series; (2) all-day events already support a start/end *datetime* span in the schema (used for Cozi's multi-day trips), but there's no dedicated start/end **date** UI for creating one — worth adding to the calendar modal.
+
 ## Next steps when we resume
 Nothing is pending from the feature requests so far — calendar (month/week/day views + attendees), multi-list grocery, multi-list to-do, public/private visibility, Docker, GitHub, and the live Railway deployment are all done and verified. Possible future asks: add other family members via the **Family** page on the live site (Lindsay/Dominic/Monica only exist in local test data, not yet in production), add Alembic migrations once the schema needs to change, or add an in-app password-change feature (currently the only way to change a password is a direct DB update or the `ADMIN_PASSWORD` env var, which doesn't retroactively update an already-seeded row).
 

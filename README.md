@@ -35,6 +35,63 @@ JSON endpoints live under `/api/...` (see `/docs` for the interactive OpenAPI sc
 bearer token via `POST /api/auth/token` (OAuth2 password flow) to use the API from a future
 Android client; the same endpoints power the web UI under the hood via cookie session auth.
 
+## Mobile app (Android)
+
+The `mobile/` directory contains a React Native / Expo SDK 56 app that connects to the same JSON API.
+
+### Build a standalone release APK (Windows)
+
+The APK bundles the JS inline so it works without a Metro dev server — install it on any Android device or emulator.
+
+**One-time setup** — run these once after cloning or after reinstalling the Android NDK:
+
+1. Create `mobile/android/local.properties` with your machine-specific paths
+   (this file is gitignored so each developer maintains their own copy):
+
+```properties
+# Redirects build output outside any cloud-synced folder (OneDrive, Dropbox, etc.)
+# Required to prevent Gradle snapshot errors on .so files. Pick any path outside your sync folder.
+android.buildBase=C:/android-build/familyhub
+```
+
+2. Fix NDK `.so` files that Windows extracts as reparse points (causes Gradle snapshot errors):
+
+```powershell
+$ndkLib = "$env:LOCALAPPDATA\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib"
+foreach ($abi in @("aarch64-linux-android","arm-linux-androideabi","i686-linux-android","x86_64-linux-android")) {
+    $p = "$ndkLib\$abi\libc++_shared.so"
+    $b = [System.IO.File]::ReadAllBytes($p)
+    [System.IO.File]::Delete($p)
+    [System.IO.File]::WriteAllBytes($p, $b)
+    Write-Host "Fixed: $abi"
+}
+```
+
+**Build the APK:**
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:GRADLE_USER_HOME = "C:\gradle-home"
+$env:PATH = "C:\Program Files\nodejs;$env:JAVA_HOME\bin;$env:ANDROID_HOME\platform-tools;$env:PATH"
+Set-Location mobile\android
+.\gradlew.bat assembleRelease
+```
+
+The APK is written to `<android.buildBase>\app\outputs\apk\release\app-release.apk`
+(i.e. `C:\android-build\familyhub\...` with the default `local.properties` above).
+
+First build takes ~15 min (compiles native modules). Subsequent builds are ~2–3 min (Gradle cache at `C:\gradle-home`).
+
+### Dev mode (emulator with hot reload)
+
+```powershell
+cd mobile
+npx expo run:android
+```
+
+This starts Metro and builds a debug APK that connects to it automatically.
+
 ## Deploying to Railway
 
 1. Push this repo to GitHub and create a new Railway project from it (Dockerfile is auto-detected).

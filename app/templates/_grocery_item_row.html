@@ -1,6 +1,7 @@
 <li id="item-{{ item.id }}" class="grocery-item {% if item.checked %}checked{% endif %}" x-data="{ editing: false }"
   {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#category-{{ item.category_id }}-items"{% endif %}>
   <div class="item-row" x-show="!editing">
+    <span class="drag-handle">⠿</span>
     <label class="item-label">
       <input type="checkbox" {% if item.checked %}checked{% endif %}
              hx-post="/grocery/items/{{ item.id }}/toggle" hx-target="this" hx-swap="none">

@@ -8,18 +8,61 @@
   </span>
 </h1>
 
-<datalist id="grocery-item-names-{{ grocery_list.id }}">
-  {% for name in item_names %}<option value="{{ name }}"></option>{% endfor %}
-</datalist>
+<div x-data="{ storeMode: false }">
+  <button class="store-mode-btn" :class="{ active: storeMode }" @click="storeMode = !storeMode">Store Mode</button>
 
-<div id="grocery-categories" hx-ext="ws" hx-ws="connect:/ws/grocery/{{ grocery_list.id }}">
-  {% for category in categories %}
-    {% include "_grocery_category.html" %}
-  {% endfor %}
+  <datalist id="grocery-item-names-{{ grocery_list.id }}">
+    {% for name in item_names %}<option value="{{ name }}"></option>{% endfor %}
+  </datalist>
+
+  <div :class="{ 'store-mode': storeMode }">
+    <div id="grocery-categories" hx-ext="ws" hx-ws="connect:/ws/grocery/{{ grocery_list.id }}">
+      {% for category in categories %}
+        {% include "_grocery_category.html" %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <form class="add-category-form" x-show="!storeMode" hx-post="/grocery/lists/{{ grocery_list.id }}/categories" hx-target="this" hx-swap="none" hx-on::after-request="if(event.detail.successful) this.reset()">
+    <input type="text" name="name" placeholder="New category (e.g. Produce)" required>
+    <button type="submit">Add category</button>
+  </form>
 </div>
-
-<form class="add-category-form" hx-post="/grocery/lists/{{ grocery_list.id }}/categories" hx-target="this" hx-swap="none" hx-on::after-request="if(event.detail.successful) this.reset()">
-  <input type="text" name="name" placeholder="New category (e.g. Produce)" required>
-  <button type="submit">Add category</button>
-</form>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<script>
+function initCategorySortable(ul) {
+  if (ul._sortable) return;
+  var catId = ul.dataset.categoryId;
+  ul._sortable = new Sortable(ul, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function() {
+      var ids = Array.from(ul.querySelectorAll(':scope > .grocery-item')).map(function(li) {
+        return parseInt(li.id.replace('item-', ''));
+      });
+      fetch('/grocery/categories/' + catId + '/items/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_ids: ids})
+      });
+    }
+  });
+}
+document.querySelectorAll('.category-items').forEach(initCategorySortable);
+var groceryCategoriesEl = document.getElementById('grocery-categories');
+if (groceryCategoriesEl) {
+  new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(node) {
+        if (node.nodeType !== 1) return;
+        if (node.classList && node.classList.contains('category-items')) initCategorySortable(node);
+        if (node.querySelectorAll) node.querySelectorAll('.category-items').forEach(initCategorySortable);
+      });
+    });
+  }).observe(groceryCategoriesEl, {childList: true, subtree: true});
+}
+</script>
 {% endblock %}

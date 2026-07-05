@@ -5,12 +5,17 @@
 
 <ul class="list-of-lists">
   {% for l in lists %}
-  <li>
+  <li id="todo-list-{{ l.id }}">
     <a href="/todo/lists/{{ l.id }}">{{ l.name }}</a>
     <span class="visibility-badge {{ 'public' if l.is_public else 'private' }}">
       {{ "Shared" if l.is_public else "Private" }}
     </span>
     <span class="item-meta">by {{ l.owner.display_name }}</span>
+    {% if l.owner_id == current_user.id %}
+    <a href="#" class="list-delete" hx-post="/todo/lists/{{ l.id }}/delete"
+       hx-target="#todo-list-{{ l.id }}" hx-swap="outerHTML"
+       hx-confirm="Delete '{{ l.name }}'? This cannot be undone.">&times;</a>
+    {% endif %}
   </li>
   {% else %}
   <li class="empty">No to-do lists yet — create one below.</li>

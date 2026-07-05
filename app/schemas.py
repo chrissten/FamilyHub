@@ -115,6 +115,10 @@ class TodoItemCreate(BaseModel):
     text: str
 
 
+class ReorderPayload(BaseModel):
+    item_ids: list[int]
+
+
 class TodoItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

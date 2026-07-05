@@ -4,9 +4,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.deps import get_current_user
 from app.models import User
 from app.schemas import Token
-from app.security import create_access_token, verify_password
+from app.security import create_access_token, hash_password, verify_password
 from app.templating import templates
 
 router = APIRouter()
@@ -38,6 +39,44 @@ def login_submit(
 def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/profile", response_class=HTMLResponse)
+def profile_page(
+    request: Request,
+    success: bool = False,
+    current_user: User = Depends(get_current_user),
+):
+    return templates.TemplateResponse(
+        request, "profile.html", {"current_user": current_user, "success": success, "error": None}
+    )
+
+
+@router.post("/profile/change-password", response_class=HTMLResponse)
+def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    def error(msg: str):
+        return templates.TemplateResponse(
+            request, "profile.html", {"current_user": current_user, "success": False, "error": msg},
+            status_code=400,
+        )
+
+    if not verify_password(current_password, current_user.password_hash):
+        return error("Current password is incorrect.")
+    if new_password != confirm_password:
+        return error("New passwords do not match.")
+    if len(new_password) < 8:
+        return error("New password must be at least 8 characters.")
+
+    current_user.password_hash = hash_password(new_password)
+    db.commit()
+    return RedirectResponse(url="/profile?success=true", status_code=status.HTTP_302_FOUND)
 
 
 @router.post("/api/auth/token", response_model=Token)

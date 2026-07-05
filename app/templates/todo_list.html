@@ -21,3 +21,27 @@
   </form>
 </section>
 {% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<script>
+var todoList = document.getElementById('todo-items');
+if (todoList) {
+  new Sortable(todoList, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function() {
+      var listId = {{ todo_list.id }};
+      var ids = Array.from(todoList.querySelectorAll(':scope > .grocery-item')).map(function(li) {
+        return parseInt(li.id.replace('todo-item-', ''));
+      });
+      fetch('/todo/lists/' + listId + '/items/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_ids: ids})
+      });
+    }
+  });
+}
+</script>
+{% endblock %}

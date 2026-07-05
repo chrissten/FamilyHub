@@ -15,6 +15,7 @@ from app.schemas import (
     ItemCreate,
     ItemOut,
     ItemUpdate,
+    ReorderPayload,
 )
 from app.security import decode_access_token
 from app.templating import templates
@@ -49,6 +50,18 @@ def item_names_for_list(db: Session, list_id: int) -> list[str]:
         .all()
     )
     return [r[0] for r in rows]
+
+
+def _sort_items_alphabetically(db: Session, category_id: int) -> None:
+    items = (
+        db.query(GroceryItem)
+        .filter(GroceryItem.category_id == category_id)
+        .order_by(func.lower(GroceryItem.name))
+        .all()
+    )
+    for i, item in enumerate(items):
+        item.sort_order = i * 10
+    db.commit()
 
 
 def find_existing_item(db: Session, list_id: int, name: str) -> GroceryItem | None:
@@ -112,6 +125,42 @@ def grocery_list_page(
     )
 
 
+@router.post("/grocery/lists/{list_id}/delete", response_class=HTMLResponse)
+def grocery_delete_list(
+    list_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    grocery_list = db.get(GroceryList, list_id)
+    if not grocery_list:
+        raise HTTPException(status_code=404)
+    if grocery_list.owner_id != current_user.id:
+        raise HTTPException(status_code=403)
+    db.delete(grocery_list)
+    db.commit()
+    return HTMLResponse("")
+
+
+@router.post("/grocery/categories/{category_id}/items/reorder", response_class=HTMLResponse)
+async def grocery_reorder_items(
+    category_id: int,
+    payload: ReorderPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    category = db.get(GroceryCategory, category_id)
+    if not category:
+        raise HTTPException(status_code=404)
+    if not is_list_visible(category.grocery_list, current_user):
+        raise HTTPException(status_code=404)
+    for i, item_id in enumerate(payload.item_ids):
+        item = db.get(GroceryItem, item_id)
+        if item and item.category_id == category_id:
+            item.sort_order = i * 10
+    db.commit()
+    return HTMLResponse("")
+
+
 @router.post("/grocery/lists/{list_id}/categories", response_class=HTMLResponse)
 async def grocery_add_category(
     list_id: int,
@@ -146,13 +195,16 @@ async def grocery_add_item(
 
     existing = find_existing_item(db, list_id, name)
     if existing:
+        existing_cat_id = existing.category_id
         existing.quantity = quantity or existing.quantity
         if existing.checked:
             existing.checked = False
             existing.checked_by_id = None
         db.commit()
-        db.refresh(existing)
-        html = render_item(existing, oob_mode="replace")
+        _sort_items_alphabetically(db, existing_cat_id)
+        existing_cat = db.get(GroceryCategory, existing_cat_id)
+        db.refresh(existing_cat)
+        html = render_category(existing_cat, oob_mode="replace") + render_item_datalist(db, list_id)
         await grocery_manager.broadcast(list_id, html)
         return HTMLResponse(html)
 
@@ -161,9 +213,9 @@ async def grocery_add_item(
     )
     db.add(item)
     db.commit()
-    db.refresh(item)
-
-    html = render_item(item, oob_mode="insert") + render_item_datalist(db, list_id)
+    _sort_items_alphabetically(db, category_id)
+    db.refresh(category)
+    html = render_category(category, oob_mode="replace") + render_item_datalist(db, list_id)
     await grocery_manager.broadcast(list_id, html)
     return HTMLResponse(html)
 

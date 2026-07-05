@@ -73,7 +73,9 @@ class GroceryCategory(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     grocery_list: Mapped["GroceryList"] = relationship(back_populates="categories")
-    items: Mapped[list["GroceryItem"]] = relationship(back_populates="category", cascade="all, delete-orphan")
+    items: Mapped[list["GroceryItem"]] = relationship(
+        back_populates="category", cascade="all, delete-orphan", order_by="GroceryItem.sort_order"
+    )
 
 
 class GroceryItem(Base):
@@ -88,6 +90,8 @@ class GroceryItem(Base):
     checked_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
 
     category: Mapped["GroceryCategory"] = relationship(back_populates="items")
     added_by: Mapped["User"] = relationship(foreign_keys=[added_by_id])

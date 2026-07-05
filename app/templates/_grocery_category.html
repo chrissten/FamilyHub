@@ -1,7 +1,8 @@
 <section class="grocery-category" id="category-{{ category.id }}"
-  {% if oob_mode == "insert" %}hx-swap-oob="beforeend:#grocery-categories"{% endif %}>
+  {% if oob_mode == "insert" %}hx-swap-oob="beforeend:#grocery-categories"
+  {% elif oob_mode == "replace" %}hx-swap-oob="outerHTML"{% endif %}>
   <h2>{{ category.name }}</h2>
-  <ul id="category-{{ category.id }}-items">
+  <ul id="category-{{ category.id }}-items" class="category-items" data-category-id="{{ category.id }}">
     {% for item in category.items %}
       {% include "_grocery_item_row.html" %}
     {% endfor %}

@@ -18,12 +18,13 @@
     <a href="/todo">To-Do</a>
     {% if current_user.is_admin %}<a href="/users">Family</a>{% endif %}
     <span class="spacer"></span>
-    <span class="who" style="border-color: {{ current_user.color_hex }}">{{ current_user.display_name }}</span>
+    <a href="/profile" class="who" style="border-color: {{ current_user.color_hex }}">{{ current_user.display_name }}</a>
     <a href="/logout">Logout</a>
   </nav>
   {% endif %}
   <main class="{% block main_class %}container{% endblock %}">
     {% block content %}{% endblock %}
   </main>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

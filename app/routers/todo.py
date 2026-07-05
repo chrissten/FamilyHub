@@ -6,7 +6,7 @@ from app.database import SessionLocal, get_db
 from app.deps import get_current_user
 from app.list_access import get_visible_list, is_list_visible, visible_lists_query
 from app.models import TodoItem, TodoList, User
-from app.schemas import TodoItemCreate, TodoItemOut, TodoListCreate, TodoListOut
+from app.schemas import ReorderPayload, TodoItemCreate, TodoItemOut, TodoListCreate, TodoListOut
 from app.security import decode_access_token
 from app.templating import templates
 from app.ws_manager import todo_manager
@@ -64,6 +64,22 @@ def todo_list_page(
     )
 
 
+@router.post("/todo/lists/{list_id}/delete", response_class=HTMLResponse)
+def todo_delete_list(
+    list_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    todo_list = db.get(TodoList, list_id)
+    if not todo_list:
+        raise HTTPException(status_code=404)
+    if todo_list.owner_id != current_user.id:
+        raise HTTPException(status_code=403)
+    db.delete(todo_list)
+    db.commit()
+    return HTMLResponse("")
+
+
 @router.post("/todo/lists/{list_id}/items", response_class=HTMLResponse)
 async def todo_add_item(
     list_id: int,
@@ -80,6 +96,22 @@ async def todo_add_item(
     html = render_todo_item(item, oob_mode="insert")
     await todo_manager.broadcast(list_id, html)
     return HTMLResponse(html)
+
+
+@router.post("/todo/lists/{list_id}/items/reorder", response_class=HTMLResponse)
+async def todo_reorder_items(
+    list_id: int,
+    payload: ReorderPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    get_visible_list(db, TodoList, list_id, current_user)
+    for i, item_id in enumerate(payload.item_ids):
+        item = db.get(TodoItem, item_id)
+        if item and item.list_id == list_id:
+            item.sort_order = i * 10
+    db.commit()
+    return HTMLResponse("")
 
 
 def _get_todo_item_and_list(db: Session, item_id: int, current_user: User) -> tuple[TodoItem, int]:
