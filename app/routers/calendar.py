@@ -18,19 +18,27 @@ def build_month_grid(db: Session, year: int, month: int) -> list[list[dict]]:
     month_calendar = cal.Calendar(firstweekday=6)  # weeks start on Sunday
     weeks = month_calendar.monthdatescalendar(year, month)
 
-    range_start = datetime.combine(weeks[0][0], time.min)
-    range_end = datetime.combine(weeks[-1][-1], time.max)
+    grid_start, grid_end = weeks[0][0], weeks[-1][-1]
+    range_start = datetime.combine(grid_start, time.min)
+    range_end = datetime.combine(grid_end, time.max)
 
     events = (
         db.query(CalendarEvent)
-        .filter(CalendarEvent.start_time >= range_start, CalendarEvent.start_time <= range_end)
+        .filter(CalendarEvent.start_time <= range_end, CalendarEvent.end_time >= range_start)
         .order_by(CalendarEvent.start_time)
         .all()
     )
 
     events_by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
-        events_by_day.setdefault(event.start_time.date(), []).append(event)
+        first_day = max(_naive(event.start_time).date(), grid_start)
+        last_day = min(_naive(event.end_time).date(), grid_end)
+        day = first_day
+        while day <= last_day:
+            events_by_day.setdefault(day, []).append(event)
+            day += timedelta(days=1)
+    for day_events in events_by_day.values():
+        day_events.sort(key=lambda e: (not e.all_day, e.start_time))
 
     grid = []
     for week in weeks:
@@ -338,6 +346,7 @@ def calendar_create_event(
     description: str = Form(""),
     location: str = Form(""),
     start_date: str = Form(...),
+    end_date: str = Form(""),
     start_time_str: str = Form("09:00"),
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
@@ -349,8 +358,11 @@ def calendar_create_event(
 ):
     day = date.fromisoformat(start_date)
     if all_day:
+        last_day = date.fromisoformat(end_date) if end_date else day
+        if last_day < day:
+            last_day = day
         start_dt = datetime.combine(day, time.min)
-        end_dt = datetime.combine(day, time.max)
+        end_dt = datetime.combine(last_day, time.max)
     else:
         start_dt = datetime.combine(day, time.fromisoformat(start_time_str))
         end_dt = datetime.combine(day, time.fromisoformat(end_time_str))
@@ -378,6 +390,7 @@ def calendar_update_event(
     description: str = Form(""),
     location: str = Form(""),
     start_date: str = Form(...),
+    end_date: str = Form(""),
     start_time_str: str = Form("09:00"),
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
@@ -393,8 +406,11 @@ def calendar_update_event(
 
     day = date.fromisoformat(start_date)
     if all_day:
+        last_day = date.fromisoformat(end_date) if end_date else day
+        if last_day < day:
+            last_day = day
         start_dt = datetime.combine(day, time.min)
-        end_dt = datetime.combine(day, time.max)
+        end_dt = datetime.combine(last_day, time.max)
     else:
         start_dt = datetime.combine(day, time.fromisoformat(start_time_str))
         end_dt = datetime.combine(day, time.fromisoformat(end_time_str))

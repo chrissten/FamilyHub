@@ -36,6 +36,12 @@ button.danger { background: #d9534f; }
 button[type="button"] { background: #9aa5b1; }
 
 .error { color: #d9534f; }
+.success-msg { color: #2a9d5c; font-weight: 500; }
+.profile-info { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem; font-size: 1rem; }
+.change-password-form { display: flex; flex-direction: column; gap: 0.75rem; max-width: 360px; }
+.change-password-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; font-weight: 500; }
+.change-password-form input { margin: 0; }
+.who { text-decoration: none; }
 
 .member-list { list-style: none; padding: 0; }
 .member-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; }
@@ -58,6 +64,8 @@ button[type="button"] { background: #9aa5b1; }
 .add-event { text-decoration: none; color: #9aa5b1; font-weight: 700; }
 .day-events { display: flex; flex-direction: column; gap: 2px; margin-top: 0.25rem; }
 .event-chip { display: flex; align-items: center; gap: 3px; background: #e4e7eb; color: #1f2933; font-size: 0.75rem; padding: 1px 4px; border-radius: 3px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-chip.continues-before { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -4px; padding-left: 6px; }
+.event-chip.continues-after { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: -4px; padding-right: 6px; }
 .attendee-dots { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .attendee-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .attendee-all-badge { background: #4A90D9; color: white; font-size: 0.6rem; font-weight: 700; line-height: 1; padding: 1px 4px; border-radius: 3px; letter-spacing: 0.02em; }
@@ -117,6 +125,7 @@ button[type="button"] { background: #9aa5b1; }
 .list-of-lists li { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid #e4e7eb; }
 .list-of-lists li.empty { color: #9aa5b1; border-bottom: none; }
 .list-of-lists a { font-weight: 600; text-decoration: none; color: #1f2933; }
+.list-delete { color: #d9534f; text-decoration: none; font-size: 1.1rem; padding: 0 0.25rem; margin-left: auto; font-weight: 400; }
 .visibility-badge { font-size: 0.7rem; padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
 .visibility-badge.public { background: #e3f2e1; color: #2f7a3a; }
 .visibility-badge.private { background: #fde8e8; color: #b13a3a; }
@@ -141,6 +150,14 @@ button[type="button"] { background: #9aa5b1; }
 .add-item-form, .add-category-form { display: flex; gap: 0.5rem; align-items: center; }
 .add-item-form input[type="text"], .add-category-form input[type="text"] { width: auto; flex: 1; margin: 0; }
 .add-item-form .qty { flex: 0 0 70px; }
+.drag-handle { cursor: grab; color: #c1c7cf; padding: 0 0.25rem; font-size: 1.1rem; flex-shrink: 0; user-select: none; }
+.drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: 0.4; background: #e8f0fe; border-radius: 4px; }
+.store-mode-btn { margin-bottom: 1rem; background: #f0f2f5; border: 1.5px solid #c1c7cf; border-radius: 6px; padding: 0.4rem 1rem; font-size: 0.9rem; cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+.store-mode-btn.active { background: #4A90D9; color: white; border-color: #4A90D9; }
+.store-mode .grocery-item.checked { display: none; }
+.store-mode .grocery-category:not(:has(.grocery-item:not(.checked))) { display: none; }
+.store-mode .add-item-form { display: none; }
 
 /* Mobile (vertical) layout */
 @media (max-width: 640px) {
