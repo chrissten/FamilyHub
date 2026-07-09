@@ -1,0 +1,65 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+
+// Redirect subproject build outputs to a machine-local path defined in local.properties
+// (android.buildBase=C:/android-build/familyhub). Needed on machines where the project
+// lives inside a cloud-synced folder (OneDrive etc.) to prevent snapshot errors on .so files.
+def localProps = new Properties()
+def localPropsFile = new File(rootDir, 'local.properties')
+if (localPropsFile.exists()) localProps.load(localPropsFile.newInputStream())
+def buildBase = localProps.getProperty('android.buildBase')
+
+subprojects {
+  if (buildBase) buildDir = "${buildBase}/${project.name}"
+
+  // CMake on Windows creates libc++_shared.so as a symlink to the NDK copy.
+  // Gradle's output snapshot code uses NOFOLLOW_LINKS and rejects non-regular files.
+  // This doLast materializes any .so symlinks/reparse-points into real copies
+  // so the snapshot check succeeds.
+  tasks.whenTaskAdded { task ->
+    if (task.name.startsWith('buildCMake')) {
+      task.doLast {
+        def cxxDir = new File(buildDir.toString(), 'intermediates/cxx')
+        if (cxxDir.exists()) {
+          cxxDir.eachFileRecurse { f ->
+            if (f.name.endsWith('.so')) {
+              def path = f.toPath()
+              if (!java.nio.file.Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                try {
+                  def bytes = java.nio.file.Files.readAllBytes(path)
+                  java.nio.file.Files.delete(path)
+                  java.nio.file.Files.write(path, bytes)
+                  logger.lifecycle("Materialized .so reparse-point: ${f.name}")
+                } catch (Exception e) {
+                  logger.warn("Could not materialize ${f.name}: ${e.message}")
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"

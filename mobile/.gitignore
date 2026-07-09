@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native build output (kept outside OneDrive via android.buildBase in local.properties)
+android/build/
+android/app/build/
+android/.gradle/
+android/local.properties
+
+# Logs
+npm-debug.*
+yarn-error.*
+*.log
+
+# OS
+.DS_Store

@@ -1,0 +1,160 @@
+import * as SecureStore from 'expo-secure-store';
+import type {
+  User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
+  TodoList, TodoItem,
+} from './types';
+
+const DEFAULT_SERVER_URL = 'https://your-server.example.com';
+
+export async function getServerUrl(): Promise<string> {
+  return (await SecureStore.getItemAsync('server_url')) ?? DEFAULT_SERVER_URL;
+}
+
+export async function setServerUrl(url: string): Promise<void> {
+  await SecureStore.setItemAsync('server_url', url.replace(/\/$/, ''));
+}
+
+export async function getToken(): Promise<string | null> {
+  return SecureStore.getItemAsync('auth_token');
+}
+
+export async function saveCredentials(username: string, password: string): Promise<void> {
+  await SecureStore.setItemAsync('saved_credentials', JSON.stringify({ username, password }));
+}
+
+export async function getSavedCredentials(): Promise<{ username: string; password: string } | null> {
+  const raw = await SecureStore.getItemAsync('saved_credentials');
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function clearAuth(): Promise<void> {
+  await Promise.all([
+    SecureStore.deleteItemAsync('auth_token'),
+    SecureStore.deleteItemAsync('saved_credentials'),
+  ]);
+}
+
+async function request<T>(path: string, options: RequestInit = {}, _retry = false): Promise<T> {
+  const [serverUrl, token] = await Promise.all([getServerUrl(), getToken()]);
+  if (!serverUrl) throw new Error('Server URL not configured');
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${serverUrl}${path}`, { ...options, headers });
+
+  if (res.status === 401 && !_retry) {
+    const creds = await getSavedCredentials();
+    if (creds) {
+      try {
+        const url = await getServerUrl();
+        await login(url, creds.username, creds.password);
+        return request<T>(path, options, true);
+      } catch {
+        await SecureStore.deleteItemAsync('auth_token');
+      }
+    }
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${text}`);
+  }
+  if (res.status === 204) return {} as T;
+  return res.json();
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+export async function login(serverUrl: string, username: string, password: string): Promise<void> {
+  await setServerUrl(serverUrl);
+  const body = new URLSearchParams({ username, password });
+  const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  if (!res.ok) throw new Error('Invalid credentials');
+  const data = await res.json();
+  await SecureStore.setItemAsync('auth_token', data.access_token);
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+
+export const getEvents = () =>
+  request<CalendarEvent[]>('/api/events');
+
+export const createEvent = (data: {
+  title: string;
+  description?: string;
+  location?: string;
+  start_time: string;
+  end_time: string;
+  all_day: boolean;
+  attendee_ids?: number[];
+}) => request<CalendarEvent>('/api/events', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateEvent = (id: number, data: {
+  title: string;
+  description?: string;
+  location?: string;
+  start_time: string;
+  end_time: string;
+  all_day: boolean;
+  attendee_ids?: number[];
+}) => request<CalendarEvent>(`/api/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteEvent = (id: number) =>
+  request<{ ok: boolean }>(`/api/events/${id}`, { method: 'DELETE' });
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+export const getUsers = () =>
+  request<User[]>('/api/users');
+
+// ── Grocery ───────────────────────────────────────────────────────────────────
+
+export const getGroceryLists = () =>
+  request<GroceryList[]>('/api/grocery/lists');
+
+export const getGroceryCategories = (listId: number) =>
+  request<GroceryCategory[]>(`/api/grocery/lists/${listId}/categories`);
+
+export const getGroceryItems = (listId: number) =>
+  request<GroceryItem[]>(`/api/grocery/lists/${listId}/items`);
+
+export const addGroceryItem = (
+  listId: number, name: string, categoryId: number, quantity?: string,
+) => request<GroceryItem>(`/api/grocery/lists/${listId}/items`, {
+  method: 'POST',
+  body: JSON.stringify({ name, category_id: categoryId, quantity }),
+});
+
+export const toggleGroceryItem = (itemId: number) =>
+  request<GroceryItem>(`/api/grocery/items/${itemId}/toggle`, { method: 'POST' });
+
+export const deleteGroceryItem = (itemId: number) =>
+  request<{ ok: boolean }>(`/api/grocery/items/${itemId}`, { method: 'DELETE' });
+
+// ── Todo ──────────────────────────────────────────────────────────────────────
+
+export const getTodoLists = () =>
+  request<TodoList[]>('/api/todo/lists');
+
+export const getTodoItems = (listId: number) =>
+  request<TodoItem[]>(`/api/todo/lists/${listId}/items`);
+
+export const addTodoItem = (listId: number, text: string) =>
+  request<TodoItem>(`/api/todo/lists/${listId}/items`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+
+export const toggleTodoItem = (itemId: number) =>
+  request<TodoItem>(`/api/todo/items/${itemId}/toggle`, { method: 'POST' });
+
+export const deleteTodoItem = (itemId: number) =>
+  request<{ ok: boolean }>(`/api/todo/items/${itemId}`, { method: 'DELETE' });
