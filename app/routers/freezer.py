@@ -1,7 +1,7 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -60,7 +60,7 @@ def freezer_create(
     db.add(freezer)
     db.commit()
     db.refresh(freezer)
-    return HTMLResponse(status_code=200, headers={"HX-Redirect": f"/freezer/freezers/{freezer.id}"})
+    return RedirectResponse(url=f"/freezer/freezers/{freezer.id}", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/freezer/freezers/{freezer_id}", response_class=HTMLResponse)
