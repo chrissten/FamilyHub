@@ -1,8 +1,12 @@
+import os
 from datetime import date, datetime, timedelta
 
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
+
+_css_path = os.path.join("app", "static", "css", "app.css")
+templates.env.globals["asset_version"] = str(int(os.path.getmtime(_css_path)))
 
 
 def fmt_time(dt: datetime) -> str:
