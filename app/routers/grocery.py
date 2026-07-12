@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -96,7 +96,7 @@ def grocery_create_list(
     db.add(grocery_list)
     db.commit()
     db.refresh(grocery_list)
-    return HTMLResponse(status_code=200, headers={"HX-Redirect": f"/grocery/lists/{grocery_list.id}"})
+    return RedirectResponse(url=f"/grocery/lists/{grocery_list.id}", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/grocery/lists/{list_id}", response_class=HTMLResponse)

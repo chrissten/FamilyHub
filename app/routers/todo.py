@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
@@ -42,7 +42,7 @@ def todo_create_list(
     db.add(todo_list)
     db.commit()
     db.refresh(todo_list)
-    return HTMLResponse(status_code=200, headers={"HX-Redirect": f"/todo/lists/{todo_list.id}"})
+    return RedirectResponse(url=f"/todo/lists/{todo_list.id}", status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/todo/lists/{list_id}", response_class=HTMLResponse)
