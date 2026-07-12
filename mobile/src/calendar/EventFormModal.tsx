@@ -2,8 +2,14 @@ import { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Modal, ScrollView, Alert,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import type { CalendarEvent, User } from '../api/types';
-import { isoDate } from './dateUtils';
+import { dayLabel, isoDate } from './dateUtils';
+
+function parseIsoDate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 export interface EventFormValues {
   title: string;
@@ -43,6 +49,7 @@ export default function EventFormModal({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set());
+  const [datePickerField, setDatePickerField] = useState<'start' | 'end' | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -70,6 +77,14 @@ export default function EventFormModal({
       setAttendeeIds(new Set());
     }
   }, [visible, event, defaultDate]);
+
+  function handleDateChange(pickerEvent: { type: string }, selected?: Date) {
+    const field = datePickerField;
+    setDatePickerField(null);
+    if (pickerEvent.type === 'dismissed' || !selected || !field) return;
+    const iso = isoDate(selected);
+    if (field === 'start') setDate(iso); else setEndDate(iso);
+  }
 
   function toggleAttendee(id: number) {
     setAttendeeIds(prev => {
@@ -125,15 +140,29 @@ export default function EventFormModal({
 
         <ScrollView keyboardShouldPersistTaps="handled">
           <TextInput style={styles.input} placeholder="Title *" value={title} onChangeText={setTitle} />
-          <TextInput style={styles.input} placeholder="Start date: YYYY-MM-DD *" value={date}
-            onChangeText={setDate} keyboardType="numbers-and-punctuation" />
+          <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('start')}>
+            <Text style={date ? styles.dateValue : styles.datePlaceholder}>
+              {date ? dayLabel(parseIsoDate(date)) : 'Start date *'}
+            </Text>
+          </TouchableOpacity>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>All day</Text>
             <Switch value={allDay} onValueChange={setAllDay} trackColor={{ true: '#4A90D9' }} />
           </View>
           {allDay && (
-            <TextInput style={styles.input} placeholder="End date: YYYY-MM-DD" value={endDate}
-              onChangeText={setEndDate} keyboardType="numbers-and-punctuation" />
+            <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('end')}>
+              <Text style={endDate ? styles.dateValue : styles.datePlaceholder}>
+                {endDate ? dayLabel(parseIsoDate(endDate)) : 'End date'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {datePickerField && (
+            <DateTimePicker
+              value={parseIsoDate((datePickerField === 'start' ? date : endDate) || defaultDate)}
+              mode="date"
+              display="calendar"
+              onChange={handleDateChange}
+            />
           )}
           {!allDay && (
             <View style={styles.timeRow}>
@@ -194,6 +223,8 @@ const styles = StyleSheet.create({
     marginBottom: 12, fontSize: 16, color: '#1a1a1a',
   },
   textarea: { height: 88 },
+  dateValue: { fontSize: 16, color: '#1a1a1a' },
+  datePlaceholder: { fontSize: 16, color: '#999' },
   timeRow: { flexDirection: 'row', gap: 10 },
   timeInput: { flex: 1 },
   row: {

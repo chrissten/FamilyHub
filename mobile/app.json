@@ -2,7 +2,7 @@
   "expo": {
     "name": "FamilyHub",
     "slug": "familyhub-mobile",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -28,7 +28,8 @@
         {
           "color": "#4A90D9"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "web": {
       "bundler": "metro"
