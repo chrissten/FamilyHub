@@ -28,8 +28,17 @@ def localPropsFile = new File(rootDir, 'local.properties')
 if (localPropsFile.exists()) localProps.load(localPropsFile.newInputStream())
 def buildBase = localProps.getProperty('android.buildBase')
 
+// Libraries whose new-architecture JNI codegen gets add_subdirectory'd straight into :app's
+// own CMake build (see generated/autolinking/.../Android-autolinking.cmake) — that generated
+// cmake file hardcodes an absolute path under the library's own node_modules/.../android/build,
+// ignoring any buildDir override, so redirecting these would leave CMake looking in a folder
+// that's never populated. They don't compile their own .so files, so skipping the redirect for
+// them doesn't reintroduce the OneDrive .so symlink problem below. (Only datetimepicker is
+// exempted — async-storage's codegen dir has built fine under the redirect since it was added.)
+def codegenAutolinkedProjects = ['react-native-community_datetimepicker']
+
 subprojects {
-  if (buildBase) buildDir = "${buildBase}/${project.name}"
+  if (buildBase && !codegenAutolinkedProjects.contains(project.name)) buildDir = "${buildBase}/${project.name}"
 
   // CMake on Windows creates libc++_shared.so as a symlink to the NDK copy.
   // Gradle's output snapshot code uses NOFOLLOW_LINKS and rejects non-regular files.

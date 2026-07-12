@@ -9,6 +9,7 @@
     "scheme": "familyhub",
     "android": {
       "package": "com.familyhub.mobile",
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3A7AC8"
