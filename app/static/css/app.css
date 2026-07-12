@@ -137,6 +137,7 @@ button[type="button"] { background: #9aa5b1; }
 .list-of-lists { list-style: none; padding: 0; }
 .list-of-lists li { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid #e4e7eb; }
 .list-of-lists li.empty { color: #9aa5b1; border-bottom: none; }
+p.empty { color: #9aa5b1; }
 .list-of-lists a { font-weight: 600; text-decoration: none; color: #1f2933; }
 .list-delete { color: #d9534f; text-decoration: none; font-size: 1.1rem; padding: 0 0.25rem; margin-left: auto; font-weight: 400; }
 .visibility-badge { font-size: 0.7rem; padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -175,6 +176,8 @@ button[type="button"] { background: #9aa5b1; }
 .store-mode .add-item-form { display: none; }
 
 /* Freezer */
+.freezer-card-header { display: flex; align-items: center; justify-content: space-between; }
+.freezer-card-header h2 { margin: 0; }
 .grocery-item.expired { background: #fde8e8; border-left: 3px solid #b13a3a; padding-left: 0.5rem; }
 .grocery-item.expiring-soon { background: #fff3cd; border-left: 3px solid #8a6d1d; padding-left: 0.5rem; }
 .add-item-form label.inline { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #52606d; }

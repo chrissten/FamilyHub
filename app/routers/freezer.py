@@ -60,26 +60,7 @@ def freezer_create(
     db.add(freezer)
     db.commit()
     db.refresh(freezer)
-    return RedirectResponse(url=f"/freezer/freezers/{freezer.id}", status_code=status.HTTP_302_FOUND)
-
-
-@router.get("/freezer/freezers/{freezer_id}", response_class=HTMLResponse)
-def freezer_detail_page(
-    request: Request,
-    freezer_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    freezer = _get_freezer_or_404(db, freezer_id)
-    items = (
-        db.query(FreezerItem)
-        .filter(FreezerItem.freezer_id == freezer_id)
-        .order_by(FreezerItem.sort_order, FreezerItem.created_at)
-        .all()
-    )
-    return templates.TemplateResponse(
-        request, "freezer_list.html", {"current_user": current_user, "freezer": freezer, "items": items}
-    )
+    return RedirectResponse(url="/freezer", status_code=status.HTTP_302_FOUND)
 
 
 @router.post("/freezer/freezers/{freezer_id}/delete", response_class=HTMLResponse)

@@ -1,0 +1,24 @@
+<section class="grocery-category" id="freezer-{{ freezer.id }}"
+  {% if oob_mode == "insert" %}hx-swap-oob="beforeend:#freezers"
+  {% elif oob_mode == "replace" %}hx-swap-oob="outerHTML"{% endif %}>
+  <div class="freezer-card-header">
+    <h2>{{ freezer.name }}</h2>
+    <a href="#" class="list-delete" hx-post="/freezer/freezers/{{ freezer.id }}/delete"
+       hx-target="#freezer-{{ freezer.id }}" hx-swap="outerHTML"
+       hx-confirm="Delete '{{ freezer.name }}' and everything in it? This cannot be undone.">&times;</a>
+  </div>
+  <ul id="freezer-{{ freezer.id }}-items" class="freezer-items" data-freezer-id="{{ freezer.id }}"
+      hx-ext="ws" hx-ws="connect:/ws/freezer/{{ freezer.id }}">
+    {% for item in freezer.items %}
+      {% include "_freezer_item_row.html" %}
+    {% endfor %}
+  </ul>
+  <form class="add-item-form" hx-post="/freezer/freezers/{{ freezer.id }}/items" hx-target="this" hx-swap="none"
+        hx-on::after-request="if(event.detail.successful) this.reset()">
+    <input type="text" name="name" placeholder="Item" required>
+    <input type="text" name="quantity" placeholder="Qty" class="qty">
+    <label class="inline">Purchased <input type="date" name="date_purchased"></label>
+    <label class="inline">Expires <input type="date" name="expiration_date"></label>
+    <button type="submit">Add</button>
+  </form>
+</section>

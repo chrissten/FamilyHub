@@ -1,5 +1,5 @@
 <li id="freezer-item-{{ item.id }}" class="grocery-item {{ item.expiration_date | expiry_class }}" x-data="{ editing: false }"
-  {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#freezer-items"{% endif %}>
+  {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#freezer-{{ item.freezer_id }}-items"{% endif %}>
   <div class="item-row" x-show="!editing">
     <span class="drag-handle">⠿</span>
     <span class="item-name">{{ item.name }}</span>

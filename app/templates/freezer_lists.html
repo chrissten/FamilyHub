@@ -3,22 +3,54 @@
 {% block content %}
 <h1>Freezer Inventory</h1>
 
-<ul class="list-of-lists">
-  {% for f in freezers %}
-  <li id="freezer-{{ f.id }}">
-    <a href="/freezer/freezers/{{ f.id }}">{{ f.name }}</a>
-    <a href="#" class="list-delete" hx-post="/freezer/freezers/{{ f.id }}/delete"
-       hx-target="#freezer-{{ f.id }}" hx-swap="outerHTML"
-       hx-confirm="Delete '{{ f.name }}' and everything in it? This cannot be undone.">&times;</a>
-  </li>
+<div id="freezers">
+  {% for freezer in freezers %}
+    {% include "_freezer_card.html" %}
   {% else %}
-  <li class="empty">No freezers yet — add one below.</li>
+    <p class="empty">No freezers yet — add one below.</p>
   {% endfor %}
-</ul>
+</div>
 
 <h2>New freezer</h2>
 <form method="post" action="/freezer/freezers" class="new-list-form">
   <label>Name<input type="text" name="name" placeholder="e.g. Garage chest freezer" required></label>
   <button type="submit">Add freezer</button>
 </form>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<script>
+function initFreezerSortable(ul) {
+  if (ul._sortable) return;
+  var freezerId = ul.dataset.freezerId;
+  ul._sortable = new Sortable(ul, {
+    handle: '.drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    onEnd: function() {
+      var ids = Array.from(ul.querySelectorAll(':scope > .grocery-item')).map(function(li) {
+        return parseInt(li.id.replace('freezer-item-', ''));
+      });
+      fetch('/freezer/freezers/' + freezerId + '/items/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({item_ids: ids})
+      });
+    }
+  });
+}
+document.querySelectorAll('.freezer-items').forEach(initFreezerSortable);
+var freezersEl = document.getElementById('freezers');
+if (freezersEl) {
+  new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(node) {
+        if (node.nodeType !== 1) return;
+        if (node.classList && node.classList.contains('freezer-items')) initFreezerSortable(node);
+        if (node.querySelectorAll) node.querySelectorAll('.freezer-items').forEach(initFreezerSortable);
+      });
+    });
+  }).observe(freezersEl, {childList: true, subtree: true});
+}
+</script>
 {% endblock %}
