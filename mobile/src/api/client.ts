@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
-  TodoList, TodoItem,
+  TodoList, TodoItem, Freezer, FreezerItem,
 } from './types';
 
 const DEFAULT_SERVER_URL = 'https://your-server.example.com';
@@ -158,3 +158,36 @@ export const toggleTodoItem = (itemId: number) =>
 
 export const deleteTodoItem = (itemId: number) =>
   request<{ ok: boolean }>(`/api/todo/items/${itemId}`, { method: 'DELETE' });
+
+// ── Freezer ───────────────────────────────────────────────────────────────────
+
+export const getFreezers = () =>
+  request<Freezer[]>('/api/freezer/freezers');
+
+export const getFreezerItems = (freezerId: number) =>
+  request<FreezerItem[]>(`/api/freezer/freezers/${freezerId}/items`);
+
+export const addFreezerItem = (
+  freezerId: number, name: string, quantity?: string, datePurchased?: string, expirationDate?: string,
+) => request<FreezerItem>(`/api/freezer/freezers/${freezerId}/items`, {
+  method: 'POST',
+  body: JSON.stringify({
+    name, quantity: quantity || null,
+    date_purchased: datePurchased || null,
+    expiration_date: expirationDate || null,
+  }),
+});
+
+export const updateFreezerItem = (
+  itemId: number, name: string, quantity?: string, datePurchased?: string, expirationDate?: string,
+) => request<FreezerItem>(`/api/freezer/items/${itemId}`, {
+  method: 'PATCH',
+  body: JSON.stringify({
+    name, quantity: quantity || null,
+    date_purchased: datePurchased || null,
+    expiration_date: expirationDate || null,
+  }),
+});
+
+export const deleteFreezerItem = (itemId: number) =>
+  request<{ ok: boolean }>(`/api/freezer/items/${itemId}`, { method: 'DELETE' });

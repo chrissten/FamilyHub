@@ -26,3 +26,4 @@ class ConnectionManager:
 
 grocery_manager = ConnectionManager()
 todo_manager = ConnectionManager()
+freezer_manager = ConnectionManager()

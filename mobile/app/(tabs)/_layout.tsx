@@ -34,6 +34,10 @@ export default function TabLayout() {
         options={{ title: 'To-Do', tabBarIcon: icon('checkmark-circle-outline') }}
       />
       <Tabs.Screen
+        name="freezer"
+        options={{ title: 'Freezer', tabBarIcon: icon('snow-outline') }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{ title: 'Settings', tabBarIcon: icon('settings-outline') }}
       />

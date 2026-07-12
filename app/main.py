@@ -8,7 +8,7 @@ from app.config import settings
 from sqlalchemy import inspect, text
 
 from app.database import Base, SessionLocal, engine
-from app.routers import auth, calendar, grocery, todo, users
+from app.routers import auth, calendar, freezer, grocery, todo, users
 from app.seed import seed_admin
 
 app = FastAPI(title="FamilyHub")
@@ -28,6 +28,7 @@ app.include_router(users.router)
 app.include_router(calendar.router)
 app.include_router(grocery.router)
 app.include_router(todo.router)
+app.include_router(freezer.router)
 
 
 @app.on_event("startup")

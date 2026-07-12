@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Freezer Inventory - FamilyHub{% endblock %}
+{% block content %}
+<h1>Freezer Inventory</h1>
+
+<ul class="list-of-lists">
+  {% for f in freezers %}
+  <li id="freezer-{{ f.id }}">
+    <a href="/freezer/freezers/{{ f.id }}">{{ f.name }}</a>
+    <a href="#" class="list-delete" hx-post="/freezer/freezers/{{ f.id }}/delete"
+       hx-target="#freezer-{{ f.id }}" hx-swap="outerHTML"
+       hx-confirm="Delete '{{ f.name }}' and everything in it? This cannot be undone.">&times;</a>
+  </li>
+  {% else %}
+  <li class="empty">No freezers yet — add one below.</li>
+  {% endfor %}
+</ul>
+
+<h2>New freezer</h2>
+<form method="post" action="/freezer/freezers" class="new-list-form">
+  <label>Name<input type="text" name="name" placeholder="e.g. Garage chest freezer" required></label>
+  <button type="submit">Add freezer</button>
+</form>
+{% endblock %}

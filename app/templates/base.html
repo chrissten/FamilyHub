@@ -16,6 +16,7 @@
     <a href="/calendar">Calendar</a>
     <a href="/grocery">Grocery</a>
     <a href="/todo">To-Do</a>
+    <a href="/freezer">Freezer</a>
     {% if current_user.is_admin %}<a href="/users">Family</a>{% endif %}
     <span class="spacer"></span>
     <a href="/profile" class="who" style="border-color: {{ current_user.color_hex }}">{{ current_user.display_name }}</a>

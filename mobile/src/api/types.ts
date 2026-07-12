@@ -58,3 +58,18 @@ export interface TodoItem {
   added_by: User;
   checked_by?: User | null;
 }
+
+export interface Freezer {
+  id: number;
+  name: string;
+}
+
+export interface FreezerItem {
+  id: number;
+  name: string;
+  quantity?: string | null;
+  date_purchased?: string | null;
+  expiration_date?: string | null;
+  freezer_id: number;
+  added_by: User;
+}

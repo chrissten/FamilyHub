@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -128,3 +128,40 @@ class TodoItemOut(BaseModel):
     list_id: int
     added_by: UserOut
     checked_by: UserOut | None
+
+
+class FreezerCreate(BaseModel):
+    name: str
+
+
+class FreezerOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
+class FreezerItemCreate(BaseModel):
+    name: str
+    quantity: str | None = None
+    date_purchased: date | None = None
+    expiration_date: date | None = None
+
+
+class FreezerItemUpdate(BaseModel):
+    name: str
+    quantity: str | None = None
+    date_purchased: date | None = None
+    expiration_date: date | None = None
+
+
+class FreezerItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    quantity: str | None
+    date_purchased: date | None
+    expiration_date: date | None
+    freezer_id: int
+    added_by: UserOut
