@@ -117,6 +117,19 @@ button[type="button"] { background: #9aa5b1; }
 .agenda-location { font-size: 0.8rem; color: #52606d; margin-top: 0.15rem; }
 .agenda-empty { color: #9aa5b1; padding: 0.6rem 0; }
 
+/* Agenda (list) view — every day in the month, including empty ones */
+.agenda-days { display: flex; flex-direction: column; }
+.agenda-day { padding: 0.75rem 0; border-bottom: 1px solid #e4e7eb; }
+.agenda-day:last-child { border-bottom: none; }
+.agenda-day.today .agenda-day-weekday,
+.agenda-day.today .agenda-day-date { color: #4A90D9; }
+.agenda-day-header { display: flex; align-items: baseline; justify-content: space-between; }
+.agenda-day-label { display: flex; align-items: baseline; gap: 0.5rem; }
+.agenda-day-weekday { font-weight: 700; color: #1f2933; }
+.agenda-day-date { font-size: 0.85rem; color: #52606d; }
+.agenda-day .agenda-list { margin-top: 0.4rem; }
+.agenda-day-empty { color: #9aa5b1; font-size: 0.85rem; padding: 0.4rem 0 0; font-style: italic; }
+
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
 .modal { background: white; padding: 1.5rem; border-radius: 8px; width: min(360px, 92vw); max-height: 90vh; overflow-y: auto; }
 .form-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
@@ -183,6 +196,7 @@ button[type="button"] { background: #9aa5b1; }
 
   .agenda-time { flex: 0 0 80px; font-size: 0.75rem; }
   .agenda-item { gap: 0.5rem; }
+  .agenda-day { padding: 0.6rem 0; }
 
   .modal { padding: 1rem; }
 }

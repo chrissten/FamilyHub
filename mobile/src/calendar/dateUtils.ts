@@ -1,10 +1,10 @@
 import type { CalendarEvent } from '../api/types';
 
-const MONTH_NAMES = [
+export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function dateOnly(d: Date): Date {
@@ -211,4 +211,48 @@ export function buildDayAgenda(events: CalendarEvent[], day: Date): CalendarEven
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
       return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
     });
+}
+
+export interface AgendaDay {
+  date: Date;
+  isToday: boolean;
+  events: CalendarEvent[];
+}
+
+/** Port of build_agenda_view — every day in the month, including days with no events. */
+export function buildAgendaView(events: CalendarEvent[], year: number, month: number): AgendaDay[] {
+  const firstOfMonth = new Date(year, month, 1);
+  const lastOfMonth = new Date(year, month + 1, 0);
+
+  const eventsByDay = new Map<string, CalendarEvent[]>();
+  for (const e of events) {
+    const eventStart = dateOnly(new Date(e.start_time));
+    const eventEnd = dateOnly(new Date(e.end_time));
+    const firstDay = eventStart.getTime() > firstOfMonth.getTime() ? eventStart : firstOfMonth;
+    const lastDay = eventEnd.getTime() < lastOfMonth.getTime() ? eventEnd : lastOfMonth;
+    for (let day = firstDay; day.getTime() <= lastDay.getTime(); day = addDays(day, 1)) {
+      const key = dayKey(day);
+      const bucket = eventsByDay.get(key);
+      if (bucket) bucket.push(e);
+      else eventsByDay.set(key, [e]);
+    }
+  }
+  for (const dayEvents of eventsByDay.values()) {
+    dayEvents.sort((a, b) => {
+      if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+    });
+  }
+
+  const days: AgendaDay[] = [];
+  let cursor = firstOfMonth;
+  while (cursor.getTime() <= lastOfMonth.getTime()) {
+    days.push({
+      date: cursor,
+      isToday: isToday(cursor),
+      events: eventsByDay.get(dayKey(cursor)) ?? [],
+    });
+    cursor = addDays(cursor, 1);
+  }
+  return days;
 }

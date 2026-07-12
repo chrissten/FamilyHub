@@ -151,6 +151,45 @@ def build_multi_day_view(db: Session, day_dates: list[date]) -> dict:
     }
 
 
+def build_agenda_view(db: Session, year: int, month: int) -> list[dict]:
+    """List every day in the month (including days with no events), Cozi-style."""
+    first_day = date(year, month, 1)
+    last_day = date(year, month, cal.monthrange(year, month)[1])
+    range_start = datetime.combine(first_day, time.min)
+    range_end = datetime.combine(last_day, time.max)
+
+    events = (
+        db.query(CalendarEvent)
+        .filter(CalendarEvent.start_time <= range_end, CalendarEvent.end_time >= range_start)
+        .order_by(CalendarEvent.start_time)
+        .all()
+    )
+
+    events_by_day: dict[date, list[CalendarEvent]] = {}
+    for event in events:
+        first = max(_naive(event.start_time).date(), first_day)
+        last = min(_naive(event.end_time).date(), last_day)
+        day = first
+        while day <= last:
+            events_by_day.setdefault(day, []).append(event)
+            day += timedelta(days=1)
+    for day_events in events_by_day.values():
+        day_events.sort(key=lambda e: (not e.all_day, e.start_time))
+
+    days = []
+    day = first_day
+    while day <= last_day:
+        days.append(
+            {
+                "date": day,
+                "is_today": day == date.today(),
+                "events": events_by_day.get(day, []),
+            }
+        )
+        day += timedelta(days=1)
+    return days
+
+
 def build_week_view(db: Session, anchor: date) -> dict:
     weekday_from_sunday = (anchor.weekday() + 1) % 7
     week_start = anchor - timedelta(days=weekday_from_sunday)
@@ -183,10 +222,23 @@ def build_view_context(db: Session, view: str, anchor: date) -> dict:
         "week_url": f"/calendar/week?date={focus}",
         "three_day_url": f"/calendar/3day?date={focus}",
         "day_url": f"/calendar/day?date={focus}",
+        "agenda_url": f"/calendar/agenda?date={focus}",
         "family_size": db.query(User).count(),
     }
 
-    if view == "week":
+    if view == "agenda":
+        year, month = anchor.year, anchor.month
+        prev_year, prev_month = (year - 1, 12) if month == 1 else (year, month - 1)
+        next_year, next_month = (year + 1, 1) if month == 12 else (year, month + 1)
+        ctx["prev_url"] = f"/calendar/agenda?date={date(prev_year, prev_month, 1).isoformat()}"
+        ctx["next_url"] = f"/calendar/agenda?date={date(next_year, next_month, 1).isoformat()}"
+        ctx["today_url"] = f"/calendar/agenda?date={date.today().isoformat()}"
+        ctx["year"] = year
+        ctx["month"] = month
+        ctx["month_name"] = cal.month_name[month]
+        ctx["days"] = build_agenda_view(db, year, month)
+        ctx["partial"] = "_calendar_agenda.html"
+    elif view == "week":
         ctx["prev_url"] = f"/calendar/week?date={(anchor - timedelta(days=7)).isoformat()}"
         ctx["next_url"] = f"/calendar/week?date={(anchor + timedelta(days=7)).isoformat()}"
         ctx["today_url"] = f"/calendar/week?date={date.today().isoformat()}"
@@ -232,7 +284,7 @@ def calendar_page(
     current_user: User = Depends(get_current_user),
 ):
     anchor = date.fromisoformat(date_param) if date_param else date.today()
-    if view not in {"month", "week", "3day", "day"}:
+    if view not in {"month", "week", "3day", "day", "agenda"}:
         view = "month"
     ctx = build_view_context(db, view, anchor)
     return templates.TemplateResponse(request, "calendar.html", {"current_user": current_user, **ctx})
@@ -279,6 +331,17 @@ def calendar_day_view(
     current_user: User = Depends(get_current_user),
 ):
     ctx = build_view_context(db, "day", date.fromisoformat(date_param))
+    return templates.TemplateResponse(request, ctx["partial"], ctx)
+
+
+@router.get("/calendar/agenda", response_class=HTMLResponse)
+def calendar_agenda_view(
+    request: Request,
+    date_param: str = Query(..., alias="date"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ctx = build_view_context(db, "agenda", date.fromisoformat(date_param))
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 

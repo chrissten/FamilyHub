@@ -1,0 +1,55 @@
+{% from "_attendee_dots.html" import attendee_dots %}
+{% include "_calendar_tabs.html" %}
+<div class="calendar-header">
+  <button hx-get="{{ prev_url }}" hx-target="#calendar-view" hx-swap="innerHTML">&laquo; Prev</button>
+  <h2>{{ month_name }} {{ year }}</h2>
+  <button hx-get="{{ today_url }}" hx-target="#calendar-view" hx-swap="innerHTML">Today</button>
+  <button hx-get="{{ next_url }}" hx-target="#calendar-view" hx-swap="innerHTML">Next &raquo;</button>
+</div>
+
+<div class="agenda-days">
+  {% for day in days %}
+  <div class="agenda-day {% if day.is_today %}today{% endif %}">
+    <div class="agenda-day-header">
+      <div class="agenda-day-label">
+        <span class="agenda-day-weekday">{{ day.date.strftime('%A') }}</span>
+        <span class="agenda-day-date">{{ day.date.strftime('%b') }} {{ day.date.day }}</span>
+      </div>
+      <a href="#" class="add-event"
+         hx-get="/calendar/new?date_str={{ day.date.isoformat() }}&return_view=agenda&return_date={{ focus_date }}"
+         hx-target="#modal-content" hx-swap="innerHTML"
+         @click="modalOpen = true">+</a>
+    </div>
+    {% if day.events %}
+    <ul class="agenda-list">
+      {% for event in day.events %}
+      {% set attendees = event.attendees if event.attendees else [event.owner] %}
+      <li class="agenda-item">
+        <div class="agenda-time">
+          {% if event.all_day %}
+            All day{% if event.end_time.date() > event.start_time.date() %} ({{ event.start_time.month }}/{{ event.start_time.day }}–{{ event.end_time.month }}/{{ event.end_time.day }}){% endif %}
+          {% else %}{{ event.start_time | fmt_time }} – {{ event.end_time | fmt_time }}{% endif %}
+        </div>
+        <div class="agenda-body">
+          <a href="#" class="agenda-title"
+             hx-get="/calendar/events/{{ event.id }}/edit?return_view=agenda&return_date={{ focus_date }}"
+             hx-target="#modal-content" hx-swap="innerHTML"
+             @click="modalOpen = true">
+            {{ attendee_dots(attendees, family_size) }}
+            {{ event.title }}
+          </a>
+          <div class="agenda-meta">
+            {% if family_size and family_size > 1 and attendees|length >= family_size %}Everyone
+            {% else %}{{ attendees | map(attribute='display_name') | join(', ') }}{% endif %}
+          </div>
+          {% if event.location %}<div class="agenda-location">{{ event.location }}</div>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="agenda-day-empty">Nothing scheduled</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

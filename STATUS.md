@@ -51,6 +51,12 @@ Re-synced from my.cozi.com into production, future events only (skipped anything
 - Did **not** backfill Jan–Apr 2026 (never migrated originally, but all in the past now) or anything already past-due — user explicitly asked for future-only.
 - Flagged during this sync, not yet built: (1) FamilyHub has no native recurring-event concept — Cozi's recurring items (weekly Family Game Night, etc.) are still being expanded into individual one-off rows at sync time, not stored as a series; (2) all-day events already support a start/end *datetime* span in the schema (used for Cozi's multi-day trips), but there's no dedicated start/end **date** UI for creating one — worth adding to the calendar modal.
 
+## Cozi sync #3 (2026-07-12)
+Re-synced from my.cozi.com into production again, same approach and scope as sync #2 (future events only, Jan 2026 – Jun 2027 pulled, deduped by exact `(title, start_time, end_time)`):
+- Installed `py-cozi` temporarily into the local venv, ran a one-off script from the scratchpad, uninstalled it after. No permanent Cozi dependency or stored credentials were added — `COZI_USERNAME`/`COZI_PASSWORD` were added to the local `.env` (gitignored) for this run only; consider removing them if not doing another sync soon.
+- Inserted 41 new future events (511 → 552 total), including newly-added items like "Fall Break", "HOLY CROSS RETREAT", "WGU graduation in Seattle", and several "Teacher training" days — all added to Cozi since the 2026-07-02 sync.
+- Also carried over `notes` from Cozi appointment details into the FamilyHub event's `description` field where present (small gap noticed vs. prior syncs — 2 items in the full Jan 2026 range had notes; unclear whether syncs #1/#2 captured this).
+
 ## Next steps when we resume
 Nothing is pending from the feature requests so far — calendar (month/week/day views + attendees), multi-list grocery, multi-list to-do, public/private visibility, Docker, GitHub, and the live Railway deployment are all done and verified. Possible future asks: add other family members via the **Family** page on the live site (Lindsay/Dominic/Monica only exist in local test data, not yet in production), add Alembic migrations once the schema needs to change, or add an in-app password-change feature (currently the only way to change a password is a direct DB update or the `ADMIN_PASSWORD` env var, which doesn't retroactively update an already-seeded row).
 

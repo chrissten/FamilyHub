@@ -6,20 +6,22 @@ import {
 } from '../../src/api/client';
 import type { CalendarEvent, User } from '../../src/api/types';
 import {
-  addDays, buildDayAgenda, buildMonthGrid, buildMultiDayView, dayLabel, isoDate,
+  addDays, buildAgendaView, buildDayAgenda, buildMonthGrid, buildMultiDayView, dayLabel, isoDate,
   monthLabel, rangeLabel, startOfWeek,
 } from '../../src/calendar/dateUtils';
 import MonthView from '../../src/calendar/MonthView';
 import TimelineView from '../../src/calendar/TimelineView';
 import DayAgenda from '../../src/calendar/DayAgenda';
+import AgendaView from '../../src/calendar/AgendaView';
 import EventFormModal, { type EventFormValues } from '../../src/calendar/EventFormModal';
 
-type ViewKind = 'month' | 'week' | '3day' | 'day';
+type ViewKind = 'month' | 'week' | '3day' | 'day' | 'agenda';
 const VIEWS: { key: ViewKind; label: string }[] = [
   { key: 'month', label: 'Month' },
   { key: 'week', label: 'Week' },
   { key: '3day', label: '3 Day' },
   { key: 'day', label: 'Day' },
+  { key: 'agenda', label: 'Agenda' },
 ];
 
 export default function CalendarScreen() {
@@ -91,7 +93,7 @@ export default function CalendarScreen() {
 
   function step(direction: -1 | 1) {
     setAnchor(prev => {
-      if (view === 'month') return new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
+      if (view === 'month' || view === 'agenda') return new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
       if (view === 'week') return addDays(prev, 7 * direction);
       if (view === '3day') return addDays(prev, 3 * direction);
       return addDays(prev, direction);
@@ -146,7 +148,7 @@ export default function CalendarScreen() {
         onAddEvent={openCreate} onEditEvent={openEdit}
       />
     );
-  } else {
+  } else if (view === 'day') {
     headerLabel = dayLabel(anchor);
     const agenda = buildDayAgenda(events, anchor);
     body = (
@@ -156,6 +158,20 @@ export default function CalendarScreen() {
         refreshing={refreshing}
         onRefresh={load}
         onAddEvent={() => openCreate(anchor)}
+        onEditEvent={openEdit}
+        onDeleteEvent={handleDelete}
+      />
+    );
+  } else {
+    headerLabel = monthLabel(anchor.getFullYear(), anchor.getMonth());
+    const days = buildAgendaView(events, anchor.getFullYear(), anchor.getMonth());
+    body = (
+      <AgendaView
+        days={days}
+        familySize={familySize}
+        refreshing={refreshing}
+        onRefresh={load}
+        onAddEvent={openCreate}
         onEditEvent={openEdit}
         onDeleteEvent={handleDelete}
       />
