@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
@@ -26,6 +27,18 @@ export default function AgendaView({
   days, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
 }: Props) {
   const timeFormat = useTimeFormat();
+  const listRef = useRef<FlatList<AgendaDay>>(null);
+  const monthKey = days[0] ? `${days[0].date.getFullYear()}-${days[0].date.getMonth()}` : '';
+
+  useEffect(() => {
+    const todayIndex = days.findIndex(d => d.isToday);
+    if (todayIndex <= 0) return;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({ index: todayIndex, animated: false, viewPosition: 0 });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthKey]);
+
   function confirmDelete(event: CalendarEvent) {
     Alert.alert('Delete Event', `Delete "${event.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -35,9 +48,17 @@ export default function AgendaView({
 
   return (
     <FlatList
+      ref={listRef}
       data={days}
       keyExtractor={item => item.date.toISOString()}
       contentContainerStyle={styles.list}
+      initialNumToRender={days.length}
+      onScrollToIndexFailed={info => {
+        listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+        setTimeout(() => {
+          listRef.current?.scrollToIndex({ index: info.index, animated: false, viewPosition: 0 });
+        }, 100);
+      }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       renderItem={({ item: day }) => (
         <View style={styles.day}>

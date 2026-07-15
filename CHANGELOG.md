@@ -14,11 +14,15 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
-_None currently known._ When you spot a capability that exists on one platform but not
-the other, add it here with a short note, and remove it once fixed (cross-reference the
-changelog entry that closed it).
+- **Agenda view doesn't scroll to today on web.** Mobile's Agenda tab now opens scrolled
+  to today (2026-07-15, v1.0.9 below); `_calendar_agenda.html` still renders starting at
+  the 1st of the month with no auto-scroll to `.agenda-day.today`. Not fixed here since it
+  wasn't asked for — flagging so it isn't rediscovered by accident.
 
 ## History (newest first)
+
+### 2026-07-15 (2)
+- **[mobile]** v1.0.9 — Agenda view now opens scrolled to today instead of the 1st of the month. `AgendaView` scrolls its `FlatList` to today's row on mount/month-change (not on every pull-to-refresh, so a manual scroll position isn't stolen back). No web equivalent gap — the web agenda view isn't in scope here.
 
 ### 2026-07-15
 - **[mobile]** v1.0.8 — Fix event times displaying shifted from what was entered (e.g. a 2:30 PM event showing as 9:30 AM). The backend and the web app store/render event times as plain wall-clock values with no real timezone conversion, but the mobile app's display code (`fmtTime`, month/week/day/agenda views, the event form) parsed timestamps with `new Date(iso)`, which reinterprets the digits as a true UTC instant and re-applies the device's real offset. Added `parseEventDate()` in `dateUtils.ts` to extract the wall-clock components directly instead, and switched every event-time read site to use it — fixes display for events regardless of whether they were created on web or mobile, without any backend or data changes.
