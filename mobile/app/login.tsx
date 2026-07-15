@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Switch,
@@ -6,9 +6,12 @@ import {
 import { useRouter } from 'expo-router';
 import { login, getServerUrl, getSavedCredentials, saveCredentials } from '../src/api/client';
 import { ensureDefaultNotifPrefs } from '../src/notifications';
+import { useTheme, type Colors } from '../src/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [serverUrl, setServerUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -60,7 +63,7 @@ export default function LoginScreen() {
         autoCapitalize="none"
         keyboardType="url"
         returnKeyType="next"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={colors.placeholder}
       />
       <TextInput
         style={styles.input}
@@ -69,7 +72,7 @@ export default function LoginScreen() {
         onChangeText={setUsername}
         autoCapitalize="none"
         returnKeyType="next"
-        placeholderTextColor="#aaa"
+        placeholderTextColor={colors.placeholder}
       />
       <TextInput
         style={styles.input}
@@ -79,14 +82,14 @@ export default function LoginScreen() {
         secureTextEntry
         returnKeyType="go"
         onSubmitEditing={handleLogin}
-        placeholderTextColor="#aaa"
+        placeholderTextColor={colors.placeholder}
       />
       <View style={styles.rememberRow}>
         <Text style={styles.rememberLabel}>Remember me</Text>
         <Switch
           value={rememberMe}
           onValueChange={setRememberMe}
-          trackColor={{ false: '#e0e0e0', true: '#4A90D9' }}
+          trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor="#fff"
         />
       </View>
@@ -100,26 +103,28 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1, padding: 28, justifyContent: 'center', backgroundColor: '#f5f5f5',
-  },
-  title: {
-    fontSize: 34, fontWeight: '700', color: '#4A90D9',
-    marginBottom: 36, textAlign: 'center', letterSpacing: -0.5,
-  },
-  input: {
-    backgroundColor: '#fff', borderRadius: 10, padding: 14,
-    marginBottom: 12, fontSize: 16, borderWidth: 1, borderColor: '#e0e0e0', color: '#222',
-  },
-  rememberRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 4, marginBottom: 16,
-  },
-  rememberLabel: { fontSize: 16, color: '#444' },
-  button: {
-    backgroundColor: '#4A90D9', borderRadius: 10, padding: 16,
-    alignItems: 'center', marginTop: 8,
-  },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1, padding: 28, justifyContent: 'center', backgroundColor: colors.background,
+    },
+    title: {
+      fontSize: 34, fontWeight: '700', color: colors.primary,
+      marginBottom: 36, textAlign: 'center', letterSpacing: -0.5,
+    },
+    input: {
+      backgroundColor: colors.surface, borderRadius: 10, padding: 14,
+      marginBottom: 12, fontSize: 16, borderWidth: 1, borderColor: colors.border, color: colors.text,
+    },
+    rememberRow: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingHorizontal: 4, marginBottom: 16,
+    },
+    rememberLabel: { fontSize: 16, color: colors.textMuted },
+    button: {
+      backgroundColor: colors.primary, borderRadius: 10, padding: 16,
+      alignItems: 'center', marginTop: 8,
+    },
+    buttonText: { color: colors.primaryText, fontSize: 16, fontWeight: '600' },
+  });
+}

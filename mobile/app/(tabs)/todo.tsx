@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   RefreshControl, Alert, TextInput,
@@ -6,8 +6,11 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { getTodoLists, getTodoItems, addTodoItem, toggleTodoItem, deleteTodoItem } from '../../src/api/client';
 import type { TodoList, TodoItem } from '../../src/api/types';
+import { useTheme, type Colors } from '../../src/theme';
 
 export default function TodoScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [lists, setLists] = useState<TodoList[]>([]);
   const [selectedList, setSelectedList] = useState<TodoList | null>(null);
   const [items, setItems] = useState<TodoItem[]>([]);
@@ -139,6 +142,7 @@ export default function TodoScreen() {
             onChangeText={setNewItem}
             returnKeyType="done"
             onSubmitEditing={handleAdd}
+            placeholderTextColor={colors.placeholder}
           />
           <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
             <Text style={styles.addBtnText}>Add</Text>
@@ -149,50 +153,52 @@ export default function TodoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  tabs: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#e8e8e8',
-  },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#4A90D9' },
-  tabText: { color: '#999', fontSize: 14 },
-  tabTextActive: { color: '#4A90D9', fontWeight: '600' },
-  sectionDivider: {
-    fontSize: 11, fontWeight: '700', color: '#999',
-    textTransform: 'uppercase', letterSpacing: 0.8,
-    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6,
-    backgroundColor: '#f5f5f5',
-  },
-  item: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    paddingHorizontal: 16, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  check: {
-    width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, borderColor: '#ccc',
-    justifyContent: 'center', alignItems: 'center', marginRight: 14,
-  },
-  checkDone: { backgroundColor: '#4A90D9', borderColor: '#4A90D9' },
-  checkMark: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  itemText: { flex: 1, fontSize: 16, color: '#1a1a1a' },
-  itemDone: { color: '#c0c0c0', textDecorationLine: 'line-through' },
-  empty: { textAlign: 'center', color: '#bbb', marginTop: 80, fontSize: 15 },
-  addBar: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: '#e0e0e0',
-    padding: 8, gap: 6,
-  },
-  addInput: {
-    flex: 1, backgroundColor: '#f5f5f5', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 15,
-  },
-  addBtn: {
-    backgroundColor: '#4A90D9', borderRadius: 8,
-    paddingHorizontal: 16, justifyContent: 'center',
-  },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    tabs: {
+      flexDirection: 'row', backgroundColor: colors.surface,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
+    tabText: { color: colors.textFaint, fontSize: 14 },
+    tabTextActive: { color: colors.primary, fontWeight: '600' },
+    sectionDivider: {
+      fontSize: 11, fontWeight: '700', color: colors.textFaint,
+      textTransform: 'uppercase', letterSpacing: 0.8,
+      paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6,
+      backgroundColor: colors.background,
+    },
+    item: {
+      flexDirection: 'row', backgroundColor: colors.surface,
+      paddingHorizontal: 16, paddingVertical: 15,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+      alignItems: 'center',
+    },
+    check: {
+      width: 22, height: 22, borderRadius: 11,
+      borderWidth: 2, borderColor: colors.border,
+      justifyContent: 'center', alignItems: 'center', marginRight: 14,
+    },
+    checkDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+    checkMark: { color: '#fff', fontSize: 12, fontWeight: '700' },
+    itemText: { flex: 1, fontSize: 16, color: colors.text },
+    itemDone: { color: colors.placeholder, textDecorationLine: 'line-through' },
+    empty: { textAlign: 'center', color: colors.placeholder, marginTop: 80, fontSize: 15 },
+    addBar: {
+      flexDirection: 'row', backgroundColor: colors.surface,
+      borderTopWidth: 1, borderTopColor: colors.border,
+      padding: 8, gap: 6,
+    },
+    addInput: {
+      flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: 8,
+      paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: colors.text,
+    },
+    addBtn: {
+      backgroundColor: colors.primary, borderRadius: 8,
+      paddingHorizontal: 16, justifyContent: 'center',
+    },
+    addBtnText: { color: colors.primaryText, fontWeight: '700', fontSize: 15 },
+  });
+}

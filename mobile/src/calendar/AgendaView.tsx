@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
 import { AgendaDay, MONTH_NAMES, WEEKDAY_NAMES, dateOnly, fmtTime, parseEventDate } from './dateUtils';
 import { useTimeFormat } from '../preferences';
+import { useTheme, type Colors } from '../theme';
 
 function allDaySuffix(event: CalendarEvent): string {
   const start = dateOnly(parseEventDate(event.start_time));
@@ -27,6 +28,8 @@ export default function AgendaView({
   days, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
 }: Props) {
   const timeFormat = useTimeFormat();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const listRef = useRef<FlatList<AgendaDay>>(null);
   const monthKey = days[0] ? `${days[0].date.getFullYear()}-${days[0].date.getMonth()}` : '';
 
@@ -114,26 +117,28 @@ export default function AgendaView({
   );
 }
 
-const styles = StyleSheet.create({
-  list: { padding: 12, paddingBottom: 80 },
-  day: { marginBottom: 14 },
-  dayHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 },
-  dayLabel: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
-  dayWeekday: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
-  dayDate: { fontSize: 13, color: '#666' },
-  dayToday: { color: '#4A90D9' },
-  addLink: { color: '#4A90D9', fontWeight: '700', fontSize: 16, paddingHorizontal: 6 },
-  empty: { color: '#bbb', fontSize: 13, fontStyle: 'italic' },
-  card: {
-    flexDirection: 'row', backgroundColor: '#fff', borderRadius: 10,
-    marginBottom: 8, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
-  },
-  accent: { width: 5 },
-  cardBody: { flex: 1, padding: 12 },
-  cardTime: { fontSize: 13, color: '#4A90D9' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
-  cardMeta: { fontSize: 12, color: '#888', marginTop: 3 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    list: { padding: 12, paddingBottom: 80 },
+    day: { marginBottom: 14 },
+    dayHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 },
+    dayLabel: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+    dayWeekday: { fontSize: 15, fontWeight: '700', color: colors.text },
+    dayDate: { fontSize: 13, color: colors.textMuted },
+    dayToday: { color: colors.primary },
+    addLink: { color: colors.primary, fontWeight: '700', fontSize: 16, paddingHorizontal: 6 },
+    empty: { color: colors.placeholder, fontSize: 13, fontStyle: 'italic' },
+    card: {
+      flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 10,
+      marginBottom: 8, overflow: 'hidden',
+      shadowColor: colors.shadow, shadowOpacity: 0.06, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    },
+    accent: { width: 5 },
+    cardBody: { flex: 1, padding: 12 },
+    cardTime: { fontSize: 13, color: colors.primary },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+    cardTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+    cardMeta: { fontSize: 12, color: colors.textFaint, marginTop: 3 },
+  });
+}

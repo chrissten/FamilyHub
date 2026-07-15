@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
 import { dateOnly, fmtTime, parseEventDate } from './dateUtils';
 import { useTimeFormat } from '../preferences';
+import { useTheme, type Colors } from '../theme';
 
 function allDaySuffix(event: CalendarEvent): string {
   const start = dateOnly(parseEventDate(event.start_time));
@@ -26,6 +28,8 @@ export default function DayAgenda({
   events, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
 }: Props) {
   const timeFormat = useTimeFormat();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   function confirmDelete(event: CalendarEvent) {
     Alert.alert('Delete Event', `Delete "${event.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -76,22 +80,24 @@ export default function DayAgenda({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  addLink: { paddingHorizontal: 16, paddingVertical: 10 },
-  addLinkText: { color: '#4A90D9', fontWeight: '600', fontSize: 14 },
-  list: { padding: 12, paddingBottom: 80 },
-  card: {
-    flexDirection: 'row', backgroundColor: '#fff', borderRadius: 10,
-    marginBottom: 8, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 }, elevation: 2,
-  },
-  accent: { width: 5 },
-  cardBody: { flex: 1, padding: 12 },
-  cardTime: { fontSize: 13, color: '#4A90D9' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
-  cardMeta: { fontSize: 12, color: '#888', marginTop: 3 },
-  empty: { textAlign: 'center', color: '#bbb', marginTop: 80, fontSize: 16 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    addLink: { paddingHorizontal: 16, paddingVertical: 10 },
+    addLinkText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
+    list: { padding: 12, paddingBottom: 80 },
+    card: {
+      flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 10,
+      marginBottom: 8, overflow: 'hidden',
+      shadowColor: colors.shadow, shadowOpacity: 0.06, shadowRadius: 4,
+      shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    },
+    accent: { width: 5 },
+    cardBody: { flex: 1, padding: 12 },
+    cardTime: { fontSize: 13, color: colors.primary },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+    cardTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+    cardMeta: { fontSize: 12, color: colors.textFaint, marginTop: 3 },
+    empty: { textAlign: 'center', color: colors.placeholder, marginTop: 80, fontSize: 16 },
+  });
+}

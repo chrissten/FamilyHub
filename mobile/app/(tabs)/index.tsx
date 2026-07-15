@@ -1,8 +1,8 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
-  getEvents, getUsers, createEvent, updateEvent, deleteEvent,
+  getEvents, getUsers, deleteEvent,
 } from '../../src/api/client';
 import type { CalendarEvent, User } from '../../src/api/types';
 import {
@@ -13,7 +13,8 @@ import MonthView from '../../src/calendar/MonthView';
 import TimelineView from '../../src/calendar/TimelineView';
 import DayAgenda from '../../src/calendar/DayAgenda';
 import AgendaView from '../../src/calendar/AgendaView';
-import EventFormModal, { type EventFormValues } from '../../src/calendar/EventFormModal';
+import { setPendingEventForm } from '../../src/calendar/formState';
+import { useTheme, type Colors } from '../../src/theme';
 
 type ViewKind = 'month' | 'week' | '3day' | 'day' | 'agenda';
 const VIEWS: { key: ViewKind; label: string }[] = [
@@ -25,16 +26,14 @@ const VIEWS: { key: ViewKind; label: string }[] = [
 ];
 
 export default function CalendarScreen() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [view, setView] = useState<ViewKind>('month');
   const [anchor, setAnchor] = useState(() => new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalEvent, setModalEvent] = useState<CalendarEvent | null>(null);
-  const [modalDefaultDate, setModalDefaultDate] = useState('');
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
@@ -52,40 +51,19 @@ export default function CalendarScreen() {
   }
 
   function openCreate(date: Date) {
-    setModalEvent(null);
-    setModalDefaultDate(isoDate(date));
-    setModalVisible(true);
+    setPendingEventForm({ event: null, defaultDate: isoDate(date), members });
+    router.push('/event-form');
   }
 
   function openEdit(event: CalendarEvent) {
-    setModalEvent(event);
-    setModalDefaultDate('');
-    setModalVisible(true);
-  }
-
-  async function handleSave(values: EventFormValues) {
-    setSaving(true);
-    try {
-      if (modalEvent) {
-        const updated = await updateEvent(modalEvent.id, values);
-        setEvents(prev => prev.map(e => (e.id === updated.id ? updated : e)));
-      } else {
-        const created = await createEvent(values);
-        setEvents(prev => [...prev, created]);
-      }
-      setModalVisible(false);
-    } catch {
-      Alert.alert('Error', 'Could not save event');
-    } finally {
-      setSaving(false);
-    }
+    setPendingEventForm({ event, defaultDate: '', members });
+    router.push('/event-form');
   }
 
   async function handleDelete(event: CalendarEvent) {
     try {
       await deleteEvent(event.id);
       setEvents(prev => prev.filter(e => e.id !== event.id));
-      setModalVisible(false);
     } catch {
       Alert.alert('Error', 'Could not delete event');
     }
@@ -209,43 +187,34 @@ export default function CalendarScreen() {
       <TouchableOpacity style={styles.fab} onPress={() => openCreate(anchor)}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
-
-      <EventFormModal
-        visible={modalVisible}
-        event={modalEvent}
-        defaultDate={modalDefaultDate}
-        members={members}
-        saving={saving}
-        onClose={() => setModalVisible(false)}
-        onSave={handleSave}
-        onDelete={handleDelete}
-      />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  tabs: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#e8e8e8',
-  },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#4A90D9' },
-  tabText: { color: '#999', fontSize: 13 },
-  tabTextActive: { color: '#4A90D9', fontWeight: '600' },
-  navRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 10,
-    borderBottomWidth: 1, borderBottomColor: '#e8e8e8',
-  },
-  navBtn: { color: '#4A90D9', fontSize: 14, fontWeight: '600' },
-  navLabel: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '700', color: '#1a1a1a', marginHorizontal: 8 },
-  fab: {
-    position: 'absolute', right: 20, bottom: 20,
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: '#4A90D9', justifyContent: 'center', alignItems: 'center',
-    elevation: 5, shadowColor: '#4A90D9', shadowOpacity: 0.4, shadowRadius: 8,
-  },
-  fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    tabs: {
+      flexDirection: 'row', backgroundColor: colors.surface,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
+    tabText: { color: colors.textFaint, fontSize: 13 },
+    tabTextActive: { color: colors.primary, fontWeight: '600' },
+    navRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 10,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    navBtn: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    navLabel: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '700', color: colors.text, marginHorizontal: 8 },
+    fab: {
+      position: 'absolute', right: 20, bottom: 20,
+      width: 56, height: 56, borderRadius: 28,
+      backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center',
+      elevation: 5, shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 8,
+    },
+    fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
+  });
+}

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
 import { dateOnly, parseEventDate, type DayColumn, HOURS, WEEKDAY_SHORT, hourLabel } from './dateUtils';
 import { useTimeFormat } from '../preferences';
+import { useTheme, type Colors } from '../theme';
 
 const HOUR_HEIGHT = 50;
 const TIME_COL_WIDTH = 42;
@@ -19,6 +21,8 @@ interface Props {
 /** Shared Week / 3-Day timeline, port of app/templates/_calendar_week.html. */
 export default function TimelineView({ days, familySize, refreshing, onRefresh, onAddEvent, onEditEvent }: Props) {
   const timeFormat = useTimeFormat();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -110,42 +114,44 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  headerRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e8e8e8', paddingVertical: 4 },
-  dayHeader: { flex: 1, alignItems: 'center', paddingVertical: 2 },
-  today: { backgroundColor: '#eef4fb' },
-  dayHeaderWeekday: { fontSize: 11, color: '#999', fontWeight: '600' },
-  dayHeaderDate: { fontSize: 13, color: '#333', fontWeight: '600' },
-  todayText: { color: '#4A90D9' },
-  addBtn: { fontSize: 13, color: '#bbb', paddingHorizontal: 6 },
-  allDayRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e8e8e8', minHeight: 20 },
-  timeLabelSmall: { fontSize: 8, color: '#999', textAlign: 'center' },
-  allDayCell: { flex: 1, padding: 1 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: '#e4e7eb', borderRadius: 3,
-    paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1,
-  },
-  chipContinuesBefore: {
-    borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
-    marginLeft: -1, paddingLeft: 1,
-  },
-  chipContinuesAfter: {
-    borderTopRightRadius: 0, borderBottomRightRadius: 0,
-    marginRight: -1, paddingRight: 1,
-  },
-  chipText: { fontSize: 9.5, color: '#1f2933', flexShrink: 1 },
-  body: { flex: 1 },
-  bodyRow: { flexDirection: 'row' },
-  hourRow: {
-    height: HOUR_HEIGHT, borderTopWidth: 1, borderTopColor: '#f0f2f5',
-  },
-  hourLabel: { fontSize: 9, color: '#999', marginTop: -6, paddingRight: 3, textAlign: 'right' },
-  dayCol: { flex: 1, position: 'relative', borderLeftWidth: 1, borderLeftColor: '#f0f2f5' },
-  eventBlock: {
-    position: 'absolute', backgroundColor: '#e4e7eb', borderLeftWidth: 3,
-    borderRadius: 3, padding: 2, overflow: 'hidden',
-  },
-  eventBlockTitle: { fontSize: 9.5, color: '#1f2933' },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    headerRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 4 },
+    dayHeader: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+    today: { backgroundColor: colors.surfaceAlt },
+    dayHeaderWeekday: { fontSize: 11, color: colors.textFaint, fontWeight: '600' },
+    dayHeaderDate: { fontSize: 13, color: colors.text, fontWeight: '600' },
+    todayText: { color: colors.primary },
+    addBtn: { fontSize: 13, color: colors.placeholder, paddingHorizontal: 6 },
+    allDayRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.border, minHeight: 20 },
+    timeLabelSmall: { fontSize: 8, color: colors.textFaint, textAlign: 'center' },
+    allDayCell: { flex: 1, padding: 1 },
+    chip: {
+      flexDirection: 'row', alignItems: 'center', gap: 2,
+      backgroundColor: colors.chip, borderRadius: 3,
+      paddingHorizontal: 3, paddingVertical: 1, marginBottom: 1,
+    },
+    chipContinuesBefore: {
+      borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
+      marginLeft: -1, paddingLeft: 1,
+    },
+    chipContinuesAfter: {
+      borderTopRightRadius: 0, borderBottomRightRadius: 0,
+      marginRight: -1, paddingRight: 1,
+    },
+    chipText: { fontSize: 9.5, color: colors.chipText, flexShrink: 1 },
+    body: { flex: 1 },
+    bodyRow: { flexDirection: 'row' },
+    hourRow: {
+      height: HOUR_HEIGHT, borderTopWidth: 1, borderTopColor: colors.border,
+    },
+    hourLabel: { fontSize: 9, color: colors.textFaint, marginTop: -6, paddingRight: 3, textAlign: 'right' },
+    dayCol: { flex: 1, position: 'relative', borderLeftWidth: 1, borderLeftColor: colors.border },
+    eventBlock: {
+      position: 'absolute', backgroundColor: colors.chip, borderLeftWidth: 3,
+      borderRadius: 3, padding: 2, overflow: 'hidden',
+    },
+    eventBlockTitle: { fontSize: 9.5, color: colors.chipText },
+  });
+}

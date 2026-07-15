@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
 import { dateOnly, parseEventDate, type MonthDay, WEEKDAY_SHORT } from './dateUtils';
+import { useTheme, type Colors } from '../theme';
 
 const MAX_CHIPS = 3;
 
@@ -19,6 +21,8 @@ interface Props {
 export default function MonthView({
   grid, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onSelectDay,
 }: Props) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ScrollView
       contentContainerStyle={styles.container}
@@ -82,38 +86,40 @@ export default function MonthView({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { paddingBottom: 80 },
-  weekdayRow: { flexDirection: 'row' },
-  weekdayLabel: {
-    flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600',
-    color: '#999', paddingVertical: 6,
-  },
-  weekRow: { flexDirection: 'row' },
-  dayCell: {
-    flex: 1, minHeight: 92, borderWidth: 0.5, borderColor: '#eee',
-    padding: 3, backgroundColor: '#fff',
-  },
-  dayCellOut: { backgroundColor: '#fafafa' },
-  dayCellToday: { backgroundColor: '#eef4fb' },
-  dayCellHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dayNumber: { fontSize: 12, color: '#333', padding: 2 },
-  dayNumberOut: { color: '#ccc' },
-  dayNumberToday: { color: '#4A90D9', fontWeight: '700' },
-  addBtn: { fontSize: 14, color: '#bbb', paddingHorizontal: 4 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 2,
-    backgroundColor: '#e4e7eb', borderRadius: 3,
-    paddingHorizontal: 3, paddingVertical: 1, marginTop: 2,
-  },
-  chipContinuesBefore: {
-    borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
-    marginLeft: -3, paddingLeft: 1,
-  },
-  chipContinuesAfter: {
-    borderTopRightRadius: 0, borderBottomRightRadius: 0,
-    marginRight: -3, paddingRight: 1,
-  },
-  chipText: { fontSize: 9.5, color: '#1f2933', flexShrink: 1 },
-  moreText: { fontSize: 9, color: '#999', marginTop: 1, paddingHorizontal: 2 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { paddingBottom: 80 },
+    weekdayRow: { flexDirection: 'row' },
+    weekdayLabel: {
+      flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '600',
+      color: colors.textFaint, paddingVertical: 6,
+    },
+    weekRow: { flexDirection: 'row' },
+    dayCell: {
+      flex: 1, minHeight: 92, borderWidth: 0.5, borderColor: colors.border,
+      padding: 3, backgroundColor: colors.surface,
+    },
+    dayCellOut: { backgroundColor: colors.background },
+    dayCellToday: { backgroundColor: colors.surfaceAlt },
+    dayCellHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    dayNumber: { fontSize: 12, color: colors.textMuted, padding: 2 },
+    dayNumberOut: { color: colors.placeholder },
+    dayNumberToday: { color: colors.primary, fontWeight: '700' },
+    addBtn: { fontSize: 14, color: colors.placeholder, paddingHorizontal: 4 },
+    chip: {
+      flexDirection: 'row', alignItems: 'center', gap: 2,
+      backgroundColor: colors.chip, borderRadius: 3,
+      paddingHorizontal: 3, paddingVertical: 1, marginTop: 2,
+    },
+    chipContinuesBefore: {
+      borderTopLeftRadius: 0, borderBottomLeftRadius: 0,
+      marginLeft: -3, paddingLeft: 1,
+    },
+    chipContinuesAfter: {
+      borderTopRightRadius: 0, borderBottomRightRadius: 0,
+      marginRight: -3, paddingRight: 1,
+    },
+    chipText: { fontSize: 9.5, color: colors.chipText, flexShrink: 1 },
+    moreText: { fontSize: 9, color: colors.textFaint, marginTop: 1, paddingHorizontal: 2 },
+  });
+}

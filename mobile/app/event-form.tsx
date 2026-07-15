@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, Modal, ScrollView, Alert,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Switch, ScrollView, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import type { CalendarEvent, User } from '../api/types';
-import { dayLabel, formatClock, isoDate, parseEventDate } from './dateUtils';
-import { useTimeFormat, type TimeFormat } from '../preferences';
+import { createEvent, updateEvent, deleteEvent } from '../src/api/client';
+import { dayLabel, formatClock, isoDate, parseEventDate } from '../src/calendar/dateUtils';
+import { useTimeFormat, type TimeFormat } from '../src/preferences';
+import { takePendingEventForm } from '../src/calendar/formState';
+import { useTheme, type Colors } from '../src/theme';
 
 function parseIsoDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
@@ -20,27 +23,6 @@ function localDateTime(dateStr: string, timeStr: string, seconds = 0, ms = 0): D
   return new Date(y, m - 1, d, hh, mm, seconds, ms);
 }
 
-export interface EventFormValues {
-  title: string;
-  description?: string;
-  location?: string;
-  start_time: string;
-  end_time: string;
-  all_day: boolean;
-  attendee_ids: number[];
-}
-
-interface Props {
-  visible: boolean;
-  event: CalendarEvent | null;
-  defaultDate: string;
-  members: User[];
-  saving: boolean;
-  onClose: () => void;
-  onSave: (values: EventFormValues) => void;
-  onDelete: (event: CalendarEvent) => void;
-}
-
 function timeOf(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
@@ -50,49 +32,32 @@ function formatTimeStr(timeStr: string, format: TimeFormat): string {
   return formatClock(hh, mm, format);
 }
 
-/** Create/edit modal mirroring app/templates/_event_form.html. */
-export default function EventFormModal({
-  visible, event, defaultDate, members, saving, onClose, onSave, onDelete,
-}: Props) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
-  const [date, setDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [allDay, setAllDay] = useState(false);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
-  const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set());
+/** Modal screen (expo-router `presentation: 'modal'`) mirroring app/templates/_event_form.html.
+ *  A real screen rather than RN's <Modal> — Android Dialogs don't reliably resize for the
+ *  keyboard even with KeyboardAvoidingView, but a normal screen honors the Activity's
+ *  android:windowSoftInputMode="adjustResize" (see AndroidManifest.xml). */
+export default function EventFormScreen() {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const [payload] = useState(() => takePendingEventForm());
+  const event = payload?.event ?? null;
+  const members = payload?.members ?? [];
+  const initialDate = payload?.defaultDate || isoDate(new Date());
+
+  const [title, setTitle] = useState(event?.title ?? '');
+  const [description, setDescription] = useState(event?.description ?? '');
+  const [location, setLocation] = useState(event?.location ?? '');
+  const [date, setDate] = useState(() => (event ? isoDate(parseEventDate(event.start_time)) : initialDate));
+  const [endDate, setEndDate] = useState(() => (event ? isoDate(parseEventDate(event.end_time)) : initialDate));
+  const [allDay, setAllDay] = useState(event?.all_day ?? false);
+  const [startTime, setStartTime] = useState(() => (event ? timeOf(parseEventDate(event.start_time)) : '09:00'));
+  const [endTime, setEndTime] = useState(() => (event ? timeOf(parseEventDate(event.end_time)) : '10:00'));
+  const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set(event?.attendees.map(a => a.id) ?? []));
   const [datePickerField, setDatePickerField] = useState<'start' | 'end' | null>(null);
   const [timePickerField, setTimePickerField] = useState<'start' | 'end' | null>(null);
+  const [saving, setSaving] = useState(false);
   const timeFormat = useTimeFormat();
-
-  useEffect(() => {
-    if (!visible) return;
-    if (event) {
-      const start = parseEventDate(event.start_time);
-      const end = parseEventDate(event.end_time);
-      setTitle(event.title);
-      setDescription(event.description ?? '');
-      setLocation(event.location ?? '');
-      setDate(isoDate(start));
-      setEndDate(isoDate(end));
-      setAllDay(event.all_day);
-      setStartTime(timeOf(start));
-      setEndTime(timeOf(end));
-      setAttendeeIds(new Set(event.attendees.map(a => a.id)));
-    } else {
-      setTitle('');
-      setDescription('');
-      setLocation('');
-      setDate(defaultDate);
-      setEndDate(defaultDate);
-      setAllDay(false);
-      setStartTime('09:00');
-      setEndTime('10:00');
-      setAttendeeIds(new Set());
-    }
-  }, [visible, event, defaultDate]);
 
   function handleDateChange(pickerEvent: { type: string }, selected?: Date) {
     const field = datePickerField;
@@ -122,7 +87,7 @@ export default function EventFormModal({
     setAttendeeIds(new Set(members.map(m => m.id)));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!title.trim() || !date.trim()) {
       Alert.alert('Required', 'Title and date are required');
       return;
@@ -130,7 +95,7 @@ export default function EventFormModal({
     const lastDay = allDay && endDate && endDate >= date ? endDate : date;
     const start = allDay ? `${date}T00:00:00Z` : `${date}T${startTime}:00Z`;
     const end = allDay ? `${lastDay}T23:59:00Z` : `${date}T${endTime}:00Z`;
-    onSave({
+    const values = {
       title: title.trim(),
       description: description.trim() || undefined,
       location: location.trim() || undefined,
@@ -138,26 +103,44 @@ export default function EventFormModal({
       end_time: end,
       all_day: allDay,
       attendee_ids: Array.from(attendeeIds),
-    });
+    };
+    setSaving(true);
+    try {
+      if (event) await updateEvent(event.id, values); else await createEvent(values);
+      router.back();
+    } catch {
+      Alert.alert('Error', 'Could not save event');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleDelete() {
     if (!event) return;
     Alert.alert('Delete Event', `Delete "${event.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => onDelete(event) },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await deleteEvent(event.id);
+            router.back();
+          } catch {
+            Alert.alert('Error', 'Could not delete event');
+          }
+        },
+      },
     ]);
   }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <>
+      <Stack.Screen options={{ presentation: 'modal', headerShown: false, animation: 'slide_from_bottom' }} />
       <KeyboardAvoidingView
         style={styles.modal}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.modalCancel}>Cancel</Text>
           </TouchableOpacity>
           <Text style={styles.modalTitle}>{event ? 'Edit Event' : 'New Event'}</Text>
@@ -167,7 +150,10 @@ export default function EventFormModal({
         </View>
 
         <ScrollView keyboardShouldPersistTaps="handled">
-          <TextInput style={styles.input} placeholder="Title *" value={title} onChangeText={setTitle} />
+          <TextInput
+            style={styles.input} placeholder="Title *" value={title} onChangeText={setTitle}
+            placeholderTextColor={colors.placeholder}
+          />
           <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('start')}>
             <Text style={date ? styles.dateValue : styles.datePlaceholder}>
               {date ? dayLabel(parseIsoDate(date)) : 'Start date *'}
@@ -175,7 +161,7 @@ export default function EventFormModal({
           </TouchableOpacity>
           <View style={styles.row}>
             <Text style={styles.rowLabel}>All day</Text>
-            <Switch value={allDay} onValueChange={setAllDay} trackColor={{ true: '#4A90D9' }} />
+            <Switch value={allDay} onValueChange={setAllDay} trackColor={{ false: colors.border, true: colors.primary }} />
           </View>
           {allDay && (
             <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('end')}>
@@ -186,7 +172,7 @@ export default function EventFormModal({
           )}
           {datePickerField && (
             <DateTimePicker
-              value={parseIsoDate((datePickerField === 'start' ? date : endDate) || defaultDate)}
+              value={parseIsoDate((datePickerField === 'start' ? date : endDate) || initialDate)}
               mode="date"
               display="calendar"
               onChange={handleDateChange}
@@ -211,9 +197,14 @@ export default function EventFormModal({
               onChange={handleTimeChange}
             />
           )}
-          <TextInput style={styles.input} placeholder="Location" value={location} onChangeText={setLocation} />
+          <TextInput
+            style={styles.input} placeholder="Location" value={location} onChangeText={setLocation}
+            placeholderTextColor={colors.placeholder}
+          />
           <TextInput style={[styles.input, styles.textarea]} placeholder="Description"
-            value={description} onChangeText={setDescription} multiline numberOfLines={3} textAlignVertical="top" />
+            value={description} onChangeText={setDescription} multiline numberOfLines={3} textAlignVertical="top"
+            placeholderTextColor={colors.placeholder}
+          />
 
           <View style={styles.attendeesHeader}>
             <Text style={styles.rowLabel}>Attendees</Text>
@@ -244,52 +235,54 @@ export default function EventFormModal({
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </Modal>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  modal: { flex: 1, padding: 20, backgroundColor: '#fff' },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingTop: 8, marginBottom: 24,
-  },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
-  modalCancel: { fontSize: 16, color: '#999' },
-  modalSave: { fontSize: 16, color: '#4A90D9', fontWeight: '700' },
-  input: {
-    backgroundColor: '#f5f5f5', borderRadius: 10, padding: 14,
-    marginBottom: 12, fontSize: 16, color: '#1a1a1a',
-  },
-  textarea: { height: 88 },
-  dateValue: { fontSize: 16, color: '#1a1a1a' },
-  datePlaceholder: { fontSize: 16, color: '#999' },
-  timeRow: { flexDirection: 'row', gap: 10 },
-  timeInput: { flex: 1 },
-  row: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 12, paddingHorizontal: 2,
-  },
-  rowLabel: { fontSize: 16, color: '#333' },
-  attendeesHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    marginTop: 4, marginBottom: 8,
-  },
-  linkButton: { color: '#4A90D9', fontSize: 14, fontWeight: '600' },
-  attendeeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  checkbox: {
-    width: 22, height: 22, borderRadius: 4,
-    borderWidth: 2, borderColor: '#ccc',
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-  },
-  checkboxChecked: { backgroundColor: '#4A90D9', borderColor: '#4A90D9' },
-  checkMark: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  swatch: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
-  attendeeName: { fontSize: 15, color: '#1a1a1a' },
-  hint: { fontSize: 12, color: '#bbb', marginTop: 4, marginBottom: 8 },
-  deleteBtn: {
-    marginTop: 20, marginBottom: 20, paddingVertical: 14,
-    alignItems: 'center', borderRadius: 10, backgroundColor: '#fdecec',
-  },
-  deleteBtnText: { color: '#d64545', fontWeight: '700', fontSize: 15 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    modal: { flex: 1, padding: 20, backgroundColor: colors.surface },
+    modalHeader: {
+      flexDirection: 'row', justifyContent: 'space-between',
+      alignItems: 'center', paddingTop: 8, marginBottom: 24,
+    },
+    modalTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    modalCancel: { fontSize: 16, color: colors.textFaint },
+    modalSave: { fontSize: 16, color: colors.primary, fontWeight: '700' },
+    input: {
+      backgroundColor: colors.surfaceAlt, borderRadius: 10, padding: 14,
+      marginBottom: 12, fontSize: 16, color: colors.text,
+    },
+    textarea: { height: 88 },
+    dateValue: { fontSize: 16, color: colors.text },
+    datePlaceholder: { fontSize: 16, color: colors.textFaint },
+    timeRow: { flexDirection: 'row', gap: 10 },
+    timeInput: { flex: 1 },
+    row: {
+      flexDirection: 'row', justifyContent: 'space-between',
+      alignItems: 'center', marginBottom: 12, paddingHorizontal: 2,
+    },
+    rowLabel: { fontSize: 16, color: colors.textMuted },
+    attendeesHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      marginTop: 4, marginBottom: 8,
+    },
+    linkButton: { color: colors.primary, fontSize: 14, fontWeight: '600' },
+    attendeeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+    checkbox: {
+      width: 22, height: 22, borderRadius: 4,
+      borderWidth: 2, borderColor: colors.border,
+      justifyContent: 'center', alignItems: 'center', marginRight: 10,
+    },
+    checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+    checkMark: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    swatch: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
+    attendeeName: { fontSize: 15, color: colors.text },
+    hint: { fontSize: 12, color: colors.placeholder, marginTop: 4, marginBottom: 8 },
+    deleteBtn: {
+      marginTop: 20, marginBottom: 20, paddingVertical: 14,
+      alignItems: 'center', borderRadius: 10, backgroundColor: colors.dangerBg,
+    },
+    deleteBtnText: { color: colors.danger, fontWeight: '700', fontSize: 15 },
+  });
+}

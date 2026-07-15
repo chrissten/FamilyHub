@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   RefreshControl, Alert, TextInput,
@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from 'expo-router';
 import { getFreezers, getFreezerItems, addFreezerItem, deleteFreezerItem } from '../../src/api/client';
 import type { Freezer, FreezerItem } from '../../src/api/types';
+import { useTheme, type Colors } from '../../src/theme';
 
 function expiryStatus(dateStr?: string | null): 'expired' | 'expiring-soon' | null {
   if (!dateStr) return null;
@@ -19,6 +20,8 @@ function expiryStatus(dateStr?: string | null): 'expired' | 'expiring-soon' | nu
 }
 
 export default function FreezerScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [freezers, setFreezers] = useState<Freezer[]>([]);
   const [selectedFreezer, setSelectedFreezer] = useState<Freezer | null>(null);
   const [items, setItems] = useState<FreezerItem[]>([]);
@@ -151,12 +154,14 @@ export default function FreezerScreen() {
               placeholder="Item…"
               value={newName}
               onChangeText={setNewName}
+              placeholderTextColor={colors.placeholder}
             />
             <TextInput
               style={[styles.addInput, { flex: 1 }]}
               placeholder="Qty"
               value={newQuantity}
               onChangeText={setNewQuantity}
+              placeholderTextColor={colors.placeholder}
             />
           </View>
           <View style={styles.addRow}>
@@ -166,6 +171,7 @@ export default function FreezerScreen() {
               value={newDatePurchased}
               onChangeText={setNewDatePurchased}
               keyboardType="numbers-and-punctuation"
+              placeholderTextColor={colors.placeholder}
             />
             <TextInput
               style={[styles.addInput, { flex: 1 }]}
@@ -173,6 +179,7 @@ export default function FreezerScreen() {
               value={newExpirationDate}
               onChangeText={setNewExpirationDate}
               keyboardType="numbers-and-punctuation"
+              placeholderTextColor={colors.placeholder}
             />
             <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
               <Text style={styles.addBtnText}>Add</Text>
@@ -184,40 +191,42 @@ export default function FreezerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  tabs: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#e8e8e8',
-  },
-  tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#4A90D9' },
-  tabText: { color: '#999', fontSize: 14 },
-  tabTextActive: { color: '#4A90D9', fontWeight: '600' },
-  item: {
-    flexDirection: 'row', backgroundColor: '#fff',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  itemExpired: { backgroundColor: '#fde8e8', borderLeftWidth: 3, borderLeftColor: '#b13a3a' },
-  itemExpiringSoon: { backgroundColor: '#fff3cd', borderLeftWidth: 3, borderLeftColor: '#8a6d1d' },
-  itemText: { fontSize: 16, color: '#1a1a1a' },
-  itemMeta: { fontSize: 12, color: '#9aa5b1', marginTop: 2 },
-  empty: { textAlign: 'center', color: '#bbb', marginTop: 80, fontSize: 15 },
-  addBar: {
-    backgroundColor: '#fff',
-    borderTopWidth: 1, borderTopColor: '#e0e0e0',
-    padding: 8, gap: 6,
-  },
-  addRow: { flexDirection: 'row', gap: 6 },
-  addInput: {
-    backgroundColor: '#f5f5f5', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
-  },
-  addBtn: {
-    backgroundColor: '#4A90D9', borderRadius: 8,
-    paddingHorizontal: 16, justifyContent: 'center',
-  },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    tabs: {
+      flexDirection: 'row', backgroundColor: colors.surface,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    tab: { flex: 1, paddingVertical: 12, alignItems: 'center' },
+    tabActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
+    tabText: { color: colors.textFaint, fontSize: 14 },
+    tabTextActive: { color: colors.primary, fontWeight: '600' },
+    item: {
+      flexDirection: 'row', backgroundColor: colors.surface,
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderBottomWidth: 1, borderBottomColor: colors.border,
+      alignItems: 'center',
+    },
+    itemExpired: { backgroundColor: colors.dangerBg, borderLeftWidth: 3, borderLeftColor: colors.danger },
+    itemExpiringSoon: { backgroundColor: colors.warningBg, borderLeftWidth: 3, borderLeftColor: colors.warning },
+    itemText: { fontSize: 16, color: colors.text },
+    itemMeta: { fontSize: 12, color: colors.textFaint, marginTop: 2 },
+    empty: { textAlign: 'center', color: colors.placeholder, marginTop: 80, fontSize: 15 },
+    addBar: {
+      backgroundColor: colors.surface,
+      borderTopWidth: 1, borderTopColor: colors.border,
+      padding: 8, gap: 6,
+    },
+    addRow: { flexDirection: 'row', gap: 6 },
+    addInput: {
+      backgroundColor: colors.surfaceAlt, borderRadius: 8,
+      paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text,
+    },
+    addBtn: {
+      backgroundColor: colors.primary, borderRadius: 8,
+      paddingHorizontal: 16, justifyContent: 'center',
+    },
+    addBtnText: { color: colors.primaryText, fontWeight: '700', fontSize: 15 },
+  });
+}

@@ -18,8 +18,42 @@ by accident (as happened with multi-day events on 2026-07-09).
   to today (2026-07-15, v1.0.9 below); `_calendar_agenda.html` still renders starting at
   the 1st of the month with no auto-scroll to `.agenda-day.today`. Not fixed here since it
   wasn't asked for — flagging so it isn't rediscovered by accident.
+- **Dark mode is mobile-only (v1.1.0 below).** The web app has no theme system; all its
+  colors are hardcoded in `app.css`. Not fixed here since it wasn't asked for.
+- **Native date/time picker popups don't follow the in-app dark mode override.** Mobile's
+  `@react-native-community/datetimepicker` popup styling is governed by the Android
+  system's day/night setting (`app.json`'s `userInterfaceStyle: "light"`, baked into the
+  native project), not by the app's own Light/Dark/System setting — so if a user forces
+  "Dark" while their phone is set to light mode (or vice versa), the picker popup won't
+  match. Fixing this needs a native rebuild (`expo prebuild`) touching the Android theme
+  resources, which risks re-triggering the CMake/OneDrive buildBase issue documented for
+  `@react-native-community/datetimepicker` — left alone rather than risk breaking the
+  build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-07-15 (3)
+- **[mobile]** v1.1.0 — Event form ("New Event"/"Edit Event") moved from a React Native
+  `<Modal>` to a real expo-router screen (`app/event-form.tsx`, `presentation: 'modal'`).
+  Android's `<Modal>` renders as a separate Dialog window that doesn't reliably honor
+  `android:windowSoftInputMode="adjustResize"` even with `KeyboardAvoidingView` wrapping
+  the content (the fix attempted 2026-07-14 below), so the keyboard kept covering the
+  lower fields. A real screen is hosted in the main Activity and picks up `adjustResize`
+  correctly. Data (the event being edited, the members list) is handed off via a small
+  in-memory `formState.ts` module since expo-router's URL params can't carry non-serializable
+  objects; save/delete now call the API directly and `router.back()`, relying on the
+  calendar screen's existing `useFocusEffect` refetch instead of prop callbacks.
+- **[mobile]** v1.1.0 — Added a Version number to the bottom of Settings (`Constants.expoConfig`
+  from `expo-constants`, already a dependency) so an installed APK's actual version/build
+  number can be checked against what was just built — this project has had version drift
+  between `app.json` and the native `build.gradle` bite before.
+- **[mobile]** v1.1.0 — Added optional Dark Mode: a Light/Dark/System setting in Settings
+  (`src/theme.ts`, same reactive-preference pattern as Time Format), defaulting to System.
+  Every screen and shared component now sources its colors from `useTheme()` instead of
+  hardcoded hex values — calendar views, event form, grocery/todo/freezer, settings, login,
+  tab bar, and the status bar style. No web equivalent — the web app has no theme system
+  (see "Known parity gaps" above). Native date/time picker popups are a known exception,
+  also noted above.
 
 ### 2026-07-15 (2)
 - **[mobile]** v1.0.9 — Agenda view now opens scrolled to today instead of the 1st of the month. `AgendaView` scrolls its `FlatList` to today's row on mount/month-change (not on every pull-to-refresh, so a manual scroll position isn't stolen back). No web equivalent gap — the web agenda view isn't in scope here.

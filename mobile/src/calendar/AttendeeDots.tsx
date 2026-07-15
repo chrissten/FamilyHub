@@ -1,8 +1,12 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { User } from '../api/types';
+import { useTheme, type Colors } from '../theme';
 
 /** Port of the _attendee_dots.html macro — a dot per attendee, or an "All" badge. */
 export default function AttendeeDots({ attendees, familySize }: { attendees: User[]; familySize: number }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (familySize > 1 && attendees.length >= familySize) {
     return (
       <View style={styles.badge}>
@@ -19,12 +23,14 @@ export default function AttendeeDots({ attendees, familySize }: { attendees: Use
   );
 }
 
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 3 },
-  dot: { width: 7, height: 7, borderRadius: 3.5 },
-  badge: {
-    backgroundColor: '#4A90D9', borderRadius: 6,
-    paddingHorizontal: 5, paddingVertical: 1,
-  },
-  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
-});
+function createStyles(colors: Colors) {
+  return StyleSheet.create({
+    row: { flexDirection: 'row', gap: 3 },
+    dot: { width: 7, height: 7, borderRadius: 3.5 },
+    badge: {
+      backgroundColor: colors.primary, borderRadius: 6,
+      paddingHorizontal: 5, paddingVertical: 1,
+    },
+    badgeText: { color: colors.primaryText, fontSize: 9, fontWeight: '700' },
+  });
+}
