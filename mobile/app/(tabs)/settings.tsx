@@ -160,6 +160,14 @@ export default function SettingsScreen() {
         />
       </View>
 
+      <Text style={styles.section}>Family</Text>
+      <View style={styles.card}>
+        <TouchableOpacity onPress={() => router.push('/members')} style={styles.navRow}>
+          <Text style={styles.navRowLabel}>Family Members</Text>
+          <Text style={styles.navRowChevron}>›</Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.section}>Account</Text>
       <View style={styles.card}>
         <TouchableOpacity onPress={handleLogout} style={styles.signOutRow}>
@@ -242,6 +250,11 @@ function createStyles(colors: Colors) {
     rowSub: { fontSize: 12, color: colors.textFaint },
     signOutRow: { paddingVertical: 4 },
     signOut: { color: colors.danger, fontSize: 16, textAlign: 'center', fontWeight: '500' },
+    navRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4,
+    },
+    navRowLabel: { fontSize: 16, color: colors.text },
+    navRowChevron: { fontSize: 20, color: colors.textFaint },
     footer: {
       textAlign: 'center', color: colors.placeholder, fontSize: 12,
       marginTop: 20, paddingHorizontal: 20, lineHeight: 20,

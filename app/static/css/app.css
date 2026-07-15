@@ -46,6 +46,13 @@ button[type="button"] { background: #9aa5b1; }
 .member-list { list-style: none; padding: 0; }
 .member-list li { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; }
 .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+.member-color-form { display: inline-flex; margin: 0; }
+.member-color-form input[type="color"] {
+  width: 16px; height: 16px; padding: 0; border: none; border-radius: 50%;
+  overflow: hidden; cursor: pointer; background: none;
+}
+.member-color-form input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.member-color-form input[type="color"]::-webkit-color-swatch { border: none; border-radius: 50%; }
 
 /* Calendar */
 .view-tabs { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }

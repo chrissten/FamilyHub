@@ -32,6 +32,21 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-15 (5)
+- **[web]** Admins can now edit an existing family member's color from the Family Members
+  page (`/users`) — previously `color_hex` was only settable at account creation, with no
+  edit route anywhere. New `POST /users/{id}/color` (form, admin-only, matches the existing
+  "Add member" pattern) and `PATCH /api/users/{id}` (JSON API, admin-only). Each member row
+  now shows a native `<input type="color">` swatch (admin view only) that auto-submits on
+  change.
+- **[mobile]** Family Members parity with the web change above: new `app/members.tsx` screen
+  (linked from a new "Family" section in Settings), listing every member with their color
+  swatch. Admins can tap a swatch to open a picker with a curated color palette
+  (`src/colorPalette.ts`) and pick a new one — mobile has no built-in color-picker component
+  (unlike the native date/time pickers), so this uses a fixed swatch grid instead of true
+  hex entry, calling the new `PATCH /api/users/{id}` endpoint (`updateUserColor` in
+  `src/api/client.ts`).
+
 ### 2026-07-15 (4)
 - **[web]** Month and week-view all-day event chip tooltips now include the time (or
   "All day"), matching the timed week-event-block tooltip which already had it. Previously

@@ -6,7 +6,14 @@
 <ul class="member-list">
   {% for member in members %}
   <li>
+    {% if current_user.is_admin %}
+    <form method="post" action="/users/{{ member.id }}/color" class="member-color-form">
+      <input type="color" name="color_hex" value="{{ member.color_hex }}"
+             onchange="this.form.submit()" title="Change {{ member.display_name }}'s color">
+    </form>
+    {% else %}
     <span class="swatch" style="background-color: {{ member.color_hex }}"></span>
+    {% endif %}
     {{ member.display_name }} (@{{ member.username }}){% if member.is_admin %} — admin{% endif %}
   </li>
   {% endfor %}

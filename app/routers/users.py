@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user, require_admin
 from app.models import User
-from app.schemas import UserCreate, UserOut
+from app.schemas import UserColorUpdate, UserCreate, UserOut
 from app.security import hash_password
 from app.templating import templates
 
@@ -56,6 +56,21 @@ def users_add(
     return RedirectResponse(url="/users", status_code=status.HTTP_302_FOUND)
 
 
+@router.post("/users/{user_id}/color", response_class=HTMLResponse)
+def users_update_color(
+    user_id: int,
+    color_hex: str = Form(...),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    member = db.query(User).filter(User.id == user_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    member.color_hex = color_hex
+    db.commit()
+    return RedirectResponse(url="/users", status_code=status.HTTP_302_FOUND)
+
+
 @router.get("/api/users", response_model=list[UserOut])
 def api_list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return db.query(User).order_by(User.id).all()
@@ -73,6 +88,22 @@ def api_create_user(payload: UserCreate, db: Session = Depends(get_db), admin: U
         color_hex=payload.color_hex,
     )
     db.add(member)
+    db.commit()
+    db.refresh(member)
+    return member
+
+
+@router.patch("/api/users/{user_id}", response_model=UserOut)
+def api_update_user_color(
+    user_id: int,
+    payload: UserColorUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    member = db.query(User).filter(User.id == user_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    member.color_hex = payload.color_hex
     db.commit()
     db.refresh(member)
     return member

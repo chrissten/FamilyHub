@@ -20,6 +20,10 @@ class UserCreate(BaseModel):
     color_hex: str = "#4A90D9"
 
 
+class UserColorUpdate(BaseModel):
+    color_hex: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

@@ -148,6 +148,9 @@ export const deleteEvent = (id: number) =>
 export const getUsers = () =>
   request<User[]>('/api/users');
 
+export const updateUserColor = (id: number, colorHex: string) =>
+  request<User>(`/api/users/${id}`, { method: 'PATCH', body: JSON.stringify({ color_hex: colorHex }) });
+
 // ── Grocery ───────────────────────────────────────────────────────────────────
 
 export const getGroceryLists = () =>
