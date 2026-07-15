@@ -32,7 +32,7 @@
       {% set continues_before = event.start_time.date() < day.date %}
       {% set continues_after = event.end_time.date() > day.date %}
       <a href="#" class="event-chip {% if continues_before %}continues-before{% endif %} {% if continues_after %}continues-after{% endif %}"
-         title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ event.title }}"
+         title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ event.title }} (All day)"
          hx-get="/calendar/events/{{ event.id }}/edit?return_view={{ view }}&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
          @click="modalOpen = true">

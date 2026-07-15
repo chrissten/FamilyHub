@@ -32,6 +32,14 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-15 (4)
+- **[web]** Month and week-view all-day event chip tooltips now include the time (or
+  "All day"), matching the timed week-event-block tooltip which already had it. Previously
+  the chip's hover title showed only "Attendees: Title" with no time — the only place a
+  user could see an event's time in month view without opening it, since month view (unlike
+  agenda/day) never renders time as visible text. `_calendar_month.html` and
+  `_calendar_week.html`.
+
 ### 2026-07-15 (3)
 - **[mobile]** v1.1.0 — Event form ("New Event"/"Edit Event") moved from a React Native
   `<Modal>` to a real expo-router screen (`app/event-form.tsx`, `presentation: 'modal'`).
