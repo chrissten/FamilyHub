@@ -20,6 +20,9 @@ changelog entry that closed it).
 
 ## History (newest first)
 
+### 2026-07-14
+- **[mobile]** v1.0.7 — Fix the "New Event" / "Edit Event" form keyboard covering the input fields instead of the view scrolling up to make room. `EventFormModal` now wraps its content in a `KeyboardAvoidingView` (`padding` behavior on iOS, `height` on Android). Web has no equivalent gap here — browsers already reflow the page for the on-screen keyboard.
+
 ### 2026-07-12
 - **[mobile]** v1.0.6 — In the event form (used by "New Event" everywhere, including the Agenda tab), the Start/End date fields are now a native calendar picker (`@react-native-community/datetimepicker`, `display="calendar"`) instead of a raw `YYYY-MM-DD` text box, and default to the day currently in view rather than requiring manual entry.
 - **[web]** Fix broken freezer card layout: the delete "×" was dropping to its own line under the freezer name, and the add-item row (name/qty/purchased/expires/Add) overflowed off the side of the page on narrower screens. `.add-item-form`/`.item-edit-form` were missing `flex-wrap: wrap`, so their five fields never wrapped; `.freezer-card-header` now truncates long freezer names with an ellipsis instead of letting them push the delete button around. Also added a `?v=<mtime>` cache-busting query string to `app.css` (via `asset_version` in `app/templating.py`) since Starlette's `StaticFiles` sends no `Cache-Control` header, so a stale cached copy may have been part of what was seen here.
