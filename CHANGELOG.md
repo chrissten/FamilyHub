@@ -21,6 +21,7 @@ changelog entry that closed it).
 ## History (newest first)
 
 ### 2026-07-14
+- **[mobile]** v1.0.7 — When someone else creates a calendar event, every other signed-in family member's phone now pops a "New event" notification by default (existing 15-minute background poll in `notifications.ts`, no new accounts/infra needed). Two fixes made this actually work: `checkNewEvents` now excludes events owned by the current user (via a new `getCurrentUserId`, decoded client-side from the JWT `sub` claim — no new endpoint) so you don't get notified about your own creations, and the "New events" pref now defaults to on the first time each device signs in (`ensureDefaultNotifPrefs`, called from both `app/index.tsx` auto-login and `app/login.tsx`) instead of requiring a manual Settings toggle. No web equivalent — this is mobile push-style behavior with no server-side analog yet.
 - **[mobile]** v1.0.7 — Fix the "New Event" / "Edit Event" form keyboard covering the input fields instead of the view scrolling up to make room. `EventFormModal` now wraps its content in a `KeyboardAvoidingView` (`padding` behavior on iOS, `height` on Android). Web has no equivalent gap here — browsers already reflow the page for the on-screen keyboard.
 
 ### 2026-07-12

@@ -2,7 +2,9 @@ import * as Notifications from 'expo-notifications';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getToken, getServerUrl, getGroceryLists, getGroceryItems, getEvents } from './api/client';
+import {
+  getToken, getServerUrl, getGroceryLists, getGroceryItems, getEvents, getCurrentUserId,
+} from './api/client';
 
 const TASK_NAME = 'familyhub-poll';
 
@@ -44,7 +46,7 @@ Notifications.setNotificationHandler({
 });
 
 async function checkNewEvents(): Promise<void> {
-  const events = await getEvents();
+  const [events, myId] = await Promise.all([getEvents(), getCurrentUserId()]);
   if (!events.length) return;
 
   const latestId = Math.max(...events.map(e => e.id));
@@ -56,9 +58,12 @@ async function checkNewEvents(): Promise<void> {
     return;
   }
 
-  const newEvents = events.filter(e => e.id > lastSeen);
+  // Advance the marker regardless of whether anything notifies below, so events
+  // created by this device don't get re-evaluated (and skipped) on every poll.
+  await AsyncStorage.setItem(KEYS.LAST_EVENT_ID, String(latestId));
+
+  const newEvents = events.filter(e => e.id > lastSeen && e.owner_id !== myId);
   if (newEvents.length > 0) {
-    await AsyncStorage.setItem(KEYS.LAST_EVENT_ID, String(latestId));
     const title = newEvents.length === 1
       ? `New event: ${newEvents[0].title}`
       : `${newEvents.length} new events added`;
@@ -156,4 +161,17 @@ export async function setNotifPref(key: 'events' | 'grocery', value: boolean): P
   } else {
     await unregisterBackgroundTask();
   }
+}
+
+/**
+ * Turns on "New events" notifications by default so every family member gets
+ * them without visiting Settings, but only the first time (an explicit choice
+ * already stored, on or off, is left alone).
+ */
+export async function ensureDefaultNotifPrefs(): Promise<void> {
+  const existing = await AsyncStorage.getItem(KEYS.NOTIF_EVENTS);
+  if (existing !== null) return;
+  const granted = await requestNotificationPermission();
+  if (!granted) return;
+  await setNotifPref('events', true);
 }

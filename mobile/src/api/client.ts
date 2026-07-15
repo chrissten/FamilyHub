@@ -18,6 +18,39 @@ export async function getToken(): Promise<string | null> {
   return SecureStore.getItemAsync('auth_token');
 }
 
+const BASE64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function base64UrlDecode(input: string): string {
+  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+  let output = '';
+  let buffer = 0;
+  let bits = 0;
+  for (const char of normalized) {
+    const value = BASE64_CHARS.indexOf(char);
+    if (value === -1) continue;
+    buffer = (buffer << 6) | value;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      output += String.fromCharCode((buffer >> bits) & 0xff);
+    }
+  }
+  return output;
+}
+
+/** Reads the user id out of the JWT's `sub` claim (set by app/security.py) without a network call. */
+export async function getCurrentUserId(): Promise<number | null> {
+  const token = await getToken();
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(base64UrlDecode(token.split('.')[1]));
+    const id = parseInt(payload.sub, 10);
+    return Number.isFinite(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function saveCredentials(username: string, password: string): Promise<void> {
   await SecureStore.setItemAsync('saved_credentials', JSON.stringify({ username, password }));
 }

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { login, getServerUrl, getSavedCredentials, saveCredentials } from '../src/api/client';
+import { ensureDefaultNotifPrefs } from '../src/notifications';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function LoginScreen() {
       if (rememberMe) {
         await saveCredentials(username.trim(), password);
       }
+      await ensureDefaultNotifPrefs();
       router.replace('/(tabs)');
     } catch {
       Alert.alert('Login Failed', 'Check your server URL and credentials');
