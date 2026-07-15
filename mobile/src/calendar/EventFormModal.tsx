@@ -5,11 +5,19 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import type { CalendarEvent, User } from '../api/types';
-import { dayLabel, isoDate } from './dateUtils';
+import { dayLabel, formatClock, isoDate, parseEventDate } from './dateUtils';
+import { useTimeFormat, type TimeFormat } from '../preferences';
 
 function parseIsoDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(y, m - 1, d);
+}
+
+/** Builds a Date from a "YYYY-MM-DD" day and "HH:MM" 24h time, both interpreted in the device's local timezone. */
+function localDateTime(dateStr: string, timeStr: string, seconds = 0, ms = 0): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = timeStr.split(':').map(Number);
+  return new Date(y, m - 1, d, hh, mm, seconds, ms);
 }
 
 export interface EventFormValues {
@@ -37,6 +45,11 @@ function timeOf(d: Date): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+function formatTimeStr(timeStr: string, format: TimeFormat): string {
+  const [hh, mm] = timeStr.split(':').map(Number);
+  return formatClock(hh, mm, format);
+}
+
 /** Create/edit modal mirroring app/templates/_event_form.html. */
 export default function EventFormModal({
   visible, event, defaultDate, members, saving, onClose, onSave, onDelete,
@@ -51,12 +64,14 @@ export default function EventFormModal({
   const [endTime, setEndTime] = useState('10:00');
   const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set());
   const [datePickerField, setDatePickerField] = useState<'start' | 'end' | null>(null);
+  const [timePickerField, setTimePickerField] = useState<'start' | 'end' | null>(null);
+  const timeFormat = useTimeFormat();
 
   useEffect(() => {
     if (!visible) return;
     if (event) {
-      const start = new Date(event.start_time);
-      const end = new Date(event.end_time);
+      const start = parseEventDate(event.start_time);
+      const end = parseEventDate(event.end_time);
       setTitle(event.title);
       setDescription(event.description ?? '');
       setLocation(event.location ?? '');
@@ -85,6 +100,14 @@ export default function EventFormModal({
     if (pickerEvent.type === 'dismissed' || !selected || !field) return;
     const iso = isoDate(selected);
     if (field === 'start') setDate(iso); else setEndDate(iso);
+  }
+
+  function handleTimeChange(pickerEvent: { type: string }, selected?: Date) {
+    const field = timePickerField;
+    setTimePickerField(null);
+    if (pickerEvent.type === 'dismissed' || !selected || !field) return;
+    const time = timeOf(selected);
+    if (field === 'start') setStartTime(time); else setEndTime(time);
   }
 
   function toggleAttendee(id: number) {
@@ -171,11 +194,22 @@ export default function EventFormModal({
           )}
           {!allDay && (
             <View style={styles.timeRow}>
-              <TextInput style={[styles.input, styles.timeInput]} placeholder="Start HH:MM"
-                value={startTime} onChangeText={setStartTime} keyboardType="numbers-and-punctuation" />
-              <TextInput style={[styles.input, styles.timeInput]} placeholder="End HH:MM"
-                value={endTime} onChangeText={setEndTime} keyboardType="numbers-and-punctuation" />
+              <TouchableOpacity style={[styles.input, styles.timeInput]} onPress={() => setTimePickerField('start')}>
+                <Text style={styles.dateValue}>{formatTimeStr(startTime, timeFormat)}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.input, styles.timeInput]} onPress={() => setTimePickerField('end')}>
+                <Text style={styles.dateValue}>{formatTimeStr(endTime, timeFormat)}</Text>
+              </TouchableOpacity>
             </View>
+          )}
+          {timePickerField && (
+            <DateTimePicker
+              value={localDateTime(date, timePickerField === 'start' ? startTime : endTime)}
+              mode="time"
+              is24Hour={timeFormat === '24h'}
+              display="default"
+              onChange={handleTimeChange}
+            />
           )}
           <TextInput style={styles.input} placeholder="Location" value={location} onChangeText={setLocation} />
           <TextInput style={[styles.input, styles.textarea]} placeholder="Description"

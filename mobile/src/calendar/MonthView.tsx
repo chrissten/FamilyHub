@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
-import { dateOnly, type MonthDay, WEEKDAY_SHORT } from './dateUtils';
+import { dateOnly, parseEventDate, type MonthDay, WEEKDAY_SHORT } from './dateUtils';
 
 const MAX_CHIPS = 3;
 
@@ -55,8 +55,8 @@ export default function MonthView({
                 </View>
                 {shown.map(event => {
                   const attendees = event.attendees.length ? event.attendees : [event.owner];
-                  const continuesBefore = dateOnly(new Date(event.start_time)).getTime() < day.date.getTime();
-                  const continuesAfter = dateOnly(new Date(event.end_time)).getTime() > day.date.getTime();
+                  const continuesBefore = dateOnly(parseEventDate(event.start_time)).getTime() < day.date.getTime();
+                  const continuesAfter = dateOnly(parseEventDate(event.end_time)).getTime() > day.date.getTime();
                   return (
                     <TouchableOpacity
                       key={event.id}

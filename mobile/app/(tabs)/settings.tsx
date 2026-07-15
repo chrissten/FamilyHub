@@ -7,20 +7,28 @@ import { useFocusEffect } from 'expo-router';
 import { useRouter } from 'expo-router';
 import { getServerUrl, setServerUrl, clearAuth } from '../../src/api/client';
 import { getNotifPrefs, setNotifPref, requestNotificationPermission } from '../../src/notifications';
+import { loadTimeFormat, setTimeFormat, type TimeFormat } from '../../src/preferences';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [serverUrl, setServerUrlState] = useState('');
   const [notifEvents, setNotifEvents] = useState(false);
   const [notifGrocery, setNotifGrocery] = useState(false);
+  const [timeFormat, setTimeFormatState] = useState<TimeFormat>('12h');
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
-    const [url, prefs] = await Promise.all([getServerUrl(), getNotifPrefs()]);
+    const [url, prefs, format] = await Promise.all([getServerUrl(), getNotifPrefs(), loadTimeFormat()]);
     setServerUrlState(url);
     setNotifEvents(prefs.events);
     setNotifGrocery(prefs.grocery);
+    setTimeFormatState(format);
+  }
+
+  async function handleTimeFormatChange(format: TimeFormat) {
+    setTimeFormatState(format);
+    await setTimeFormat(format);
   }
 
   async function saveUrl() {
@@ -78,6 +86,24 @@ export default function SettingsScreen() {
         <TouchableOpacity style={styles.btn} onPress={saveUrl}>
           <Text style={styles.btnText}>Save URL</Text>
         </TouchableOpacity>
+      </View>
+
+      <Text style={styles.section}>Time Format</Text>
+      <View style={styles.card}>
+        <View style={styles.segmented}>
+          <TouchableOpacity
+            style={[styles.segment, timeFormat === '12h' && styles.segmentActive]}
+            onPress={() => handleTimeFormatChange('12h')}
+          >
+            <Text style={[styles.segmentText, timeFormat === '12h' && styles.segmentTextActive]}>12-hour (AM/PM)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.segment, timeFormat === '24h' && styles.segmentActive]}
+            onPress={() => handleTimeFormatChange('24h')}
+          >
+            <Text style={[styles.segmentText, timeFormat === '24h' && styles.segmentTextActive]}>24-hour</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Text style={styles.section}>Notifications</Text>
@@ -161,6 +187,13 @@ const styles = StyleSheet.create({
     padding: 12, alignItems: 'center',
   },
   btnText: { color: '#fff', fontWeight: '700' },
+  segmented: {
+    flexDirection: 'row', backgroundColor: '#f5f5f5', borderRadius: 8, padding: 3,
+  },
+  segment: { flex: 1, paddingVertical: 10, borderRadius: 6, alignItems: 'center' },
+  segmentActive: { backgroundColor: '#4A90D9' },
+  segmentText: { fontSize: 14, fontWeight: '600', color: '#666' },
+  segmentTextActive: { color: '#fff' },
   hint: { fontSize: 13, color: '#999', lineHeight: 18, marginBottom: 14 },
   row: {
     flexDirection: 'row', alignItems: 'center',

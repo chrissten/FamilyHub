@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
-import { AgendaDay, MONTH_NAMES, WEEKDAY_NAMES, dateOnly, fmtTime } from './dateUtils';
+import { AgendaDay, MONTH_NAMES, WEEKDAY_NAMES, dateOnly, fmtTime, parseEventDate } from './dateUtils';
+import { useTimeFormat } from '../preferences';
 
 function allDaySuffix(event: CalendarEvent): string {
-  const start = dateOnly(new Date(event.start_time));
-  const end = dateOnly(new Date(event.end_time));
+  const start = dateOnly(parseEventDate(event.start_time));
+  const end = dateOnly(parseEventDate(event.end_time));
   if (end.getTime() <= start.getTime()) return '';
   return ` (${start.getMonth() + 1}/${start.getDate()}–${end.getMonth() + 1}/${end.getDate()})`;
 }
@@ -24,6 +25,7 @@ interface Props {
 export default function AgendaView({
   days, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
 }: Props) {
+  const timeFormat = useTimeFormat();
   function confirmDelete(event: CalendarEvent) {
     Alert.alert('Delete Event', `Delete "${event.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -70,7 +72,7 @@ export default function AgendaView({
                   <View style={[styles.accent, { backgroundColor: attendees[0].color_hex }]} />
                   <View style={styles.cardBody}>
                     <Text style={styles.cardTime}>
-                      {item.all_day ? `All day${allDaySuffix(item)}` : `${fmtTime(item.start_time)} – ${fmtTime(item.end_time)}`}
+                      {item.all_day ? `All day${allDaySuffix(item)}` : `${fmtTime(item.start_time, timeFormat)} – ${fmtTime(item.end_time, timeFormat)}`}
                     </Text>
                     <View style={styles.titleRow}>
                       <AttendeeDots attendees={attendees} familySize={familySize} />

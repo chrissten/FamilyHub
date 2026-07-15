@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
-import { dateOnly, type DayColumn, HOURS, WEEKDAY_SHORT } from './dateUtils';
+import { dateOnly, parseEventDate, type DayColumn, HOURS, WEEKDAY_SHORT, hourLabel } from './dateUtils';
+import { useTimeFormat } from '../preferences';
 
 const HOUR_HEIGHT = 50;
 const TIME_COL_WIDTH = 42;
@@ -17,6 +18,7 @@ interface Props {
 
 /** Shared Week / 3-Day timeline, port of app/templates/_calendar_week.html. */
 export default function TimelineView({ days, familySize, refreshing, onRefresh, onAddEvent, onEditEvent }: Props) {
+  const timeFormat = useTimeFormat();
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -42,8 +44,8 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
           <View key={day.date.toISOString()} style={styles.allDayCell}>
             {day.allDayEvents.map(event => {
               const attendees = event.attendees.length ? event.attendees : [event.owner];
-              const continuesBefore = dateOnly(new Date(event.start_time)).getTime() < day.date.getTime();
-              const continuesAfter = dateOnly(new Date(event.end_time)).getTime() > day.date.getTime();
+              const continuesBefore = dateOnly(parseEventDate(event.start_time)).getTime() < day.date.getTime();
+              const continuesAfter = dateOnly(parseEventDate(event.end_time)).getTime() > day.date.getTime();
               return (
                 <TouchableOpacity
                   key={event.id}
@@ -70,14 +72,14 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
         <View style={styles.bodyRow}>
           <View style={{ width: TIME_COL_WIDTH }}>
             {HOURS.map(h => (
-              <View key={h.hour} style={styles.hourRow}>
-                <Text style={styles.hourLabel}>{h.label}</Text>
+              <View key={h} style={styles.hourRow}>
+                <Text style={styles.hourLabel}>{hourLabel(h, timeFormat)}</Text>
               </View>
             ))}
           </View>
           {days.map(day => (
             <View key={day.date.toISOString()} style={[styles.dayCol, day.isToday && styles.today]}>
-              {HOURS.map(h => <View key={h.hour} style={styles.hourRow} />)}
+              {HOURS.map(h => <View key={h} style={styles.hourRow} />)}
               {day.blocks.map(block => {
                 const attendees = block.event.attendees.length ? block.event.attendees : [block.event.owner];
                 return (

@@ -1,4 +1,5 @@
 import type { CalendarEvent } from '../api/types';
+import type { TimeFormat } from '../preferences';
 
 export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -36,6 +37,22 @@ export function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+const EVENT_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
+
+/**
+ * Parses an event's start_time/end_time as the literal wall-clock date/time it encodes,
+ * ignoring any trailing UTC/offset marker. The backend (and the web app) store and render
+ * these as plain wall-clock values — never converted through a real timezone — so this
+ * must match that, rather than `new Date(iso)`, which would reinterpret the digits as a
+ * true UTC instant and shift them by the device's real timezone offset.
+ */
+export function parseEventDate(dateStr: string): Date {
+  const match = EVENT_DATE_RE.exec(dateStr);
+  if (!match) return new Date(dateStr);
+  const [, y, mo, d, h, mi, s] = match;
+  return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), s ? Number(s) : 0);
+}
+
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
@@ -58,19 +75,28 @@ export function rangeLabel(start: Date, end: Date): string {
   return `${MONTH_NAMES[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
 }
 
-export function fmtTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  const hour12 = d.getHours() % 12 || 12;
-  const period = d.getHours() < 12 ? 'AM' : 'PM';
-  return `${hour12}:${String(d.getMinutes()).padStart(2, '0')} ${period}`;
+export function formatClock(hours: number, minutes: number, format: TimeFormat = '12h'): string {
+  const mm = String(minutes).padStart(2, '0');
+  if (format === '24h') {
+    return `${String(hours).padStart(2, '0')}:${mm}`;
+  }
+  const hour12 = hours % 12 || 12;
+  const period = hours < 12 ? 'AM' : 'PM';
+  return `${hour12}:${mm} ${period}`;
 }
 
-export function hourLabel(hour: number): string {
+export function fmtTime(dateStr: string, format: TimeFormat = '12h'): string {
+  const d = parseEventDate(dateStr);
+  return formatClock(d.getHours(), d.getMinutes(), format);
+}
+
+export function hourLabel(hour: number, format: TimeFormat = '12h'): string {
+  if (format === '24h') return `${String(hour).padStart(2, '0')}:00`;
   const period = hour < 12 ? 'AM' : 'PM';
   const hour12 = hour % 12 || 12;
   return `${hour12} ${period}`;
 }
-export const HOURS = Array.from({ length: 24 }, (_, h) => ({ hour: h, label: hourLabel(h) }));
+export const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
 export interface MonthDay {
   date: Date;
@@ -88,8 +114,8 @@ export function buildMonthGrid(events: CalendarEvent[], year: number, month: num
 
   const eventsByDay = new Map<string, CalendarEvent[]>();
   for (const e of events) {
-    const eventStart = dateOnly(new Date(e.start_time));
-    const eventEnd = dateOnly(new Date(e.end_time));
+    const eventStart = dateOnly(parseEventDate(e.start_time));
+    const eventEnd = dateOnly(parseEventDate(e.end_time));
     const firstDay = eventStart.getTime() > gridStart.getTime() ? eventStart : gridStart;
     const lastDay = eventEnd.getTime() < gridEnd.getTime() ? eventEnd : gridEnd;
     for (let day = firstDay; day.getTime() <= lastDay.getTime(); day = addDays(day, 1)) {
@@ -102,7 +128,7 @@ export function buildMonthGrid(events: CalendarEvent[], year: number, month: num
   for (const dayEvents of eventsByDay.values()) {
     dayEvents.sort((a, b) => {
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
-      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+      return parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime();
     });
   }
 
@@ -136,15 +162,15 @@ export interface DayBlock {
 export function layoutDayBlocks(events: CalendarEvent[], day: Date): DayBlock[] {
   const dayStartMs = dateOnly(day).getTime();
   const sorted = [...events].sort(
-    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    (a, b) => parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime()
   );
 
   const columnsEnd: number[] = [];
   const placements: { event: CalendarEvent; col: number; start: number; end: number }[] = [];
 
   for (const event of sorted) {
-    const start = new Date(event.start_time).getTime();
-    const end = new Date(event.end_time).getTime();
+    const start = parseEventDate(event.start_time).getTime();
+    const end = parseEventDate(event.end_time).getTime();
     let placedCol = -1;
     for (let i = 0; i < columnsEnd.length; i++) {
       if (start >= columnsEnd[i]) {
@@ -185,8 +211,8 @@ export interface DayColumn {
 function overlapsDay(event: CalendarEvent, day: Date): boolean {
   const dayStart = dateOnly(day).getTime();
   const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
-  const start = new Date(event.start_time).getTime();
-  const end = new Date(event.end_time).getTime();
+  const start = parseEventDate(event.start_time).getTime();
+  const end = parseEventDate(event.end_time).getTime();
   return start <= dayEnd && end >= dayStart;
 }
 
@@ -209,7 +235,7 @@ export function buildDayAgenda(events: CalendarEvent[], day: Date): CalendarEven
     .filter(e => overlapsDay(e, day))
     .sort((a, b) => {
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
-      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+      return parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime();
     });
 }
 
@@ -226,8 +252,8 @@ export function buildAgendaView(events: CalendarEvent[], year: number, month: nu
 
   const eventsByDay = new Map<string, CalendarEvent[]>();
   for (const e of events) {
-    const eventStart = dateOnly(new Date(e.start_time));
-    const eventEnd = dateOnly(new Date(e.end_time));
+    const eventStart = dateOnly(parseEventDate(e.start_time));
+    const eventEnd = dateOnly(parseEventDate(e.end_time));
     const firstDay = eventStart.getTime() > firstOfMonth.getTime() ? eventStart : firstOfMonth;
     const lastDay = eventEnd.getTime() < lastOfMonth.getTime() ? eventEnd : lastOfMonth;
     for (let day = firstDay; day.getTime() <= lastDay.getTime(); day = addDays(day, 1)) {
@@ -240,7 +266,7 @@ export function buildAgendaView(events: CalendarEvent[], year: number, month: nu
   for (const dayEvents of eventsByDay.values()) {
     dayEvents.sort((a, b) => {
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
-      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
+      return parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime();
     });
   }
 
