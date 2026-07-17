@@ -90,6 +90,36 @@ export function fmtTime(dateStr: string, format: TimeFormat = '12h'): string {
   return formatClock(d.getHours(), d.getMinutes(), format);
 }
 
+/**
+ * Port of event_time_label in app/templating.py — the time label for an agenda/day-list
+ * row representing `event` on `day`. For a timed event spanning multiple days, the raw
+ * start/end time only makes sense on the day it actually occurs; other days it spans just
+ * show as ongoing.
+ */
+export function eventTimeLabel(event: CalendarEvent, day: Date, format: TimeFormat = '12h'): string {
+  const start = parseEventDate(event.start_time);
+  const end = parseEventDate(event.end_time);
+  const startDay = dateOnly(start);
+  const endDay = dateOnly(end);
+  if (event.all_day) {
+    if (endDay.getTime() > startDay.getTime()) {
+      return `All day (${startDay.getMonth() + 1}/${startDay.getDate()}–${endDay.getMonth() + 1}/${endDay.getDate()})`;
+    }
+    return 'All day';
+  }
+  if (endDay.getTime() === startDay.getTime()) {
+    return `${formatClock(start.getHours(), start.getMinutes(), format)} – ${formatClock(end.getHours(), end.getMinutes(), format)}`;
+  }
+  const day0 = dateOnly(day);
+  if (day0.getTime() === startDay.getTime()) {
+    return `${formatClock(start.getHours(), start.getMinutes(), format)} – continues`;
+  }
+  if (day0.getTime() === endDay.getTime()) {
+    return `continues – ${formatClock(end.getHours(), end.getMinutes(), format)}`;
+  }
+  return 'Continues all day';
+}
+
 export function hourLabel(hour: number, format: TimeFormat = '12h'): string {
   if (format === '24h') return `${String(hour).padStart(2, '0')}:00`;
   const period = hour < 12 ? 'AM' : 'PM';

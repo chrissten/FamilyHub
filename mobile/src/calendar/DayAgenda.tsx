@@ -2,19 +2,13 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
-import { dateOnly, fmtTime, parseEventDate } from './dateUtils';
+import { eventTimeLabel } from './dateUtils';
 import { useTimeFormat } from '../preferences';
 import { useTheme, type Colors } from '../theme';
 
-function allDaySuffix(event: CalendarEvent): string {
-  const start = dateOnly(parseEventDate(event.start_time));
-  const end = dateOnly(parseEventDate(event.end_time));
-  if (end.getTime() <= start.getTime()) return '';
-  return ` (${start.getMonth() + 1}/${start.getDate()}–${end.getMonth() + 1}/${end.getDate()})`;
-}
-
 interface Props {
   events: CalendarEvent[];
+  theDate: Date;
   familySize: number;
   refreshing: boolean;
   onRefresh: () => void;
@@ -25,7 +19,7 @@ interface Props {
 
 /** Port of app/templates/_calendar_day.html. */
 export default function DayAgenda({
-  events, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
+  events, theDate, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
 }: Props) {
   const timeFormat = useTimeFormat();
   const { colors } = useTheme();
@@ -61,7 +55,7 @@ export default function DayAgenda({
               <View style={styles.cardBody}>
                 <View style={styles.titleRow}>
                   <Text style={styles.cardTime}>
-                    {item.all_day ? `All day${allDaySuffix(item)}` : `${fmtTime(item.start_time, timeFormat)} – ${fmtTime(item.end_time, timeFormat)}`}
+                    {eventTimeLabel(item, theDate, timeFormat)}
                   </Text>
                   <AttendeeDots attendees={attendees} familySize={familySize} />
                   <Text style={styles.cardTitle} numberOfLines={1}>

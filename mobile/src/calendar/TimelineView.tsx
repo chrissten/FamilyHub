@@ -86,11 +86,15 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
               {HOURS.map(h => <View key={h} style={styles.hourRow} />)}
               {day.blocks.map(block => {
                 const attendees = block.event.attendees.length ? block.event.attendees : [block.event.owner];
+                const continuesBefore = dateOnly(parseEventDate(block.event.start_time)).getTime() < day.date.getTime();
+                const continuesAfter = dateOnly(parseEventDate(block.event.end_time)).getTime() > day.date.getTime();
                 return (
                   <TouchableOpacity
                     key={block.event.id}
                     style={[
                       styles.eventBlock,
+                      continuesBefore && styles.eventBlockContinuesBefore,
+                      continuesAfter && styles.eventBlockContinuesAfter,
                       {
                         top: block.topHours * HOUR_HEIGHT,
                         height: Math.max(block.heightHours * HOUR_HEIGHT, 22),
@@ -152,6 +156,8 @@ function createStyles(colors: Colors) {
       position: 'absolute', backgroundColor: colors.chip, borderLeftWidth: 3,
       borderRadius: 3, padding: 2, overflow: 'hidden',
     },
+    eventBlockContinuesBefore: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+    eventBlockContinuesAfter: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
     eventBlockTitle: { fontSize: 9.5, color: colors.chipText },
   });
 }

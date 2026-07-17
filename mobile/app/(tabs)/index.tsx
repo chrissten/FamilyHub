@@ -132,6 +132,7 @@ export default function CalendarScreen() {
     body = (
       <DayAgenda
         events={agenda}
+        theDate={anchor}
         familySize={familySize}
         refreshing={refreshing}
         onRefresh={load}

@@ -15,6 +15,42 @@ def fmt_time(dt: datetime) -> str:
     return f"{hour12}:{dt.minute:02d} {period}"
 
 
+_WEEKDAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def event_tooltip_range(event) -> str:
+    """Human-readable time range for a chip/block tooltip. Includes the weekday
+    alongside each time when the event spans more than one calendar day, since a
+    bare time range ("6:00 PM-12:00 PM") is ambiguous once start and end fall on
+    different dates."""
+    start, end = event.start_time, event.end_time
+    if event.all_day:
+        if end.date() > start.date():
+            return f"All day ({start.month}/{start.day}–{end.month}/{end.day})"
+        return "All day"
+    if end.date() > start.date():
+        return f"{_WEEKDAY_ABBR[start.weekday()]} {fmt_time(start)} – {_WEEKDAY_ABBR[end.weekday()]} {fmt_time(end)}"
+    return f"{fmt_time(start)}–{fmt_time(end)}"
+
+
+def event_time_label(event, day_date: date) -> str:
+    """Time label for an agenda/day-list row representing `event` on `day_date`.
+    For a timed event spanning multiple days, the raw start/end time only makes
+    sense on the day it actually occurs; other days it spans just show as ongoing."""
+    start, end = event.start_time, event.end_time
+    if event.all_day:
+        if end.date() > start.date():
+            return f"All day ({start.month}/{start.day}–{end.month}/{end.day})"
+        return "All day"
+    if end.date() == start.date():
+        return f"{fmt_time(start)} – {fmt_time(end)}"
+    if day_date == start.date():
+        return f"{fmt_time(start)} – continues"
+    if day_date == end.date():
+        return f"continues – {fmt_time(end)}"
+    return "Continues all day"
+
+
 def expiry_class(exp_date: date | None) -> str:
     if exp_date is None:
         return ""
@@ -28,3 +64,5 @@ def expiry_class(exp_date: date | None) -> str:
 
 templates.env.filters["fmt_time"] = fmt_time
 templates.env.filters["expiry_class"] = expiry_class
+templates.env.filters["event_tooltip_range"] = event_tooltip_range
+templates.env.filters["event_time_label"] = event_time_label

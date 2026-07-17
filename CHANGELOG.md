@@ -33,6 +33,26 @@ by accident (as happened with multi-day events on 2026-07-09).
 ## History (newest first)
 
 ### 2026-07-17
+- **[web]** Multi-day events can now have real start/end times instead of being forced to
+  "all day" — e.g. Friday 6:00 PM through Sunday 12:00 PM. `calendar_create_event`/
+  `calendar_update_event` (`app/routers/calendar.py`) previously collapsed a timed event's
+  end date onto its start date; the end-date field now always applies, regardless of the
+  All day checkbox (`_event_form.html`). The month/week/agenda view-builders already
+  bucketed events by day range independent of `all_day`, so they needed no change; the
+  week/3-day timeline's per-day block clipping (`layout_day_blocks`) also already clamped
+  correctly. Added `continues-before`/`continues-after` styling to timed blocks (mirroring
+  the existing all-day chip treatment) and new `event_tooltip_range`/`event_time_label`
+  helpers (`app/templating.py`) so month/week tooltips show the weekday alongside the time
+  for spanning events, and agenda/day rows show "6:00 PM – continues" / "Continues all day"
+  / "continues – 12:00 PM" instead of the same raw start/end time on every day the event
+  touches. Whole-series edits (`_update_series`) now preserve a multi-day occurrence's
+  duration across every other occurrence instead of collapsing it back to one day.
+- **[mobile]** v1.2.2 — Multi-day timed event parity with the web change above:
+  `event-form.tsx`'s End date field is no longer gated on All day. New `eventTimeLabel()`
+  (`src/calendar/dateUtils.ts`, port of the web's `event_time_label`) drives the same
+  "continues" agenda/day-row labels; `DayAgenda.tsx` now takes a `theDate` prop to compute
+  it. `TimelineView.tsx`'s timed blocks get the same continues-before/after corner styling
+  as `MonthView.tsx`'s chips (which already worked for multi-day, unchanged).
 - **[web]** Calendar events can now repeat — "Weekly on {weekday}" or "Monthly on the
   {nth/last} {weekday}", auto-labeled from whatever start date is picked (no separate
   weekday/ordinal selector). New `CalendarEvent.recurrence_rule`/`series_id` columns

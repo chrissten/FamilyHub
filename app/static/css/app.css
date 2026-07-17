@@ -111,6 +111,8 @@ button[type="button"] { background: #9aa5b1; }
   overflow: hidden;
   box-sizing: border-box;
 }
+.week-event-block.continues-before { border-top-left-radius: 0; border-top-right-radius: 0; }
+.week-event-block.continues-after { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .week-event-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Day (agenda) view */

@@ -33,11 +33,11 @@
     <input type="checkbox" name="all_day" value="true" x-model="allDay">
     All day
   </label>
-  <label x-cloak x-show="allDay">End date
+  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else '09:00' }}"></label>
+  <label>End date
     <input type="date" name="end_date"
            value="{{ event.end_time.date().isoformat() if event else default_date }}">
   </label>
-  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else '09:00' }}"></label>
   <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else '10:00' }}"></label>
 
   {% if not event %}

@@ -25,11 +25,7 @@
       {% for event in day.events %}
       {% set attendees = event.attendees if event.attendees else [event.owner] %}
       <li class="agenda-item">
-        <div class="agenda-time">
-          {% if event.all_day %}
-            All day{% if event.end_time.date() > event.start_time.date() %} ({{ event.start_time.month }}/{{ event.start_time.day }}–{{ event.end_time.month }}/{{ event.end_time.day }}){% endif %}
-          {% else %}{{ event.start_time | fmt_time }} – {{ event.end_time | fmt_time }}{% endif %}
-        </div>
+        <div class="agenda-time">{{ event | event_time_label(day.date) }}</div>
         <div class="agenda-body">
           <a href="#" class="agenda-title"
              hx-get="/calendar/events/{{ event.id }}/edit?return_view=agenda&return_date={{ focus_date }}"

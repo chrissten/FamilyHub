@@ -106,9 +106,10 @@ export default function EventFormScreen() {
       Alert.alert('Required', 'Title and date are required');
       return;
     }
-    const lastDay = allDay && endDate && endDate >= date ? endDate : date;
+    const lastDay = endDate && endDate >= date ? endDate : date;
     const start = allDay ? `${date}T00:00:00Z` : `${date}T${startTime}:00Z`;
-    const end = allDay ? `${lastDay}T23:59:00Z` : `${date}T${endTime}:00Z`;
+    let end = allDay ? `${lastDay}T23:59:00Z` : `${lastDay}T${endTime}:00Z`;
+    if (end < start) end = start;
     const values = {
       title: title.trim(),
       description: description.trim() || undefined,
@@ -191,13 +192,16 @@ export default function EventFormScreen() {
             <Text style={styles.rowLabel}>All day</Text>
             <Switch value={allDay} onValueChange={setAllDay} trackColor={{ false: colors.border, true: colors.primary }} />
           </View>
-          {allDay && (
-            <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('end')}>
-              <Text style={endDate ? styles.dateValue : styles.datePlaceholder}>
-                {endDate ? dayLabel(parseIsoDate(endDate)) : 'End date'}
-              </Text>
+          {!allDay && (
+            <TouchableOpacity style={[styles.input, styles.timeInput]} onPress={() => setTimePickerField('start')}>
+              <Text style={styles.dateValue}>{formatTimeStr(startTime, timeFormat)}</Text>
             </TouchableOpacity>
           )}
+          <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('end')}>
+            <Text style={endDate ? styles.dateValue : styles.datePlaceholder}>
+              {endDate ? dayLabel(parseIsoDate(endDate)) : 'End date'}
+            </Text>
+          </TouchableOpacity>
           {datePickerField && (
             <DateTimePicker
               value={parseIsoDate((datePickerField === 'start' ? date : endDate) || initialDate)}
@@ -207,14 +211,9 @@ export default function EventFormScreen() {
             />
           )}
           {!allDay && (
-            <View style={styles.timeRow}>
-              <TouchableOpacity style={[styles.input, styles.timeInput]} onPress={() => setTimePickerField('start')}>
-                <Text style={styles.dateValue}>{formatTimeStr(startTime, timeFormat)}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.input, styles.timeInput]} onPress={() => setTimePickerField('end')}>
-                <Text style={styles.dateValue}>{formatTimeStr(endTime, timeFormat)}</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={[styles.input, styles.timeInput]} onPress={() => setTimePickerField('end')}>
+              <Text style={styles.dateValue}>{formatTimeStr(endTime, timeFormat)}</Text>
+            </TouchableOpacity>
           )}
           {timePickerField && (
             <DateTimePicker

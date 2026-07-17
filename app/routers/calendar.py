@@ -414,11 +414,12 @@ def _update_series(
     all_day: bool,
     attendees: list[User],
     start_time_of_day: time,
-    end_time_of_day: time,
+    duration: timedelta,
 ) -> None:
     """Applies a "whole series" edit: title/description/location/all_day/attendees are
     overwritten on every occurrence, but only the time-of-day (not the date) is applied,
-    so each occurrence keeps its own calendar date."""
+    so each occurrence keeps its own calendar date. The edited occurrence's duration
+    (which may span multiple days) is preserved across every other occurrence."""
     rows = db.query(CalendarEvent).filter(CalendarEvent.series_id == series_id).all()
     for row in rows:
         row.title = title
@@ -428,7 +429,7 @@ def _update_series(
         row.attendees = attendees
         if not all_day:
             row.start_time = datetime.combine(row.start_time.date(), start_time_of_day)
-            row.end_time = datetime.combine(row.start_time.date(), end_time_of_day)
+            row.end_time = row.start_time + duration
     db.commit()
 
 
@@ -451,15 +452,17 @@ def calendar_create_event(
     current_user: User = Depends(get_current_user),
 ):
     day = date.fromisoformat(start_date)
+    last_day = date.fromisoformat(end_date) if end_date else day
+    if last_day < day:
+        last_day = day
     if all_day:
-        last_day = date.fromisoformat(end_date) if end_date else day
-        if last_day < day:
-            last_day = day
         start_dt = datetime.combine(day, time.min)
         end_dt = datetime.combine(last_day, time.max)
     else:
         start_dt = datetime.combine(day, time.fromisoformat(start_time_str))
-        end_dt = datetime.combine(day, time.fromisoformat(end_time_str))
+        end_dt = datetime.combine(last_day, time.fromisoformat(end_time_str))
+        if end_dt < start_dt:
+            end_dt = start_dt
 
     attendees = db.query(User).filter(User.id.in_(attendee_ids or [current_user.id])).all()
 
@@ -509,15 +512,17 @@ def calendar_update_event(
         raise HTTPException(status_code=404)
 
     day = date.fromisoformat(start_date)
+    last_day = date.fromisoformat(end_date) if end_date else day
+    if last_day < day:
+        last_day = day
     if all_day:
-        last_day = date.fromisoformat(end_date) if end_date else day
-        if last_day < day:
-            last_day = day
         start_dt = datetime.combine(day, time.min)
         end_dt = datetime.combine(last_day, time.max)
     else:
         start_dt = datetime.combine(day, time.fromisoformat(start_time_str))
-        end_dt = datetime.combine(day, time.fromisoformat(end_time_str))
+        end_dt = datetime.combine(last_day, time.fromisoformat(end_time_str))
+        if end_dt < start_dt:
+            end_dt = start_dt
 
     attendees = db.query(User).filter(User.id.in_(attendee_ids)).all()
 
@@ -526,7 +531,7 @@ def calendar_update_event(
             db, event.series_id,
             title=title, description=description or None, location=location or None,
             all_day=all_day, attendees=attendees,
-            start_time_of_day=start_dt.time(), end_time_of_day=end_dt.time(),
+            start_time_of_day=start_dt.time(), duration=end_dt - start_dt,
         )
     else:
         event.title = title
@@ -609,7 +614,7 @@ def api_update_event(
             db, event.series_id,
             title=payload.title, description=payload.description, location=payload.location,
             all_day=payload.all_day, attendees=attendees,
-            start_time_of_day=payload.start_time.time(), end_time_of_day=payload.end_time.time(),
+            start_time_of_day=payload.start_time.time(), duration=payload.end_time - payload.start_time,
         )
         db.refresh(event)
         return event
