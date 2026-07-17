@@ -62,8 +62,8 @@ button[type="button"] { background: #9aa5b1; }
 .calendar-header h2 { margin: 0; font-size: 1.1rem; }
 .month-grid { display: flex; flex-direction: column; gap: 2px; background: #cbd2d9; border: 1px solid #cbd2d9; }
 .weekday-row, .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.weekday { background: #1f2933; color: white; text-align: center; padding: 0.4rem; font-size: 0.8rem; }
-.day-cell { background: white; min-height: max(90px, calc((100vh - 280px) / 6)); padding: 0.3rem; position: relative; }
+.weekday { background: #1f2933; color: white; text-align: center; padding: 0.4rem; font-size: 0.8rem; min-width: 0; }
+.day-cell { background: white; min-height: max(90px, calc((100vh - 280px) / 6)); padding: 0.3rem; position: relative; min-width: 0; overflow: hidden; }
 .day-cell.out-of-month { background: #f0f2f5; color: #9aa5b1; }
 .day-cell.today { outline: 2px solid #4A90D9; }
 .day-cell-header { display: flex; justify-content: space-between; align-items: center; }
@@ -85,12 +85,12 @@ button[type="button"] { background: #9aa5b1; }
 /* Week view */
 .week-grid { --hour-h: max(40px, calc((100vh - 320px) / 24)); border: 1px solid #cbd2d9; background: white; }
 .week-grid-header, .week-allday-row { display: grid; border-bottom: 1px solid #cbd2d9; }
-.week-time-col { font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; }
-.week-day-header { text-align: center; padding: 0.4rem 0.2rem; border-left: 1px solid #e4e7eb; font-size: 0.8rem; position: relative; }
+.week-time-col { font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; min-width: 0; }
+.week-day-header { text-align: center; padding: 0.4rem 0.2rem; border-left: 1px solid #e4e7eb; font-size: 0.8rem; position: relative; min-width: 0; }
 .week-day-header.today { background: #eef4fb; }
 .week-day-number { font-weight: 600; }
 .week-day-header .add-event { position: absolute; top: 2px; right: 6px; }
-.week-allday-cell { border-left: 1px solid #e4e7eb; padding: 2px 4px; display: flex; flex-direction: column; gap: 2px; min-height: 22px; }
+.week-allday-cell { border-left: 1px solid #e4e7eb; padding: 2px 4px; display: flex; flex-direction: column; gap: 2px; min-height: 22px; min-width: 0; overflow: hidden; }
 .week-body { display: grid; position: relative; }
 .hour-label { height: var(--hour-h); font-size: 0.7rem; color: #9aa5b1; text-align: right; padding-right: 0.4rem; box-sizing: border-box; border-top: 1px solid #f0f2f5; }
 .week-day-col { height: calc(var(--hour-h) * 24); position: relative; border-left: 1px solid #e4e7eb; box-sizing: border-box; }
