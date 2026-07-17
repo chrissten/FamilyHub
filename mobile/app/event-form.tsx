@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { createEvent, updateEvent, deleteEvent } from '../src/api/client';
+import { createEvent, updateEvent, deleteEvent, type EventScope, type RecurrenceOption } from '../src/api/client';
 import { dayLabel, formatClock, isoDate, parseEventDate } from '../src/calendar/dateUtils';
+import { monthlyLabel, weekdayLabel } from '../src/calendar/recurrence';
 import { useTimeFormat, type TimeFormat } from '../src/preferences';
 import { takePendingEventForm } from '../src/calendar/formState';
 import { useTheme, type Colors } from '../src/theme';
@@ -54,6 +55,7 @@ export default function EventFormScreen() {
   const [startTime, setStartTime] = useState(() => (event ? timeOf(parseEventDate(event.start_time)) : '09:00'));
   const [endTime, setEndTime] = useState(() => (event ? timeOf(parseEventDate(event.end_time)) : '10:00'));
   const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set(event?.attendees.map(a => a.id) ?? []));
+  const [repeat, setRepeat] = useState<RecurrenceOption>('none');
   const [datePickerField, setDatePickerField] = useState<'start' | 'end' | null>(null);
   const [timePickerField, setTimePickerField] = useState<'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
@@ -87,6 +89,18 @@ export default function EventFormScreen() {
     setAttendeeIds(new Set(members.map(m => m.id)));
   }
 
+  async function save(action: () => Promise<unknown>) {
+    setSaving(true);
+    try {
+      await action();
+      router.back();
+    } catch {
+      Alert.alert('Error', 'Could not save event');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleSave() {
     if (!title.trim() || !date.trim()) {
       Alert.alert('Required', 'Title and date are required');
@@ -104,31 +118,45 @@ export default function EventFormScreen() {
       all_day: allDay,
       attendee_ids: Array.from(attendeeIds),
     };
-    setSaving(true);
+
+    if (!event) {
+      await save(() => createEvent({ ...values, recurrence: repeat }));
+      return;
+    }
+    if (event.series_id) {
+      Alert.alert('Save Event', 'Apply this change to just this event, or the whole series?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'This Event', onPress: () => save(() => updateEvent(event.id, values, 'this')) },
+        { text: 'Whole Series', onPress: () => save(() => updateEvent(event.id, values, 'series')) },
+      ]);
+      return;
+    }
+    await save(() => updateEvent(event.id, values));
+  }
+
+  async function removeEvent(scope: EventScope) {
+    if (!event) return;
     try {
-      if (event) await updateEvent(event.id, values); else await createEvent(values);
+      await deleteEvent(event.id, scope);
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save event');
-    } finally {
-      setSaving(false);
+      Alert.alert('Error', 'Could not delete event');
     }
   }
 
   function handleDelete() {
     if (!event) return;
+    if (event.series_id) {
+      Alert.alert('Delete Event', `Delete "${event.title}"?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'This Event', style: 'destructive', onPress: () => removeEvent('this') },
+        { text: 'Whole Series', style: 'destructive', onPress: () => removeEvent('series') },
+      ]);
+      return;
+    }
     Alert.alert('Delete Event', `Delete "${event.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await deleteEvent(event.id);
-            router.back();
-          } catch {
-            Alert.alert('Error', 'Could not delete event');
-          }
-        },
-      },
+      { text: 'Delete', style: 'destructive', onPress: () => removeEvent('this') },
     ]);
   }
 
@@ -197,6 +225,30 @@ export default function EventFormScreen() {
               onChange={handleTimeChange}
             />
           )}
+          {!event && (
+            <View style={styles.repeatSection}>
+              <Text style={styles.rowLabel}>Repeat</Text>
+              <View style={styles.repeatOptions}>
+                {([
+                  ['none', 'Does not repeat'],
+                  ['weekly', `Weekly on ${weekdayLabel(parseIsoDate(date))}`],
+                  ['monthly', `Monthly on the ${monthlyLabel(parseIsoDate(date))}`],
+                ] as [RecurrenceOption, string][]).map(([opt, label]) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.repeatPill, repeat === opt && styles.repeatPillActive]}
+                    onPress={() => setRepeat(opt)}
+                  >
+                    <Text style={[styles.repeatPillText, repeat === opt && styles.repeatPillTextActive]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+          {!!event?.series_id && <Text style={styles.hint}>🔁 Part of a repeating series</Text>}
+
           <TextInput
             style={styles.input} placeholder="Location" value={location} onChangeText={setLocation}
             placeholderTextColor={colors.placeholder}
@@ -263,6 +315,15 @@ function createStyles(colors: Colors) {
       alignItems: 'center', marginBottom: 12, paddingHorizontal: 2,
     },
     rowLabel: { fontSize: 16, color: colors.textMuted },
+    repeatSection: { marginBottom: 12 },
+    repeatOptions: { marginTop: 8, gap: 8 },
+    repeatPill: {
+      borderRadius: 10, paddingVertical: 12, paddingHorizontal: 14,
+      backgroundColor: colors.surfaceAlt,
+    },
+    repeatPillActive: { backgroundColor: colors.primary },
+    repeatPillText: { fontSize: 15, color: colors.text },
+    repeatPillTextActive: { color: colors.primaryText, fontWeight: '600' },
     attendeesHeader: {
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
       marginTop: 4, marginBottom: 8,

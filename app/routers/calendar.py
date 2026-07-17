@@ -1,5 +1,6 @@
 import calendar as cal
 from datetime import date, datetime, time, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import CalendarEvent, User
+from app.recurrence import derive_rule_from_date, materialize_series
 from app.schemas import EventCreate, EventOut
 from app.templating import templates
 
@@ -402,6 +404,34 @@ def _return_response(request: Request, db: Session, return_view: str, return_dat
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
+def _update_series(
+    db: Session,
+    series_id: str,
+    *,
+    title: str,
+    description: str | None,
+    location: str | None,
+    all_day: bool,
+    attendees: list[User],
+    start_time_of_day: time,
+    end_time_of_day: time,
+) -> None:
+    """Applies a "whole series" edit: title/description/location/all_day/attendees are
+    overwritten on every occurrence, but only the time-of-day (not the date) is applied,
+    so each occurrence keeps its own calendar date."""
+    rows = db.query(CalendarEvent).filter(CalendarEvent.series_id == series_id).all()
+    for row in rows:
+        row.title = title
+        row.description = description
+        row.location = location
+        row.all_day = all_day
+        row.attendees = attendees
+        if not all_day:
+            row.start_time = datetime.combine(row.start_time.date(), start_time_of_day)
+            row.end_time = datetime.combine(row.start_time.date(), end_time_of_day)
+    db.commit()
+
+
 @router.post("/calendar/events", response_class=HTMLResponse)
 def calendar_create_event(
     request: Request,
@@ -414,6 +444,7 @@ def calendar_create_event(
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
     attendee_ids: list[int] = Form([]),
+    repeat: str = Form("none"),
     return_view: str = Form("month"),
     return_date: str = Form(...),
     db: Session = Depends(get_db),
@@ -430,18 +461,27 @@ def calendar_create_event(
         start_dt = datetime.combine(day, time.fromisoformat(start_time_str))
         end_dt = datetime.combine(day, time.fromisoformat(end_time_str))
 
-    event = CalendarEvent(
-        owner_id=current_user.id,
-        title=title,
-        description=description or None,
-        location=location or None,
-        start_time=start_dt,
-        end_time=end_dt,
-        all_day=all_day,
-    )
-    event.attendees = db.query(User).filter(User.id.in_(attendee_ids or [current_user.id])).all()
-    db.add(event)
-    db.commit()
+    attendees = db.query(User).filter(User.id.in_(attendee_ids or [current_user.id])).all()
+
+    if repeat in ("weekly", "monthly"):
+        rule = derive_rule_from_date(repeat, day)
+        materialize_series(
+            db, current_user.id, title, description or None, location or None, all_day,
+            attendees, rule, start_dt, end_dt,
+        )
+    else:
+        event = CalendarEvent(
+            owner_id=current_user.id,
+            title=title,
+            description=description or None,
+            location=location or None,
+            start_time=start_dt,
+            end_time=end_dt,
+            all_day=all_day,
+        )
+        event.attendees = attendees
+        db.add(event)
+        db.commit()
     return _return_response(request, db, return_view, return_date)
 
 
@@ -458,6 +498,7 @@ def calendar_update_event(
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
     attendee_ids: list[int] = Form([]),
+    scope: str = Form("this"),
     return_view: str = Form("month"),
     return_date: str = Form(...),
     db: Session = Depends(get_db),
@@ -478,14 +519,27 @@ def calendar_update_event(
         start_dt = datetime.combine(day, time.fromisoformat(start_time_str))
         end_dt = datetime.combine(day, time.fromisoformat(end_time_str))
 
-    event.title = title
-    event.description = description or None
-    event.location = location or None
-    event.start_time = start_dt
-    event.end_time = end_dt
-    event.all_day = all_day
-    event.attendees = db.query(User).filter(User.id.in_(attendee_ids)).all()
-    db.commit()
+    attendees = db.query(User).filter(User.id.in_(attendee_ids)).all()
+
+    if scope == "series" and event.series_id:
+        _update_series(
+            db, event.series_id,
+            title=title, description=description or None, location=location or None,
+            all_day=all_day, attendees=attendees,
+            start_time_of_day=start_dt.time(), end_time_of_day=end_dt.time(),
+        )
+    else:
+        event.title = title
+        event.description = description or None
+        event.location = location or None
+        event.start_time = start_dt
+        event.end_time = end_dt
+        event.all_day = all_day
+        event.attendees = attendees
+        if event.series_id:
+            event.series_id = None
+            event.recurrence_rule = None
+        db.commit()
     return _return_response(request, db, return_view, return_date)
 
 
@@ -493,6 +547,7 @@ def calendar_update_event(
 def calendar_delete_event(
     request: Request,
     event_id: int,
+    scope: str = Form("this"),
     return_view: str = Form("month"),
     return_date: str = Form(...),
     db: Session = Depends(get_db),
@@ -501,7 +556,11 @@ def calendar_delete_event(
     event = db.get(CalendarEvent, event_id)
     if not event:
         raise HTTPException(status_code=404)
-    db.delete(event)
+    if scope == "series" and event.series_id:
+        for row in db.query(CalendarEvent).filter(CalendarEvent.series_id == event.series_id).all():
+            db.delete(row)
+    else:
+        db.delete(event)
     db.commit()
     return _return_response(request, db, return_view, return_date)
 
@@ -515,9 +574,17 @@ def api_list_events(db: Session = Depends(get_db), current_user: User = Depends(
 def api_create_event(
     payload: EventCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    data = payload.model_dump(exclude={"attendee_ids"})
+    attendees = db.query(User).filter(User.id.in_(payload.attendee_ids or [current_user.id])).all()
+    if payload.recurrence in ("weekly", "monthly"):
+        rule = derive_rule_from_date(payload.recurrence, payload.start_time.date())
+        events = materialize_series(
+            db, current_user.id, payload.title, payload.description, payload.location,
+            payload.all_day, attendees, rule, payload.start_time, payload.end_time,
+        )
+        return events[0]
+    data = payload.model_dump(exclude={"attendee_ids", "recurrence"})
     event = CalendarEvent(owner_id=current_user.id, **data)
-    event.attendees = db.query(User).filter(User.id.in_(payload.attendee_ids or [current_user.id])).all()
+    event.attendees = attendees
     db.add(event)
     db.commit()
     db.refresh(event)
@@ -528,15 +595,35 @@ def api_create_event(
 def api_update_event(
     event_id: int,
     payload: EventCreate,
+    scope: Literal["this", "series"] = "this",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     event = db.get(CalendarEvent, event_id)
     if not event:
         raise HTTPException(status_code=404)
-    for key, value in payload.model_dump(exclude={"attendee_ids"}).items():
-        setattr(event, key, value)
-    event.attendees = db.query(User).filter(User.id.in_(payload.attendee_ids)).all()
+    attendees = db.query(User).filter(User.id.in_(payload.attendee_ids)).all()
+
+    if scope == "series" and event.series_id:
+        _update_series(
+            db, event.series_id,
+            title=payload.title, description=payload.description, location=payload.location,
+            all_day=payload.all_day, attendees=attendees,
+            start_time_of_day=payload.start_time.time(), end_time_of_day=payload.end_time.time(),
+        )
+        db.refresh(event)
+        return event
+
+    event.title = payload.title
+    event.description = payload.description
+    event.location = payload.location
+    event.start_time = payload.start_time
+    event.end_time = payload.end_time
+    event.all_day = payload.all_day
+    event.attendees = attendees
+    if event.series_id:
+        event.series_id = None
+        event.recurrence_rule = None
     db.commit()
     db.refresh(event)
     return event
@@ -544,11 +631,18 @@ def api_update_event(
 
 @router.delete("/api/events/{event_id}")
 def api_delete_event(
-    event_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    event_id: int,
+    scope: Literal["this", "series"] = "this",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     event = db.get(CalendarEvent, event_id)
     if not event:
         raise HTTPException(status_code=404)
-    db.delete(event)
+    if scope == "series" and event.series_id:
+        for row in db.query(CalendarEvent).filter(CalendarEvent.series_id == event.series_id).all():
+            db.delete(row)
+    else:
+        db.delete(event)
     db.commit()
     return {"ok": True}

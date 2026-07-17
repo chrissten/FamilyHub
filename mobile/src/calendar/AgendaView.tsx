@@ -95,12 +95,14 @@ export default function AgendaView({
                 >
                   <View style={[styles.accent, { backgroundColor: attendees[0].color_hex }]} />
                   <View style={styles.cardBody}>
-                    <Text style={styles.cardTime}>
-                      {item.all_day ? `All day${allDaySuffix(item)}` : `${fmtTime(item.start_time, timeFormat)} – ${fmtTime(item.end_time, timeFormat)}`}
-                    </Text>
                     <View style={styles.titleRow}>
+                      <Text style={styles.cardTime}>
+                        {item.all_day ? `All day${allDaySuffix(item)}` : `${fmtTime(item.start_time, timeFormat)} – ${fmtTime(item.end_time, timeFormat)}`}
+                      </Text>
                       <AttendeeDots attendees={attendees} familySize={familySize} />
-                      <Text style={styles.cardTitle}>{item.title}</Text>
+                      <Text style={styles.cardTitle} numberOfLines={1}>
+                        {item.title}{item.series_id ? ' ↻' : ''}
+                      </Text>
                     </View>
                     <Text style={styles.cardMeta}>
                       {isAll ? 'Everyone' : attendees.map(a => a.display_name).join(', ')}
@@ -137,8 +139,8 @@ function createStyles(colors: Colors) {
     accent: { width: 5 },
     cardBody: { flex: 1, padding: 12 },
     cardTime: { fontSize: 13, color: colors.primary },
-    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
-    cardTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    cardTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
     cardMeta: { fontSize: 12, color: colors.textFaint, marginTop: 3 },
   });
 }

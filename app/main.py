@@ -8,6 +8,7 @@ from app.config import settings
 from sqlalchemy import inspect, text
 
 from app.database import Base, SessionLocal, engine
+from app.recurrence import top_up_recurring_series
 from app.routers import auth, calendar, freezer, grocery, todo, users
 from app.seed import seed_admin
 
@@ -40,9 +41,19 @@ def on_startup():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE grocery_items ADD COLUMN sort_order INTEGER DEFAULT 0"))
             conn.commit()
+    # Add recurrence columns to calendar_events if this is an existing deployment
+    event_cols = [c["name"] for c in inspect(engine).get_columns("calendar_events")]
+    with engine.connect() as conn:
+        if "recurrence_rule" not in event_cols:
+            conn.execute(text("ALTER TABLE calendar_events ADD COLUMN recurrence_rule VARCHAR(200)"))
+        if "series_id" not in event_cols:
+            conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_id VARCHAR(36)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_series_id ON calendar_events (series_id)"))
+        conn.commit()
     db = SessionLocal()
     try:
         seed_admin(db)
+        top_up_recurring_series(db)
     finally:
         db.close()
 

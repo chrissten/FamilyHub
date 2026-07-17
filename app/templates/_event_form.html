@@ -1,6 +1,22 @@
 <h2>{{ "Edit event" if event else "New event" }}</h2>
 <form
-  x-data="{ allDay: {{ 'true' if event and event.all_day else 'false' }} }"
+  x-data="{
+    allDay: {{ 'true' if event and event.all_day else 'false' }},
+    startDate: '{{ event.start_time.date().isoformat() if event else default_date }}',
+    repeat: 'none',
+    weekdayName(d) {
+      const dt = new Date(d + 'T00:00:00');
+      return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
+    },
+    monthlyLabel(d) {
+      const dt = new Date(d + 'T00:00:00');
+      const day = dt.getDate();
+      const lastDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+      const isLast = day + 7 > lastDay;
+      const ordinal = isLast ? 'last' : ['1st','2nd','3rd','4th'][Math.floor((day - 1) / 7)];
+      return ordinal + ' ' + this.weekdayName(d);
+    }
+  }"
   hx-post="{{ '/calendar/events/' + event.id|string if event else '/calendar/events' }}"
   hx-target="#calendar-view" hx-swap="innerHTML"
   hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">
@@ -10,7 +26,7 @@
   <label>Description<textarea name="description">{{ event.description if event else '' }}</textarea></label>
   <label>Location<input type="text" name="location" value="{{ event.location if event else '' }}"></label>
   <label>Start date
-    <input type="date" name="start_date"
+    <input type="date" name="start_date" x-model="startDate"
            value="{{ event.start_time.date().isoformat() if event else default_date }}" required>
   </label>
   <label class="inline">
@@ -23,6 +39,19 @@
   </label>
   <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else '09:00' }}"></label>
   <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else '10:00' }}"></label>
+
+  {% if not event %}
+  <label>Repeat
+    <select name="repeat" x-model="repeat">
+      <option value="none">Does not repeat</option>
+      <option value="weekly" x-text="'Weekly on ' + weekdayName(startDate)"></option>
+      <option value="monthly" x-text="'Monthly on the ' + monthlyLabel(startDate)"></option>
+    </select>
+  </label>
+  {% elif event.series_id %}
+  <div class="repeat-note">🔁 Part of a repeating series</div>
+  {% endif %}
+
   <label class="attendees-label">
     Attendees
     <button type="button" class="link-button"
@@ -40,13 +69,33 @@
     {% endfor %}
   </div>
   <div class="form-actions">
+    {% if event and event.series_id %}
+    <button type="submit" hx-post="/calendar/events/{{ event.id }}" hx-vals='{"scope":"this"}'
+            hx-target="#calendar-view" hx-swap="innerHTML"
+            hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">Save this event</button>
+    <button type="submit" hx-post="/calendar/events/{{ event.id }}" hx-vals='{"scope":"series"}'
+            hx-target="#calendar-view" hx-swap="innerHTML"
+            hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">Save whole series</button>
+    {% else %}
     <button type="submit">{{ "Save" if event else "Add event" }}</button>
+    {% endif %}
     <button type="button" @click="modalOpen = false">Cancel</button>
     {% if event %}
-    <button type="button" class="danger"
-            hx-post="/calendar/events/{{ event.id }}/delete"
-            hx-target="#calendar-view" hx-swap="innerHTML"
-            hx-on::after-request="window.dispatchEvent(new Event('close-modal'))">Delete</button>
+      {% if event.series_id %}
+      <button type="button" class="danger"
+              hx-post="/calendar/events/{{ event.id }}/delete" hx-vals='{"scope":"this"}'
+              hx-target="#calendar-view" hx-swap="innerHTML"
+              hx-on::after-request="window.dispatchEvent(new Event('close-modal'))">Delete this event</button>
+      <button type="button" class="danger"
+              hx-post="/calendar/events/{{ event.id }}/delete" hx-vals='{"scope":"series"}'
+              hx-target="#calendar-view" hx-swap="innerHTML"
+              hx-on::after-request="window.dispatchEvent(new Event('close-modal'))">Delete whole series</button>
+      {% else %}
+      <button type="button" class="danger"
+              hx-post="/calendar/events/{{ event.id }}/delete"
+              hx-target="#calendar-view" hx-swap="innerHTML"
+              hx-on::after-request="window.dispatchEvent(new Event('close-modal'))">Delete</button>
+      {% endif %}
     {% endif %}
   </div>
 </form>

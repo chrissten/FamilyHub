@@ -32,6 +32,31 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-17
+- **[web]** Calendar events can now repeat — "Weekly on {weekday}" or "Monthly on the
+  {nth/last} {weekday}", auto-labeled from whatever start date is picked (no separate
+  weekday/ordinal selector). New `CalendarEvent.recurrence_rule`/`series_id` columns
+  (`app/models.py`, migrated via the same startup `ALTER TABLE` pattern already used for
+  `grocery_items.sort_order`) and a new `app/recurrence.py` module that materializes
+  concrete occurrence rows 24 months out (matches the existing "flat row per occurrence"
+  model the Cozi import already used, so none of the 8 existing month/week/day/agenda
+  view-builder functions needed to change). A startup job tops up any series getting close
+  to running out, so "repeats forever" actually behaves that way without a cron job.
+  Editing/deleting a single occurrence detaches it from the series ("this event only");
+  editing/deleting the whole series is also supported. `_event_form.html` gains a Repeat
+  select and a this-vs-whole-series choice when editing a recurring event.
+- **[mobile]** v1.2.1 — Recurring-event parity with the web change above: `event-form.tsx`
+  gains a "Repeat" picker (new events only) and this-vs-series Alert prompts on save/delete
+  for events that are part of a series (`src/calendar/recurrence.ts` mirrors the web's
+  weekday/ordinal label logic). `AgendaView.tsx`/`DayAgenda.tsx` show a small "↻" next to
+  recurring event titles.
+- **[mobile]** Agenda tab whitespace: event cards now put the time on the same line as the
+  title (was its own line, leaving a lot of empty space to the right) — cuts a typical card
+  from 3–4 lines down to 2–3. `AgendaView.tsx` and `DayAgenda.tsx`.
+- **[mobile]** Grocery list: typing an item name that already exists on the list now scrolls
+  to that entry, highlights it, and unchecks it automatically if it was checked off —
+  previously this only happened server-side at submit time. `app/(tabs)/grocery.tsx`.
+
 ### 2026-07-15 (5)
 - **[web]** Admins can now edit an existing family member's color from the Family Members
   page (`/users`) — previously `color_hex` was only settable at account creation, with no

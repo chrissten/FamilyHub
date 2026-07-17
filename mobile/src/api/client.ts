@@ -120,6 +120,9 @@ export async function login(serverUrl: string, username: string, password: strin
 export const getEvents = () =>
   request<CalendarEvent[]>('/api/events');
 
+export type RecurrenceOption = 'none' | 'weekly' | 'monthly';
+export type EventScope = 'this' | 'series';
+
 export const createEvent = (data: {
   title: string;
   description?: string;
@@ -128,6 +131,7 @@ export const createEvent = (data: {
   end_time: string;
   all_day: boolean;
   attendee_ids?: number[];
+  recurrence?: RecurrenceOption;
 }) => request<CalendarEvent>('/api/events', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateEvent = (id: number, data: {
@@ -138,10 +142,12 @@ export const updateEvent = (id: number, data: {
   end_time: string;
   all_day: boolean;
   attendee_ids?: number[];
-}) => request<CalendarEvent>(`/api/events/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}, scope: EventScope = 'this') => request<CalendarEvent>(
+  `/api/events/${id}?scope=${scope}`, { method: 'PUT', body: JSON.stringify(data) },
+);
 
-export const deleteEvent = (id: number) =>
-  request<{ ok: boolean }>(`/api/events/${id}`, { method: 'DELETE' });
+export const deleteEvent = (id: number, scope: EventScope = 'this') =>
+  request<{ ok: boolean }>(`/api/events/${id}?scope=${scope}`, { method: 'DELETE' });
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 

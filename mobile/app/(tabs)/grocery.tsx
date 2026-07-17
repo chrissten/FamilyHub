@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, SectionList, StyleSheet, TouchableOpacity,
   RefreshControl, Alert, TextInput,
@@ -22,6 +22,8 @@ export default function GroceryScreen() {
   const [newItem, setNewItem] = useState('');
   const [newQty, setNewQty] = useState('');
   const [storeMode, setStoreMode] = useState(false);
+  const [matchedItemId, setMatchedItemId] = useState<number | null>(null);
+  const sectionListRef = useRef<SectionList<GroceryItem>>(null);
 
   useFocusEffect(useCallback(() => { loadLists(); }, []));
 
@@ -95,18 +97,53 @@ export default function GroceryScreen() {
     }
   }
 
-  const sections = categories.map(cat => ({
-    key: String(cat.id),
-    title: cat.name,
-    data: items.filter(i => i.category_id === cat.id && (!storeMode || !i.checked)),
-  })).filter(s => s.data.length > 0);
+  function buildSections() {
+    const secs = categories.map(cat => ({
+      key: String(cat.id),
+      title: cat.name,
+      data: items.filter(i => i.category_id === cat.id && (!storeMode || !i.checked)),
+    })).filter(s => s.data.length > 0);
 
-  const orphaned = items.filter(i =>
-    !categories.some(c => c.id === i.category_id) && (!storeMode || !i.checked)
-  );
-  if (orphaned.length > 0) {
-    sections.push({ key: 'other', title: 'Other', data: orphaned });
+    const orphaned = items.filter(i =>
+      !categories.some(c => c.id === i.category_id) && (!storeMode || !i.checked)
+    );
+    if (orphaned.length > 0) {
+      secs.push({ key: 'other', title: 'Other', data: orphaned });
+    }
+    return secs;
   }
+
+  const sections = buildSections();
+
+  useEffect(() => {
+    const trimmed = newItem.trim().toLowerCase();
+    if (!trimmed) {
+      setMatchedItemId(null);
+      return;
+    }
+    const match = items.find(i => i.name.trim().toLowerCase() === trimmed);
+    if (!match) {
+      setMatchedItemId(null);
+      return;
+    }
+    if (match.id === matchedItemId) return;
+    setMatchedItemId(match.id);
+
+    const secs = buildSections();
+    for (let sectionIndex = 0; sectionIndex < secs.length; sectionIndex++) {
+      const itemIndex = secs[sectionIndex].data.findIndex(i => i.id === match.id);
+      if (itemIndex >= 0) {
+        try {
+          sectionListRef.current?.scrollToLocation({ sectionIndex, itemIndex, viewPosition: 0.3, animated: true });
+        } catch {
+          // list not measured yet — ignore, the highlight still shows once rendered
+        }
+        break;
+      }
+    }
+    if (match.checked) handleToggle(match);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newItem, items, categories, storeMode]);
 
   const remaining = items.filter(i => !i.checked).length;
 
@@ -145,6 +182,7 @@ export default function GroceryScreen() {
       )}
 
       <SectionList
+        ref={sectionListRef}
         sections={sections}
         keyExtractor={item => String(item.id)}
         keyboardShouldPersistTaps="handled"
@@ -154,7 +192,7 @@ export default function GroceryScreen() {
         )}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.item}
+            style={[styles.item, item.id === matchedItemId && styles.itemHighlighted]}
             onPress={() => handleToggle(item)}
             onLongPress={() => !storeMode && handleDelete(item)}
             activeOpacity={0.6}
@@ -252,6 +290,7 @@ function createStyles(colors: Colors) {
       justifyContent: 'center', alignItems: 'center', marginRight: 14,
     },
     checkDone: { backgroundColor: colors.primary, borderColor: colors.primary },
+    itemHighlighted: { backgroundColor: colors.primary + '22' },
     checkMark: { color: '#fff', fontSize: 13, fontWeight: '700' },
     itemBody: { flex: 1 },
     itemName: { fontSize: 16, color: colors.text },

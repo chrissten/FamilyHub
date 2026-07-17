@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -40,6 +41,7 @@ class EventBase(BaseModel):
 
 class EventCreate(EventBase):
     attendee_ids: list[int] = []
+    recurrence: Literal["none", "weekly", "monthly"] = "none"
 
 
 class EventOut(EventBase):
@@ -49,6 +51,7 @@ class EventOut(EventBase):
     owner_id: int
     owner: UserOut
     attendees: list[UserOut]
+    series_id: str | None = None
 
 
 class GroceryListCreate(BaseModel):

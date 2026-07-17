@@ -2,14 +2,14 @@
   "expo": {
     "name": "FamilyHub",
     "slug": "familyhub-mobile",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "familyhub",
     "android": {
       "package": "com.familyhub.mobile",
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3A7AC8"
