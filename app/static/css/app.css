@@ -140,8 +140,8 @@ button[type="button"] { background: #9aa5b1; }
 .agenda-day-empty { color: #9aa5b1; font-size: 0.85rem; padding: 0.4rem 0 0; font-style: italic; }
 
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
-.modal { background: white; padding: 1.5rem; border-radius: 8px; width: min(360px, 92vw); max-height: 90vh; overflow-y: auto; }
-.form-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+.modal { background: white; padding: 1.5rem; border-radius: 8px; width: min(480px, 94vw); max-height: 90vh; overflow-y: auto; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
 
 .list-of-lists { list-style: none; padding: 0; }
 .list-of-lists li { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px solid #e4e7eb; }
