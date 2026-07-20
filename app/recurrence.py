@@ -94,10 +94,15 @@ def materialize_series(
     rule: RecurrenceRule,
     first_start: datetime,
     first_end: datetime,
+    until: date | None = None,
 ) -> list[CalendarEvent]:
+    """`until` is the user-chosen end date for the series (None means "repeats forever").
+    A bounded series is materialized in full immediately (capped by MAX_OCCURRENCES); an
+    unbounded one only gets HORIZON_MONTHS worth of rows and is topped up over time by
+    top_up_recurring_series."""
     duration = first_end - first_start
-    until_date = _add_months(first_start.date(), HORIZON_MONTHS)
-    dates = generate_dates(rule, first_start.date(), until_date)
+    boundary = until if until else _add_months(first_start.date(), HORIZON_MONTHS)
+    dates = generate_dates(rule, first_start.date(), boundary)
     if not dates:
         dates = [first_start.date()]
 
@@ -116,6 +121,7 @@ def materialize_series(
             all_day=all_day,
             recurrence_rule=rule_json,
             series_id=series_id,
+            series_until=until,
         )
         event.attendees = attendees
         db.add(event)
@@ -126,11 +132,78 @@ def materialize_series(
     return events
 
 
+def _extend_series(db: Session, series_id: str, target_until: date) -> None:
+    """Generates additional occurrences for a series from its current last occurrence up to
+    (and including) target_until, using the most recent occurrence as the template for
+    title/description/location/attendees/duration."""
+    template = (
+        db.query(CalendarEvent)
+        .filter(CalendarEvent.series_id == series_id)
+        .order_by(CalendarEvent.start_time.desc())
+        .first()
+    )
+    if not template or not template.recurrence_rule:
+        return
+    last_date = template.start_time.date()
+    if last_date >= target_until:
+        return
+
+    rule = RecurrenceRule.model_validate_json(template.recurrence_rule)
+    duration = template.end_time - template.start_time
+    next_after = last_date + (timedelta(days=7) if rule.freq == "weekly" else timedelta(days=1))
+    new_dates = generate_dates(rule, next_after, target_until)
+    attendees = list(template.attendees)
+    for d in new_dates:
+        start_dt = datetime.combine(d, template.start_time.time())
+        event = CalendarEvent(
+            owner_id=template.owner_id,
+            title=template.title,
+            description=template.description,
+            location=template.location,
+            start_time=start_dt,
+            end_time=start_dt + duration,
+            all_day=template.all_day,
+            recurrence_rule=template.recurrence_rule,
+            series_id=series_id,
+            series_until=template.series_until,
+        )
+        event.attendees = attendees
+        db.add(event)
+
+
+def update_series_until(db: Session, series_id: str, new_until: date | None, min_until: date | None = None) -> None:
+    """Applies a new end date to an existing series: trims occurrences past the new
+    boundary, extends them if the boundary moved out, and stores the new boundary (or
+    None, meaning "repeats forever" again) on every remaining row. `min_until` — the date
+    of whichever occurrence the caller is editing — is a floor: an end date earlier than
+    the very occurrence being saved would delete it out from under the caller, so it gets
+    clamped up to that date instead."""
+    rows = db.query(CalendarEvent).filter(CalendarEvent.series_id == series_id).all()
+    if not rows:
+        return
+    if new_until is not None and min_until is not None and new_until < min_until:
+        new_until = min_until
+    for row in rows:
+        row.series_until = new_until
+    db.commit()
+
+    if new_until is not None:
+        for row in rows:
+            if row.start_time.date() > new_until:
+                db.delete(row)
+        db.commit()
+        _extend_series(db, series_id, new_until)
+    else:
+        _extend_series(db, series_id, _add_months(date.today(), HORIZON_MONTHS))
+    db.commit()
+
+
 def top_up_recurring_series(db: Session) -> None:
     """Keeps 'repeats forever' series materialized ~HORIZON_MONTHS out. Run at app startup
     (deploys happen often enough for this project that a cron job isn't needed) — for any
-    series whose last occurrence is getting close (within TOPUP_THRESHOLD_MONTHS), generates
-    more rows out to the full horizon."""
+    unbounded series whose last occurrence is getting close (within TOPUP_THRESHOLD_MONTHS),
+    generates more rows out to the full horizon. Bounded series (series_until is set) are
+    materialized in full up front and never topped up."""
     today = date.today()
     horizon = _add_months(today, HORIZON_MONTHS)
     threshold = _add_months(today, TOPUP_THRESHOLD_MONTHS)
@@ -154,27 +227,7 @@ def top_up_recurring_series(db: Session) -> None:
             .order_by(CalendarEvent.start_time.desc())
             .first()
         )
-        if not template or not template.recurrence_rule:
+        if not template or not template.recurrence_rule or template.series_until:
             continue
-
-        rule = RecurrenceRule.model_validate_json(template.recurrence_rule)
-        duration = template.end_time - template.start_time
-        next_after = last_date + (timedelta(days=7) if rule.freq == "weekly" else timedelta(days=1))
-        new_dates = generate_dates(rule, next_after, horizon)
-        attendees = list(template.attendees)
-        for d in new_dates:
-            start_dt = datetime.combine(d, template.start_time.time())
-            event = CalendarEvent(
-                owner_id=template.owner_id,
-                title=template.title,
-                description=template.description,
-                location=template.location,
-                start_time=start_dt,
-                end_time=start_dt + duration,
-                all_day=template.all_day,
-                recurrence_rule=template.recurrence_rule,
-                series_id=series_id,
-            )
-            event.attendees = attendees
-            db.add(event)
+        _extend_series(db, series_id, horizon)
     db.commit()

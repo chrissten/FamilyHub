@@ -18,6 +18,7 @@ export interface CalendarEvent {
   owner: User;
   attendees: User[];
   series_id?: string | null;
+  series_until?: string | null;
 }
 
 export interface GroceryList {

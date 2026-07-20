@@ -42,6 +42,7 @@ class EventBase(BaseModel):
 class EventCreate(EventBase):
     attendee_ids: list[int] = []
     recurrence: Literal["none", "weekly", "monthly"] = "none"
+    recurrence_until: date | None = None
 
 
 class EventOut(EventBase):
@@ -52,6 +53,7 @@ class EventOut(EventBase):
     owner: UserOut
     attendees: list[UserOut]
     series_id: str | None = None
+    series_until: date | None = None
 
 
 class GroceryListCreate(BaseModel):

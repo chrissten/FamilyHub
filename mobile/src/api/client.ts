@@ -132,6 +132,7 @@ export const createEvent = (data: {
   all_day: boolean;
   attendee_ids?: number[];
   recurrence?: RecurrenceOption;
+  recurrence_until?: string | null;
 }) => request<CalendarEvent>('/api/events', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateEvent = (id: number, data: {
@@ -142,6 +143,7 @@ export const updateEvent = (id: number, data: {
   end_time: string;
   all_day: boolean;
   attendee_ids?: number[];
+  recurrence_until?: string | null;
 }, scope: EventScope = 'this') => request<CalendarEvent>(
   `/api/events/${id}?scope=${scope}`, { method: 'PUT', body: JSON.stringify(data) },
 );

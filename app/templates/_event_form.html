@@ -4,6 +4,8 @@
     allDay: {{ 'true' if event and event.all_day else 'false' }},
     startDate: '{{ event.start_time.date().isoformat() if event else default_date }}',
     repeat: 'none',
+    untilMode: '{{ 'on' if event and event.series_until else 'never' }}',
+    untilDate: '{{ event.series_until.isoformat() if event and event.series_until else '' }}',
     weekdayName(d) {
       const dt = new Date(d + 'T00:00:00');
       return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
@@ -22,9 +24,9 @@
   hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">
   <input type="hidden" name="return_view" value="{{ return_view }}">
   <input type="hidden" name="return_date" value="{{ return_date }}">
-  <label>Title<input type="text" name="title" value="{{ event.title if event else '' }}" required></label>
-  <label>Description<textarea name="description">{{ event.description if event else '' }}</textarea></label>
-  <label>Location<input type="text" name="location" value="{{ event.location if event else '' }}"></label>
+  <label>Title<input type="text" name="title" value="{{ event.title if event else default_title }}" required></label>
+  <label>Description<textarea name="description">{{ event.description if event else default_description }}</textarea></label>
+  <label>Location<input type="text" name="location" value="{{ event.location if event else default_location }}"></label>
   <label>Start date
     <input type="date" name="start_date" x-model="startDate"
            value="{{ event.start_time.date().isoformat() if event else default_date }}" required>
@@ -33,12 +35,12 @@
     <input type="checkbox" name="all_day" value="true" x-model="allDay">
     All day
   </label>
-  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else '09:00' }}"></label>
+  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else default_start_time }}"></label>
   <label>End date
     <input type="date" name="end_date"
-           value="{{ event.end_time.date().isoformat() if event else default_date }}">
+           value="{{ event.end_time.date().isoformat() if event else default_end_date }}">
   </label>
-  <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else '10:00' }}"></label>
+  <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else default_end_time }}"></label>
 
   {% if not event %}
   <label>Repeat
@@ -48,8 +50,31 @@
       <option value="monthly" x-text="'Monthly on the ' + monthlyLabel(startDate)"></option>
     </select>
   </label>
+  <div x-cloak x-show="repeat !== 'none'">
+    <label>Ends
+      <select name="repeat_until_mode" x-model="untilMode">
+        <option value="never">Never</option>
+        <option value="on">On date</option>
+      </select>
+    </label>
+    <label x-cloak x-show="untilMode === 'on'">
+      <input type="date" name="repeat_until" x-model="untilDate" :min="startDate">
+    </label>
+  </div>
   {% elif event.series_id %}
-  <div class="repeat-note">🔁 Part of a repeating series</div>
+  <div class="repeat-note">
+    🔁 Repeats {{ event_freq }} on <span x-text="event_freq === 'monthly' ? monthlyLabel(startDate) : weekdayName(startDate)"></span>
+  </div>
+  <label>Ends
+    <select name="repeat_until_mode" x-model="untilMode">
+      <option value="never">Never</option>
+      <option value="on">On date</option>
+    </select>
+  </label>
+  <label x-cloak x-show="untilMode === 'on'">
+    <input type="date" name="repeat_until" x-model="untilDate" :min="startDate">
+  </label>
+  <p class="hint">Applies when saved with "Save whole series".</p>
   {% endif %}
 
   <label class="attendees-label">
@@ -62,7 +87,7 @@
     <label class="inline">
       <input type="checkbox" class="member-checkbox" name="attendee_ids" value="{{ member.id }}"
              {% if event and member in event.attendees %}checked
-             {% elif not event and member.id == current_user.id %}checked{% endif %}>
+             {% elif not event and member.id in default_attendee_ids %}checked{% endif %}>
       <span class="swatch" style="background-color: {{ member.color_hex }}"></span>
       {{ member.display_name }}
     </label>
@@ -78,6 +103,11 @@
             hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">Save whole series</button>
     {% else %}
     <button type="submit">{{ "Save" if event else "Add event" }}</button>
+    {% endif %}
+    {% if event %}
+    <button type="button"
+            hx-get="/calendar/events/{{ event.id }}/duplicate?return_view={{ return_view }}&return_date={{ return_date }}"
+            hx-target="#modal-content" hx-swap="innerHTML">Duplicate</button>
     {% endif %}
     <button type="button" @click="modalOpen = false">Cancel</button>
     {% if event %}

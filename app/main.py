@@ -48,6 +48,8 @@ def on_startup():
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN recurrence_rule VARCHAR(200)"))
         if "series_id" not in event_cols:
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_id VARCHAR(36)"))
+        if "series_until" not in event_cols:
+            conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_until DATE"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_series_id ON calendar_events (series_id)"))
         conn.commit()
     db = SessionLocal()

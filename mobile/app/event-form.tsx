@@ -56,17 +56,30 @@ export default function EventFormScreen() {
   const [endTime, setEndTime] = useState(() => (event ? timeOf(parseEventDate(event.end_time)) : '10:00'));
   const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set(event?.attendees.map(a => a.id) ?? []));
   const [repeat, setRepeat] = useState<RecurrenceOption>('none');
-  const [datePickerField, setDatePickerField] = useState<'start' | 'end' | null>(null);
+  const [repeatUntilMode, setRepeatUntilMode] = useState<'never' | 'on'>(event?.series_until ? 'on' : 'never');
+  const [repeatUntil, setRepeatUntil] = useState(event?.series_until ?? '');
+  const [duplicating, setDuplicating] = useState(false);
+  const [datePickerField, setDatePickerField] = useState<'start' | 'end' | 'until' | null>(null);
   const [timePickerField, setTimePickerField] = useState<'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
   const timeFormat = useTimeFormat();
+  const isNew = !event || duplicating;
 
   function handleDateChange(pickerEvent: { type: string }, selected?: Date) {
     const field = datePickerField;
     setDatePickerField(null);
     if (pickerEvent.type === 'dismissed' || !selected || !field) return;
     const iso = isoDate(selected);
-    if (field === 'start') setDate(iso); else setEndDate(iso);
+    if (field === 'start') setDate(iso);
+    else if (field === 'end') setEndDate(iso);
+    else setRepeatUntil(iso);
+  }
+
+  function handleDuplicate() {
+    setDuplicating(true);
+    setRepeat('none');
+    setRepeatUntilMode('never');
+    setRepeatUntil('');
   }
 
   function handleTimeChange(pickerEvent: { type: string }, selected?: Date) {
@@ -119,16 +132,20 @@ export default function EventFormScreen() {
       all_day: allDay,
       attendee_ids: Array.from(attendeeIds),
     };
+    const recurrenceUntil = repeatUntilMode === 'on' && repeatUntil ? repeatUntil : null;
 
-    if (!event) {
-      await save(() => createEvent({ ...values, recurrence: repeat }));
+    if (!event || duplicating) {
+      await save(() => createEvent({ ...values, recurrence: repeat, recurrence_until: recurrenceUntil }));
       return;
     }
     if (event.series_id) {
       Alert.alert('Save Event', 'Apply this change to just this event, or the whole series?', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'This Event', onPress: () => save(() => updateEvent(event.id, values, 'this')) },
-        { text: 'Whole Series', onPress: () => save(() => updateEvent(event.id, values, 'series')) },
+        {
+          text: 'Whole Series',
+          onPress: () => save(() => updateEvent(event.id, { ...values, recurrence_until: recurrenceUntil }, 'series')),
+        },
       ]);
       return;
     }
@@ -161,6 +178,34 @@ export default function EventFormScreen() {
     ]);
   }
 
+  function endsPicker() {
+    return (
+      <View style={styles.repeatSection}>
+        <Text style={styles.rowLabel}>Ends</Text>
+        <View style={styles.repeatOptions}>
+          {(['never', 'on'] as const).map(opt => (
+            <TouchableOpacity
+              key={opt}
+              style={[styles.repeatPill, repeatUntilMode === opt && styles.repeatPillActive]}
+              onPress={() => setRepeatUntilMode(opt)}
+            >
+              <Text style={[styles.repeatPillText, repeatUntilMode === opt && styles.repeatPillTextActive]}>
+                {opt === 'never' ? 'Never' : 'On date'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        {repeatUntilMode === 'on' && (
+          <TouchableOpacity style={styles.input} onPress={() => setDatePickerField('until')}>
+            <Text style={repeatUntil ? styles.dateValue : styles.datePlaceholder}>
+              {repeatUntil ? dayLabel(parseIsoDate(repeatUntil)) : 'End date'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
+
   return (
     <>
       <Stack.Screen options={{ presentation: 'modal', headerShown: false, animation: 'slide_from_bottom' }} />
@@ -172,7 +217,7 @@ export default function EventFormScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.modalCancel}>Cancel</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>{event ? 'Edit Event' : 'New Event'}</Text>
+          <Text style={styles.modalTitle}>{isNew ? 'New Event' : 'Edit Event'}</Text>
           <TouchableOpacity onPress={handleSave} disabled={saving}>
             <Text style={[styles.modalSave, saving && { opacity: 0.4 }]}>Save</Text>
           </TouchableOpacity>
@@ -204,7 +249,9 @@ export default function EventFormScreen() {
           </TouchableOpacity>
           {datePickerField && (
             <DateTimePicker
-              value={parseIsoDate((datePickerField === 'start' ? date : endDate) || initialDate)}
+              value={parseIsoDate((
+                datePickerField === 'start' ? date : datePickerField === 'end' ? endDate : repeatUntil
+              ) || initialDate)}
               mode="date"
               display="calendar"
               onChange={handleDateChange}
@@ -224,7 +271,7 @@ export default function EventFormScreen() {
               onChange={handleTimeChange}
             />
           )}
-          {!event && (
+          {isNew && (
             <View style={styles.repeatSection}>
               <Text style={styles.rowLabel}>Repeat</Text>
               <View style={styles.repeatOptions}>
@@ -244,9 +291,16 @@ export default function EventFormScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+              {repeat !== 'none' && endsPicker()}
             </View>
           )}
-          {!!event?.series_id && <Text style={styles.hint}>🔁 Part of a repeating series</Text>}
+          {!isNew && !!event?.series_id && (
+            <View style={styles.repeatSection}>
+              <Text style={styles.hint}>🔁 Part of a repeating series</Text>
+              {endsPicker()}
+              <Text style={styles.hint}>Applies when you choose "Whole Series" on save</Text>
+            </View>
+          )}
 
           <TextInput
             style={styles.input} placeholder="Location" value={location} onChangeText={setLocation}
@@ -275,11 +329,16 @@ export default function EventFormScreen() {
               </TouchableOpacity>
             );
           })}
-          {!event && attendeeIds.size === 0 && (
+          {isNew && attendeeIds.size === 0 && (
             <Text style={styles.hint}>No selection defaults to just you</Text>
           )}
 
-          {event && (
+          {event && !duplicating && (
+            <TouchableOpacity style={styles.duplicateBtn} onPress={handleDuplicate}>
+              <Text style={styles.duplicateBtnText}>Duplicate Event</Text>
+            </TouchableOpacity>
+          )}
+          {event && !duplicating && (
             <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
               <Text style={styles.deleteBtnText}>Delete Event</Text>
             </TouchableOpacity>
@@ -339,8 +398,13 @@ function createStyles(colors: Colors) {
     swatch: { width: 12, height: 12, borderRadius: 6, marginRight: 8 },
     attendeeName: { fontSize: 15, color: colors.text },
     hint: { fontSize: 12, color: colors.placeholder, marginTop: 4, marginBottom: 8 },
+    duplicateBtn: {
+      marginTop: 20, paddingVertical: 14,
+      alignItems: 'center', borderRadius: 10, backgroundColor: colors.surfaceAlt,
+    },
+    duplicateBtnText: { color: colors.text, fontWeight: '700', fontSize: 15 },
     deleteBtn: {
-      marginTop: 20, marginBottom: 20, paddingVertical: 14,
+      marginTop: 12, marginBottom: 20, paddingVertical: 14,
       alignItems: 'center', borderRadius: 10, backgroundColor: colors.dangerBg,
     },
     deleteBtnText: { color: colors.danger, fontWeight: '700', fontSize: 15 },

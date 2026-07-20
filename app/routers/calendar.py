@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import CalendarEvent, User
-from app.recurrence import derive_rule_from_date, materialize_series
+from app.recurrence import RecurrenceRule, derive_rule_from_date, materialize_series, update_series_until
 from app.schemas import EventCreate, EventOut
 from app.templating import templates
 
@@ -363,10 +363,56 @@ def calendar_new_form(
         {
             "event": None,
             "default_date": date_str,
+            "default_end_date": date_str,
+            "default_title": "",
+            "default_description": "",
+            "default_location": "",
+            "default_all_day": False,
+            "default_start_time": "09:00",
+            "default_end_time": "10:00",
+            "default_attendee_ids": [current_user.id],
             "members": members,
             "current_user": current_user,
             "return_view": return_view,
             "return_date": return_date or date_str,
+        },
+    )
+
+
+@router.get("/calendar/events/{event_id}/duplicate", response_class=HTMLResponse)
+def calendar_duplicate_form(
+    request: Request,
+    event_id: int,
+    return_view: str = "month",
+    return_date: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Opens the "new event" form pre-filled with an existing event's details. The duplicate
+    is always created as a standalone, non-repeating event — it doesn't join the source
+    event's series, so the user picks a fresh repeat rule if they want one."""
+    source = db.get(CalendarEvent, event_id)
+    if not source:
+        raise HTTPException(status_code=404)
+    members = db.query(User).order_by(User.display_name).all()
+    return templates.TemplateResponse(
+        request,
+        "_event_form.html",
+        {
+            "event": None,
+            "default_date": source.start_time.date().isoformat(),
+            "default_end_date": source.end_time.date().isoformat(),
+            "default_title": source.title,
+            "default_description": source.description or "",
+            "default_location": source.location or "",
+            "default_all_day": source.all_day,
+            "default_start_time": source.start_time.strftime("%H:%M"),
+            "default_end_time": source.end_time.strftime("%H:%M"),
+            "default_attendee_ids": [a.id for a in source.attendees],
+            "members": members,
+            "current_user": current_user,
+            "return_view": return_view,
+            "return_date": return_date or source.start_time.date().isoformat(),
         },
     )
 
@@ -384,11 +430,15 @@ def calendar_edit_form(
     if not event:
         raise HTTPException(status_code=404)
     members = db.query(User).order_by(User.display_name).all()
+    event_freq = None
+    if event.recurrence_rule:
+        event_freq = RecurrenceRule.model_validate_json(event.recurrence_rule).freq
     return templates.TemplateResponse(
         request,
         "_event_form.html",
         {
             "event": event,
+            "event_freq": event_freq,
             "default_date": None,
             "members": members,
             "current_user": current_user,
@@ -446,6 +496,8 @@ def calendar_create_event(
     all_day: bool = Form(False),
     attendee_ids: list[int] = Form([]),
     repeat: str = Form("none"),
+    repeat_until_mode: str = Form("never"),
+    repeat_until: str = Form(""),
     return_view: str = Form("month"),
     return_date: str = Form(...),
     db: Session = Depends(get_db),
@@ -467,10 +519,11 @@ def calendar_create_event(
     attendees = db.query(User).filter(User.id.in_(attendee_ids or [current_user.id])).all()
 
     if repeat in ("weekly", "monthly"):
+        until = date.fromisoformat(repeat_until) if repeat_until_mode == "on" and repeat_until else None
         rule = derive_rule_from_date(repeat, day)
         materialize_series(
             db, current_user.id, title, description or None, location or None, all_day,
-            attendees, rule, start_dt, end_dt,
+            attendees, rule, start_dt, end_dt, until=until,
         )
     else:
         event = CalendarEvent(
@@ -502,6 +555,8 @@ def calendar_update_event(
     all_day: bool = Form(False),
     attendee_ids: list[int] = Form([]),
     scope: str = Form("this"),
+    repeat_until_mode: str = Form("never"),
+    repeat_until: str = Form(""),
     return_view: str = Form("month"),
     return_date: str = Form(...),
     db: Session = Depends(get_db),
@@ -533,6 +588,8 @@ def calendar_update_event(
             all_day=all_day, attendees=attendees,
             start_time_of_day=start_dt.time(), duration=end_dt - start_dt,
         )
+        until = date.fromisoformat(repeat_until) if repeat_until_mode == "on" and repeat_until else None
+        update_series_until(db, event.series_id, until, min_until=start_dt.date())
     else:
         event.title = title
         event.description = description or None
@@ -585,9 +642,10 @@ def api_create_event(
         events = materialize_series(
             db, current_user.id, payload.title, payload.description, payload.location,
             payload.all_day, attendees, rule, payload.start_time, payload.end_time,
+            until=payload.recurrence_until,
         )
         return events[0]
-    data = payload.model_dump(exclude={"attendee_ids", "recurrence"})
+    data = payload.model_dump(exclude={"attendee_ids", "recurrence", "recurrence_until"})
     event = CalendarEvent(owner_id=current_user.id, **data)
     event.attendees = attendees
     db.add(event)
@@ -616,6 +674,7 @@ def api_update_event(
             all_day=payload.all_day, attendees=attendees,
             start_time_of_day=payload.start_time.time(), duration=payload.end_time - payload.start_time,
         )
+        update_series_until(db, event.series_id, payload.recurrence_until, min_until=payload.start_time.date())
         db.refresh(event)
         return event
 

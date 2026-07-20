@@ -32,6 +32,36 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-20
+- **[web]** Recurring events can now have an end date instead of only ever "repeating
+  forever." New `CalendarEvent.series_until` column (`app/models.py`, migrated via the
+  usual startup `ALTER TABLE`); `materialize_series` (`app/recurrence.py`) generates the
+  whole bounded run up front when an end date is given instead of the rolling 24-month
+  horizon, and `top_up_recurring_series` now skips any series with `series_until` set
+  (bounded series are fully materialized already, nothing to top up). New
+  `update_series_until` lets an *existing* series' end date be changed later — trims
+  occurrences past the new boundary, or extends them (reusing the top-up logic, factored
+  out as `_extend_series`) if the boundary moved out; the boundary is clamped to never fall
+  before the occurrence currently being edited, so picking an end date earlier than the
+  event you're editing can't delete it out from under the save. `_event_form.html` gets an
+  "Ends: Never / On date" control both when creating a repeat and when editing an existing
+  series (applied on "Save whole series").
+- **[web]** Events can now be duplicated: a "Duplicate" button on the edit form opens a
+  prefilled "New event" form (title/description/location/dates/times/all-day/attendees
+  copied from the source) via a new `GET /calendar/events/{id}/duplicate` route reusing
+  `_event_form.html`'s existing "new event" rendering path — the duplicate is always a
+  standalone event (repeat defaults to "Does not repeat"), it doesn't join the source
+  event's series.
+- **[mobile]** v1.2.3 — End-date and duplicate parity with the web changes above:
+  `event-form.tsx`'s Repeat section gains the same "Ends: Never / On date" pills (for new
+  events, and for editing an existing series' whole-series save), backed by
+  `recurrence_until` on `createEvent`/`updateEvent` (`src/api/client.ts`) and the new
+  `series_until` field on `CalendarEvent` (`src/api/types.ts`). A "Duplicate Event" button
+  flips the form into a prefilled create-mode in place (no navigation) — title/description/
+  location/dates/times/all-day/attendees are kept from the source event, repeat resets to
+  "Does not repeat," and Delete/Duplicate are hidden while duplicating since it's no longer
+  editing the original.
+
 ### 2026-07-17
 - **[web]** Multi-day events can now have real start/end times instead of being forced to
   "all day" — e.g. Friday 6:00 PM through Sunday 12:00 PM. `calendar_create_event`/
