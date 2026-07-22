@@ -32,6 +32,18 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-21
+- **[mobile]** v1.2.4 — Fix the To-Do tab's on-screen keyboard covering the "Add item…"
+  input instead of the screen shrinking to make room. Unlike the event form (fixed
+  2026-07-15 by moving off RN `<Modal>`), the To-Do tab is already a normal screen, so it
+  should have honored the Activity's `android:windowSoftInputMode="adjustResize"` — but
+  in practice the keyboard still overlapped the input. `app/(tabs)/todo.tsx` now wraps its
+  content in an explicit `KeyboardAvoidingView` (`padding` on iOS, `height` on Android)
+  rather than relying solely on `adjustResize`. Grocery/Freezer (`grocery.tsx`/`freezer.tsx`)
+  have the identical add-bar-below-a-list layout and no such wrapper either — not touched
+  here since only To-Do was reported broken, but worth checking if the same symptom shows
+  up there.
+
 ### 2026-07-20
 - **[web]** Recurring events can now have an end date instead of only ever "repeating
   forever." New `CalendarEvent.series_until` column (`app/models.py`, migrated via the

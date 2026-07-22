@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput,
+  RefreshControl, Alert, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getTodoLists, getTodoItems, addTodoItem, toggleTodoItem, deleteTodoItem } from '../../src/api/client';
@@ -81,7 +81,10 @@ export default function TodoScreen() {
   const combined = [...unchecked, ...checked];
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {lists.length > 0 && (
         <View style={styles.tabs}>
           {lists.map(list => (
@@ -149,7 +152,7 @@ export default function TodoScreen() {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
