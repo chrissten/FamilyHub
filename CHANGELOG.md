@@ -32,6 +32,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22 (4)
+- **[mobile]** v1.2.8 — Tapping a "New event" notification now opens that event directly
+  in the event form instead of just launching the app to whatever screen it last showed.
+  The notification body also now shows the event's date and time (e.g. "Wednesday, July
+  22, 2026 · 3:00 PM – 4:00 PM"), reusing the same `dayLabel`/`eventTimeLabel` formatting
+  the calendar views use, respecting the 12h/24h time-format preference. Only applies to
+  the single-new-event case — a "3 new events added" notification has no one event to
+  jump to, so it still just opens the app. `app/_layout.tsx` now listens for notification
+  taps (both a cold app launch via `getLastNotificationResponseAsync` and a tap while
+  already running via `addNotificationResponseReceivedListener`) and routes to
+  `/event-form` with the matching event. Grocery-item notifications are unchanged — they
+  don't identify a single item to jump to.
+
 ### 2026-07-22 (3)
 - **[mobile]** v1.2.7 — Grocery item quantity now renders inline with the name, e.g.
   "Ketchup (1)", instead of on its own line below. Closes another mobile/web parity gap —

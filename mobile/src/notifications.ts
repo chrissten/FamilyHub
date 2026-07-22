@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getToken, getServerUrl, getGroceryLists, getGroceryItems, getEvents, getCurrentUserId,
 } from './api/client';
+import { dayLabel, eventTimeLabel, parseEventDate } from './calendar/dateUtils';
+import { loadTimeFormat } from './preferences';
 
 const TASK_NAME = 'familyhub-poll';
 
@@ -63,12 +65,21 @@ async function checkNewEvents(): Promise<void> {
   await AsyncStorage.setItem(KEYS.LAST_EVENT_ID, String(latestId));
 
   const newEvents = events.filter(e => e.id > lastSeen && e.owner_id !== myId);
-  if (newEvents.length > 0) {
-    const title = newEvents.length === 1
-      ? `New event: ${newEvents[0].title}`
-      : `${newEvents.length} new events added`;
+  if (newEvents.length === 1) {
+    const event = newEvents[0];
+    const start = parseEventDate(event.start_time);
+    const format = await loadTimeFormat();
     await Notifications.scheduleNotificationAsync({
-      content: { title, body: 'Tap to view in FamilyHub' },
+      content: {
+        title: `New event: ${event.title}`,
+        body: `${dayLabel(start)} · ${eventTimeLabel(event, start, format)}`,
+        data: { eventId: event.id },
+      },
+      trigger: null,
+    });
+  } else if (newEvents.length > 1) {
+    await Notifications.scheduleNotificationAsync({
+      content: { title: `${newEvents.length} new events added`, body: 'Tap to view in FamilyHub' },
       trigger: null,
     });
   }
@@ -112,6 +123,25 @@ async function checkNewGroceryItems(): Promise<void> {
       trigger: null,
     });
   }
+}
+
+function eventIdFromResponse(response: Notifications.NotificationResponse | null): number | null {
+  const eventId = response?.notification.request.content.data?.eventId;
+  return typeof eventId === 'number' ? eventId : null;
+}
+
+/** Cold-start case: the app was launched by tapping a notification. */
+export async function getLaunchNotificationEventId(): Promise<number | null> {
+  const response = await Notifications.getLastNotificationResponseAsync();
+  return eventIdFromResponse(response);
+}
+
+/** Warm case: the app was already running (foreground or background) when a notification was tapped. */
+export function subscribeToNotificationTaps(onEventTap: (eventId: number) => void) {
+  return Notifications.addNotificationResponseReceivedListener(response => {
+    const eventId = eventIdFromResponse(response);
+    if (eventId != null) onEventTap(eventId);
+  });
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
