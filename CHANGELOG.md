@@ -32,6 +32,12 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22 (3)
+- **[mobile]** v1.2.7 — Grocery item quantity now renders inline with the name, e.g.
+  "Ketchup (1)", instead of on its own line below. Closes another mobile/web parity gap —
+  `_grocery_item_row.html` has always shown `<span class="item-name">…</span> ({{ quantity
+  }})` inline.
+
 ### 2026-07-22 (2)
 - **[mobile]** v1.2.6 — Grocery categories are now collapsible outside Store Mode,
   defaulting to collapsed. Tapping a category header toggles it open/closed (chevron

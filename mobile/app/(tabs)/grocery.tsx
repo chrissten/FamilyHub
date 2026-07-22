@@ -288,10 +288,10 @@ export default function GroceryScreen() {
             <View style={styles.itemBody}>
               <Text style={[styles.itemName, item.checked && styles.itemDone]}>
                 {item.name}
+                {!!item.quantity && (
+                  <Text style={styles.itemQty}> ({item.quantity})</Text>
+                )}
               </Text>
-              {!!item.quantity && (
-                <Text style={styles.itemQty}>{item.quantity}</Text>
-              )}
             </View>
           </TouchableOpacity>
         )}
@@ -362,7 +362,7 @@ function createStyles(colors: Colors) {
     itemBody: { flex: 1 },
     itemName: { fontSize: 16, color: colors.text },
     itemDone: { color: colors.placeholder, textDecorationLine: 'line-through' },
-    itemQty: { fontSize: 12, color: colors.textFaint, marginTop: 2 },
+    itemQty: { fontSize: 14, color: colors.textFaint },
     empty: { textAlign: 'center', color: colors.placeholder, marginTop: 60, fontSize: 15 },
     catAddRow: {
       flexDirection: 'row', backgroundColor: colors.background,
