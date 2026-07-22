@@ -32,6 +32,13 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22 (5)
+- **[mobile]** v1.2.9 — Fix the Freezer tab's on-screen keyboard covering its add-item
+  inputs, the same symptom fixed on the To-Do tab on 2026-07-21 (v1.2.4) and flagged
+  there as unverified on Grocery/Freezer. Grocery got the `KeyboardAvoidingView` wrapper
+  as a side effect of the 2026-07-22 category-add-field change (v1.2.5); this does the
+  same for `freezer.tsx`.
+
 ### 2026-07-22 (4)
 - **[mobile]** v1.2.8 — Tapping a "New event" notification now opens that event directly
   in the event form instead of just launching the app to whatever screen it last showed.

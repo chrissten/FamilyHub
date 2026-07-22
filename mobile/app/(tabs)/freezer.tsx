@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput,
+  RefreshControl, Alert, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getFreezers, getFreezerItems, addFreezerItem, deleteFreezerItem } from '../../src/api/client';
@@ -87,7 +87,10 @@ export default function FreezerScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {freezers.length > 0 && (
         <View style={styles.tabs}>
           {freezers.map(freezer => (
@@ -187,7 +190,7 @@ export default function FreezerScreen() {
           </View>
         </View>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
