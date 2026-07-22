@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, SectionList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput, KeyboardAvoidingView, Platform,
+  RefreshControl, Alert, TextInput,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../src/api/client';
 import type { GroceryList, GroceryCategory, GroceryItem } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
+import { useKeyboardHeight } from '../../src/useKeyboardHeight';
 
 interface DraftItem {
   text: string;
@@ -19,6 +20,7 @@ interface DraftItem {
 export default function GroceryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const keyboardHeight = useKeyboardHeight();
   const [lists, setLists] = useState<GroceryList[]>([]);
   const [selectedList, setSelectedList] = useState<GroceryList | null>(null);
   const [categories, setCategories] = useState<GroceryCategory[]>([]);
@@ -99,6 +101,25 @@ export default function GroceryScreen() {
 
   function setDraftQty(categoryId: number, qty: string) {
     setDrafts(prev => ({ ...prev, [categoryId]: { ...getDraft(categoryId), qty } }));
+  }
+
+  /** Keeps a category's add-item row from staying hidden behind the keyboard when it's
+   *  focused — the screen has no fixed add bar to push up (see useKeyboardHeight), so
+   *  instead scroll the last item of that category (immediately above its footer) to
+   *  the bottom of the visible area. */
+  function focusCategoryInput(categoryId: number) {
+    const secs = buildSections();
+    const sectionIndex = secs.findIndex(s => s.categoryId === categoryId);
+    if (sectionIndex < 0) return;
+    const data = secs[sectionIndex].data;
+    if (data.length === 0) return;
+    try {
+      sectionListRef.current?.scrollToLocation({
+        sectionIndex, itemIndex: data.length - 1, viewPosition: 1, animated: true,
+      });
+    } catch {
+      // list not measured yet — ignore
+    }
   }
 
   async function handleAdd(categoryId: number) {
@@ -187,10 +208,7 @@ export default function GroceryScreen() {
   const remaining = items.filter(i => !i.checked).length;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.container}>
       {lists.length > 0 && (
         <View style={styles.tabs}>
           {lists.map(list => (
@@ -256,6 +274,7 @@ export default function GroceryScreen() {
                 placeholder="Add item…"
                 value={draft.text}
                 onChangeText={text => setDraftText(categoryId, text)}
+                onFocus={() => focusCategoryInput(categoryId)}
                 returnKeyType="done"
                 onSubmitEditing={() => handleAdd(categoryId)}
                 placeholderTextColor={colors.placeholder}
@@ -265,6 +284,7 @@ export default function GroceryScreen() {
                 placeholder="Qty"
                 value={draft.qty}
                 onChangeText={qty => setDraftQty(categoryId, qty)}
+                onFocus={() => focusCategoryInput(categoryId)}
                 returnKeyType="done"
                 onSubmitEditing={() => handleAdd(categoryId)}
                 placeholderTextColor={colors.placeholder}
@@ -306,9 +326,9 @@ export default function GroceryScreen() {
             </Text>
           ) : null
         }
-        contentContainerStyle={{ paddingBottom: 80 }}
+        contentContainerStyle={{ paddingBottom: 80 + keyboardHeight }}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

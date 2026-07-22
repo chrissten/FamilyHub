@@ -32,6 +32,21 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22 (6)
+- **[mobile]** v1.2.10 — The v1.2.9 `KeyboardAvoidingView` fix for the keyboard covering
+  add-item inputs turned out to have zero effect on Grocery, To-Do, *or* Freezer — verified
+  directly on device. `android:windowSoftInputMode="adjustResize"` isn't reaching these
+  screens at all inside the bottom-tab navigator, and layering `KeyboardAvoidingView` on
+  top of a resize that never happens does nothing. Replaced with a new
+  `src/useKeyboardHeight.ts` hook that tracks the real keyboard height directly via
+  `Keyboard.addListener('keyboardDidShow'/'keyboardDidHide', ...)`, independent of any
+  native resize behavior. To-Do and Freezer (fixed add-bar-below-the-list screens) now pad
+  an outer wrapper around that bar by the tracked height, pushing it up above the keyboard.
+  Grocery has no fixed bar anymore (its add fields moved inline per-category in v1.2.5), so
+  instead its `SectionList` gets extra bottom `contentContainerStyle` padding plus an
+  `onFocus` handler that scrolls the focused category's last item to the bottom of the
+  viewport, bringing its add-row up out from behind the keyboard.
+
 ### 2026-07-22 (5)
 - **[mobile]** v1.2.9 — Fix the Freezer tab's on-screen keyboard covering its add-item
   inputs, the same symptom fixed on the To-Do tab on 2026-07-21 (v1.2.4) and flagged

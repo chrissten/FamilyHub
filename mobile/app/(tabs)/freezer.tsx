@@ -1,12 +1,13 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput, KeyboardAvoidingView, Platform,
+  RefreshControl, Alert, TextInput,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getFreezers, getFreezerItems, addFreezerItem, deleteFreezerItem } from '../../src/api/client';
 import type { Freezer, FreezerItem } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
+import { useKeyboardHeight } from '../../src/useKeyboardHeight';
 
 function expiryStatus(dateStr?: string | null): 'expired' | 'expiring-soon' | null {
   if (!dateStr) return null;
@@ -22,6 +23,7 @@ function expiryStatus(dateStr?: string | null): 'expired' | 'expiring-soon' | nu
 export default function FreezerScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const keyboardHeight = useKeyboardHeight();
   const [freezers, setFreezers] = useState<Freezer[]>([]);
   const [selectedFreezer, setSelectedFreezer] = useState<Freezer | null>(null);
   const [items, setItems] = useState<FreezerItem[]>([]);
@@ -87,10 +89,7 @@ export default function FreezerScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.container}>
       {freezers.length > 0 && (
         <View style={styles.tabs}>
           {freezers.map(freezer => (
@@ -150,47 +149,49 @@ export default function FreezerScreen() {
       />
 
       {selectedFreezer && (
-        <View style={styles.addBar}>
-          <View style={styles.addRow}>
-            <TextInput
-              style={[styles.addInput, { flex: 2 }]}
-              placeholder="Item…"
-              value={newName}
-              onChangeText={setNewName}
-              placeholderTextColor={colors.placeholder}
-            />
-            <TextInput
-              style={[styles.addInput, { flex: 1 }]}
-              placeholder="Qty"
-              value={newQuantity}
-              onChangeText={setNewQuantity}
-              placeholderTextColor={colors.placeholder}
-            />
-          </View>
-          <View style={styles.addRow}>
-            <TextInput
-              style={[styles.addInput, { flex: 1 }]}
-              placeholder="Purchased YYYY-MM-DD"
-              value={newDatePurchased}
-              onChangeText={setNewDatePurchased}
-              keyboardType="numbers-and-punctuation"
-              placeholderTextColor={colors.placeholder}
-            />
-            <TextInput
-              style={[styles.addInput, { flex: 1 }]}
-              placeholder="Expires YYYY-MM-DD"
-              value={newExpirationDate}
-              onChangeText={setNewExpirationDate}
-              keyboardType="numbers-and-punctuation"
-              placeholderTextColor={colors.placeholder}
-            />
-            <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-              <Text style={styles.addBtnText}>Add</Text>
-            </TouchableOpacity>
+        <View style={{ paddingBottom: keyboardHeight }}>
+          <View style={styles.addBar}>
+            <View style={styles.addRow}>
+              <TextInput
+                style={[styles.addInput, { flex: 2 }]}
+                placeholder="Item…"
+                value={newName}
+                onChangeText={setNewName}
+                placeholderTextColor={colors.placeholder}
+              />
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Qty"
+                value={newQuantity}
+                onChangeText={setNewQuantity}
+                placeholderTextColor={colors.placeholder}
+              />
+            </View>
+            <View style={styles.addRow}>
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Purchased YYYY-MM-DD"
+                value={newDatePurchased}
+                onChangeText={setNewDatePurchased}
+                keyboardType="numbers-and-punctuation"
+                placeholderTextColor={colors.placeholder}
+              />
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Expires YYYY-MM-DD"
+                value={newExpirationDate}
+                onChangeText={setNewExpirationDate}
+                keyboardType="numbers-and-punctuation"
+                placeholderTextColor={colors.placeholder}
+              />
+              <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
+                <Text style={styles.addBtnText}>Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

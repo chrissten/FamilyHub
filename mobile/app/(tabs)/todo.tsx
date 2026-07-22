@@ -1,16 +1,18 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput, KeyboardAvoidingView, Platform,
+  RefreshControl, Alert, TextInput,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { getTodoLists, getTodoItems, addTodoItem, toggleTodoItem, deleteTodoItem } from '../../src/api/client';
 import type { TodoList, TodoItem } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
+import { useKeyboardHeight } from '../../src/useKeyboardHeight';
 
 export default function TodoScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const keyboardHeight = useKeyboardHeight();
   const [lists, setLists] = useState<TodoList[]>([]);
   const [selectedList, setSelectedList] = useState<TodoList | null>(null);
   const [items, setItems] = useState<TodoItem[]>([]);
@@ -81,10 +83,7 @@ export default function TodoScreen() {
   const combined = [...unchecked, ...checked];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.container}>
       {lists.length > 0 && (
         <View style={styles.tabs}>
           {lists.map(list => (
@@ -137,22 +136,24 @@ export default function TodoScreen() {
       />
 
       {selectedList && (
-        <View style={styles.addBar}>
-          <TextInput
-            style={styles.addInput}
-            placeholder="Add item…"
-            value={newItem}
-            onChangeText={setNewItem}
-            returnKeyType="done"
-            onSubmitEditing={handleAdd}
-            placeholderTextColor={colors.placeholder}
-          />
-          <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-            <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
+        <View style={{ paddingBottom: keyboardHeight }}>
+          <View style={styles.addBar}>
+            <TextInput
+              style={styles.addInput}
+              placeholder="Add item…"
+              value={newItem}
+              onChangeText={setNewItem}
+              returnKeyType="done"
+              onSubmitEditing={handleAdd}
+              placeholderTextColor={colors.placeholder}
+            />
+            <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
+              <Text style={styles.addBtnText}>Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
