@@ -32,6 +32,16 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22
+- **[mobile]** v1.2.5 — Grocery tab: each category now has its own inline "Add item…"
+  field (with its own Qty field), instead of one add bar at the bottom that always
+  added to whichever category happened to be first. This also closes a mobile/web
+  parity gap — `_grocery_category.html` on web has always had one add form per
+  category section. Categories with zero items are no longer hidden outside Store
+  Mode, so there's always somewhere to add the first item. `grocery.tsx` also picked
+  up the `KeyboardAvoidingView` wrapper from the To-Do tab fix (2026-07-21 below),
+  since it has the same add-bar-under-a-list layout that was flagged as unverified.
+
 ### 2026-07-21
 - **[mobile]** v1.2.4 — Fix the To-Do tab's on-screen keyboard covering the "Add item…"
   input instead of the screen shrinking to make room. Unlike the event form (fixed

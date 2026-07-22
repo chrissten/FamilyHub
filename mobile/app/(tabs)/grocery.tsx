@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View, Text, SectionList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput,
+  RefreshControl, Alert, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -11,6 +11,11 @@ import {
 import type { GroceryList, GroceryCategory, GroceryItem } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
 
+interface DraftItem {
+  text: string;
+  qty: string;
+}
+
 export default function GroceryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -19,8 +24,8 @@ export default function GroceryScreen() {
   const [categories, setCategories] = useState<GroceryCategory[]>([]);
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [newItem, setNewItem] = useState('');
-  const [newQty, setNewQty] = useState('');
+  const [drafts, setDrafts] = useState<Record<number, DraftItem>>({});
+  const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [storeMode, setStoreMode] = useState(false);
   const [matchedItemId, setMatchedItemId] = useState<number | null>(null);
   const sectionListRef = useRef<SectionList<GroceryItem>>(null);
@@ -77,46 +82,60 @@ export default function GroceryScreen() {
     ]);
   }
 
-  async function handleAdd() {
-    if (!newItem.trim() || !selectedList) return;
-    const defaultCat = categories[0];
-    if (!defaultCat) {
-      Alert.alert('No categories', 'This list has no categories. Add one on the web app first.');
-      return;
-    }
+  function getDraft(categoryId: number): DraftItem {
+    return drafts[categoryId] ?? { text: '', qty: '' };
+  }
+
+  function setDraftText(categoryId: number, text: string) {
+    setActiveCategoryId(categoryId);
+    setDrafts(prev => ({ ...prev, [categoryId]: { ...getDraft(categoryId), text } }));
+  }
+
+  function setDraftQty(categoryId: number, qty: string) {
+    setDrafts(prev => ({ ...prev, [categoryId]: { ...getDraft(categoryId), qty } }));
+  }
+
+  async function handleAdd(categoryId: number) {
+    const draft = getDraft(categoryId);
+    if (!draft.text.trim() || !selectedList) return;
     try {
       const item = await addGroceryItem(
-        selectedList.id, newItem.trim(), defaultCat.id,
-        newQty.trim() || undefined,
+        selectedList.id, draft.text.trim(), categoryId,
+        draft.qty.trim() || undefined,
       );
       setItems(prev => [...prev, item]);
-      setNewItem('');
-      setNewQty('');
+      setDrafts(prev => ({ ...prev, [categoryId]: { text: '', qty: '' } }));
     } catch {
       Alert.alert('Error', 'Could not add item');
     }
   }
 
   function buildSections() {
-    const secs = categories.map(cat => ({
-      key: String(cat.id),
-      title: cat.name,
-      data: items.filter(i => i.category_id === cat.id && (!storeMode || !i.checked)),
-    })).filter(s => s.data.length > 0);
+    const secs: { key: string; title: string; categoryId: number | null; data: GroceryItem[] }[] =
+      categories.map(cat => ({
+        key: String(cat.id),
+        title: cat.name,
+        categoryId: cat.id,
+        data: items.filter(i => i.category_id === cat.id && (!storeMode || !i.checked)),
+      }));
 
     const orphaned = items.filter(i =>
       !categories.some(c => c.id === i.category_id) && (!storeMode || !i.checked)
     );
     if (orphaned.length > 0) {
-      secs.push({ key: 'other', title: 'Other', data: orphaned });
+      secs.push({ key: 'other', title: 'Other', categoryId: null, data: orphaned });
     }
-    return secs;
+
+    // In store mode, hide categories with nothing left to buy; otherwise keep
+    // every category visible (even empty ones) so there's always somewhere to add to.
+    return storeMode ? secs.filter(s => s.data.length > 0) : secs;
   }
 
   const sections = buildSections();
 
   useEffect(() => {
-    const trimmed = newItem.trim().toLowerCase();
+    const activeText = activeCategoryId != null ? getDraft(activeCategoryId).text : '';
+    const trimmed = activeText.trim().toLowerCase();
     if (!trimmed) {
       setMatchedItemId(null);
       return;
@@ -143,12 +162,15 @@ export default function GroceryScreen() {
     }
     if (match.checked) handleToggle(match);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newItem, items, categories, storeMode]);
+  }, [drafts, activeCategoryId, items, categories, storeMode]);
 
   const remaining = items.filter(i => !i.checked).length;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {lists.length > 0 && (
         <View style={styles.tabs}>
           {lists.map(list => (
@@ -190,6 +212,36 @@ export default function GroceryScreen() {
         renderSectionHeader={({ section }) => (
           <Text style={styles.catHeader}>{section.title}</Text>
         )}
+        renderSectionFooter={({ section }) => {
+          if (storeMode || section.categoryId == null) return null;
+          const draft = getDraft(section.categoryId);
+          const categoryId = section.categoryId;
+          return (
+            <View style={styles.catAddRow}>
+              <TextInput
+                style={[styles.addInput, { flex: 3 }]}
+                placeholder="Add item…"
+                value={draft.text}
+                onChangeText={text => setDraftText(categoryId, text)}
+                returnKeyType="done"
+                onSubmitEditing={() => handleAdd(categoryId)}
+                placeholderTextColor={colors.placeholder}
+              />
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Qty"
+                value={draft.qty}
+                onChangeText={qty => setDraftQty(categoryId, qty)}
+                returnKeyType="done"
+                onSubmitEditing={() => handleAdd(categoryId)}
+                placeholderTextColor={colors.placeholder}
+              />
+              <TouchableOpacity style={styles.addBtn} onPress={() => handleAdd(categoryId)}>
+                <Text style={styles.addBtnText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.item, item.id === matchedItemId && styles.itemHighlighted]}
@@ -213,39 +265,17 @@ export default function GroceryScreen() {
         ListEmptyComponent={
           !refreshing ? (
             <Text style={styles.empty}>
-              {selectedList ? 'List is empty — add something below' : 'No grocery lists found'}
+              {!selectedList
+                ? 'No grocery lists found'
+                : categories.length === 0
+                  ? 'This list has no categories. Add one on the web app first.'
+                  : 'List is empty — add something below'}
             </Text>
           ) : null
         }
         contentContainerStyle={{ paddingBottom: 80 }}
       />
-
-      {selectedList && !storeMode && (
-        <View style={styles.addBar}>
-          <TextInput
-            style={[styles.addInput, { flex: 3 }]}
-            placeholder="Add item…"
-            value={newItem}
-            onChangeText={setNewItem}
-            returnKeyType="done"
-            onSubmitEditing={handleAdd}
-            placeholderTextColor={colors.placeholder}
-          />
-          <TextInput
-            style={[styles.addInput, { flex: 1 }]}
-            placeholder="Qty"
-            value={newQty}
-            onChangeText={setNewQty}
-            returnKeyType="done"
-            onSubmitEditing={handleAdd}
-            placeholderTextColor={colors.placeholder}
-          />
-          <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-            <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -297,10 +327,9 @@ function createStyles(colors: Colors) {
     itemDone: { color: colors.placeholder, textDecorationLine: 'line-through' },
     itemQty: { fontSize: 12, color: colors.textFaint, marginTop: 2 },
     empty: { textAlign: 'center', color: colors.placeholder, marginTop: 60, fontSize: 15 },
-    addBar: {
-      flexDirection: 'row', backgroundColor: colors.surface,
-      borderTopWidth: 1, borderTopColor: colors.border,
-      padding: 8, gap: 6,
+    catAddRow: {
+      flexDirection: 'row', backgroundColor: colors.background,
+      paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14, gap: 6,
     },
     addInput: {
       backgroundColor: colors.surfaceAlt, borderRadius: 8,
