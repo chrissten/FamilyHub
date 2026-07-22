@@ -32,6 +32,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22 (2)
+- **[mobile]** v1.2.6 — Grocery categories are now collapsible outside Store Mode,
+  defaulting to collapsed. Tapping a category header toggles it open/closed (chevron
+  indicator); its item list and inline add-item field (added in v1.2.5 above) only show
+  while expanded. Store Mode always shows every category fully expanded regardless of
+  the collapsed state, since that view is for shopping, not browsing. Typing a name that
+  matches an existing (possibly collapsed) item now auto-expands that item's category
+  before scrolling to and highlighting it, so the existing "type an item name again to
+  un-check it" behavior still works across collapsed categories. Mobile-only for now —
+  the web app's `_grocery_category.html` shows every category expanded on one page,
+  which doesn't have the same small-screen scroll pressure; not added there since it
+  wasn't asked for.
+
 ### 2026-07-22
 - **[mobile]** v1.2.5 — Grocery tab: each category now has its own inline "Add item…"
   field (with its own Qty field), instead of one add bar at the bottom that always

@@ -26,9 +26,11 @@ export default function GroceryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, DraftItem>>({});
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({});
   const [storeMode, setStoreMode] = useState(false);
   const [matchedItemId, setMatchedItemId] = useState<number | null>(null);
   const sectionListRef = useRef<SectionList<GroceryItem>>(null);
+  const handledMatchRef = useRef<number | null>(null);
 
   useFocusEffect(useCallback(() => { loadLists(); }, []));
 
@@ -82,6 +84,10 @@ export default function GroceryScreen() {
     ]);
   }
 
+  function toggleCategory(categoryId: number) {
+    setExpandedCategories(prev => ({ ...prev, [categoryId]: !prev[categoryId] }));
+  }
+
   function getDraft(categoryId: number): DraftItem {
     return drafts[categoryId] ?? { text: '', qty: '' };
   }
@@ -111,23 +117,29 @@ export default function GroceryScreen() {
   }
 
   function buildSections() {
-    const secs: { key: string; title: string; categoryId: number | null; data: GroceryItem[] }[] =
-      categories.map(cat => ({
-        key: String(cat.id),
-        title: cat.name,
-        categoryId: cat.id,
-        data: items.filter(i => i.category_id === cat.id && (!storeMode || !i.checked)),
-      }));
+    const secs: { key: string; title: string; categoryId: number | null; expanded: boolean; data: GroceryItem[] }[] =
+      categories.map(cat => {
+        // Store Mode always shows everything; otherwise a category starts collapsed
+        // until the user taps it open.
+        const catExpanded = storeMode || !!expandedCategories[cat.id];
+        return {
+          key: String(cat.id),
+          title: cat.name,
+          categoryId: cat.id,
+          expanded: catExpanded,
+          data: catExpanded ? items.filter(i => i.category_id === cat.id && (!storeMode || !i.checked)) : [],
+        };
+      });
 
     const orphaned = items.filter(i =>
       !categories.some(c => c.id === i.category_id) && (!storeMode || !i.checked)
     );
     if (orphaned.length > 0) {
-      secs.push({ key: 'other', title: 'Other', categoryId: null, data: orphaned });
+      secs.push({ key: 'other', title: 'Other', categoryId: null, expanded: true, data: orphaned });
     }
 
     // In store mode, hide categories with nothing left to buy; otherwise keep
-    // every category visible (even empty ones) so there's always somewhere to add to.
+    // every category visible (even empty/collapsed ones) so there's always somewhere to add to.
     return storeMode ? secs.filter(s => s.data.length > 0) : secs;
   }
 
@@ -138,15 +150,23 @@ export default function GroceryScreen() {
     const trimmed = activeText.trim().toLowerCase();
     if (!trimmed) {
       setMatchedItemId(null);
+      handledMatchRef.current = null;
       return;
     }
     const match = items.find(i => i.name.trim().toLowerCase() === trimmed);
     if (!match) {
       setMatchedItemId(null);
+      handledMatchRef.current = null;
       return;
     }
-    if (match.id === matchedItemId) return;
     setMatchedItemId(match.id);
+    if (handledMatchRef.current === match.id) return;
+
+    if (!storeMode && !expandedCategories[match.category_id]) {
+      setExpandedCategories(prev => ({ ...prev, [match.category_id]: true }));
+      return; // re-run once the category above expands so scrollToLocation can find it
+    }
+    handledMatchRef.current = match.id;
 
     const secs = buildSections();
     for (let sectionIndex = 0; sectionIndex < secs.length; sectionIndex++) {
@@ -162,7 +182,7 @@ export default function GroceryScreen() {
     }
     if (match.checked) handleToggle(match);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drafts, activeCategoryId, items, categories, storeMode]);
+  }, [drafts, activeCategoryId, items, categories, storeMode, expandedCategories]);
 
   const remaining = items.filter(i => !i.checked).length;
 
@@ -209,11 +229,24 @@ export default function GroceryScreen() {
         keyExtractor={item => String(item.id)}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadLists} />}
-        renderSectionHeader={({ section }) => (
-          <Text style={styles.catHeader}>{section.title}</Text>
-        )}
+        renderSectionHeader={({ section }) => {
+          const collapsible = !storeMode && section.categoryId != null;
+          return (
+            <TouchableOpacity
+              style={styles.catHeaderRow}
+              activeOpacity={collapsible ? 0.6 : 1}
+              disabled={!collapsible}
+              onPress={() => section.categoryId != null && toggleCategory(section.categoryId)}
+            >
+              <Text style={styles.catHeader}>{section.title}</Text>
+              {collapsible && (
+                <Text style={styles.catChevron}>{section.expanded ? '▾' : '▸'}</Text>
+              )}
+            </TouchableOpacity>
+          );
+        }}
         renderSectionFooter={({ section }) => {
-          if (storeMode || section.categoryId == null) return null;
+          if (storeMode || section.categoryId == null || !section.expanded) return null;
           const draft = getDraft(section.categoryId);
           const categoryId = section.categoryId;
           return (
@@ -302,12 +335,16 @@ function createStyles(colors: Colors) {
     storeModeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     storeModeBtnText: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
     storeModeBtnTextActive: { color: colors.primaryText },
-    catHeader: {
-      fontSize: 11, fontWeight: '700', color: colors.textFaint,
-      textTransform: 'uppercase', letterSpacing: 0.8,
+    catHeaderRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6,
       backgroundColor: colors.background,
     },
+    catHeader: {
+      fontSize: 11, fontWeight: '700', color: colors.textFaint,
+      textTransform: 'uppercase', letterSpacing: 0.8,
+    },
+    catChevron: { fontSize: 12, color: colors.textFaint },
     item: {
       flexDirection: 'row', backgroundColor: colors.surface,
       paddingHorizontal: 16, paddingVertical: 13,
