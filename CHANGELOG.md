@@ -32,6 +32,16 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-22 (7)
+- **[web][mobile]** v1.2.11 — Freezer item quantity now has an optional unit (oz or lb),
+  selectable alongside the free-text quantity field. Added `quantity_unit` to
+  `FreezerItem`/`FreezerItemCreate`/`FreezerItemUpdate`/`FreezerItemOut` (existing
+  deployments migrated via `ALTER TABLE freezer_items ADD COLUMN quantity_unit` on
+  startup, same pattern as the `sort_order`/recurrence columns). Web's add/edit forms
+  get a `<select>` next to the qty input; the item row shows e.g. "(2 lb)". Mobile's
+  add bar gets an oz/lb toggle (tap to select, tap again to clear) next to the Qty
+  field, and the item list shows the unit inline the same way.
+
 ### 2026-07-22 (6)
 - **[mobile]** v1.2.10 — The v1.2.9 `KeyboardAvoidingView` fix for the keyboard covering
   add-item inputs turned out to have zero effect on Grocery, To-Do, *or* Freezer — verified

@@ -30,6 +30,7 @@ export default function FreezerScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [newName, setNewName] = useState('');
   const [newQuantity, setNewQuantity] = useState('');
+  const [newQuantityUnit, setNewQuantityUnit] = useState<'' | 'oz' | 'lb'>('');
   const [newDatePurchased, setNewDatePurchased] = useState('');
   const [newExpirationDate, setNewExpirationDate] = useState('');
 
@@ -76,11 +77,13 @@ export default function FreezerScreen() {
     if (!newName.trim() || !selectedFreezer) return;
     try {
       const item = await addFreezerItem(
-        selectedFreezer.id, newName.trim(), newQuantity.trim(), newDatePurchased.trim(), newExpirationDate.trim(),
+        selectedFreezer.id, newName.trim(), newQuantity.trim(), newQuantityUnit || null,
+        newDatePurchased.trim(), newExpirationDate.trim(),
       );
       setItems(prev => [...prev, item]);
       setNewName('');
       setNewQuantity('');
+      setNewQuantityUnit('');
       setNewDatePurchased('');
       setNewExpirationDate('');
     } catch {
@@ -126,7 +129,7 @@ export default function FreezerScreen() {
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemText}>
-                  {item.name}{item.quantity ? ` (${item.quantity})` : ''}
+                  {item.name}{item.quantity ? ` (${item.quantity}${item.quantity_unit ? ` ${item.quantity_unit}` : ''})` : ''}
                 </Text>
                 {(item.date_purchased || item.expiration_date) && (
                   <Text style={styles.itemMeta}>
@@ -166,6 +169,19 @@ export default function FreezerScreen() {
                 onChangeText={setNewQuantity}
                 placeholderTextColor={colors.placeholder}
               />
+              <View style={styles.unitToggle}>
+                {(['oz', 'lb'] as const).map(unit => (
+                  <TouchableOpacity
+                    key={unit}
+                    style={[styles.unitOption, newQuantityUnit === unit && styles.unitOptionActive]}
+                    onPress={() => setNewQuantityUnit(prev => (prev === unit ? '' : unit))}
+                  >
+                    <Text style={[styles.unitOptionText, newQuantityUnit === unit && styles.unitOptionTextActive]}>
+                      {unit}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
             <View style={styles.addRow}>
               <TextInput
@@ -232,5 +248,12 @@ function createStyles(colors: Colors) {
       paddingHorizontal: 16, justifyContent: 'center',
     },
     addBtnText: { color: colors.primaryText, fontWeight: '700', fontSize: 15 },
+    unitToggle: {
+      flexDirection: 'row', backgroundColor: colors.surfaceAlt, borderRadius: 8, overflow: 'hidden',
+    },
+    unitOption: { paddingHorizontal: 10, paddingVertical: 10, justifyContent: 'center' },
+    unitOptionActive: { backgroundColor: colors.primary },
+    unitOptionText: { fontSize: 13, color: colors.textFaint, fontWeight: '600' },
+    unitOptionTextActive: { color: colors.primaryText },
   });
 }

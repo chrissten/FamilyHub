@@ -212,22 +212,26 @@ export const getFreezerItems = (freezerId: number) =>
   request<FreezerItem[]>(`/api/freezer/freezers/${freezerId}/items`);
 
 export const addFreezerItem = (
-  freezerId: number, name: string, quantity?: string, datePurchased?: string, expirationDate?: string,
+  freezerId: number, name: string, quantity?: string, quantityUnit?: string | null,
+  datePurchased?: string, expirationDate?: string,
 ) => request<FreezerItem>(`/api/freezer/freezers/${freezerId}/items`, {
   method: 'POST',
   body: JSON.stringify({
     name, quantity: quantity || null,
+    quantity_unit: quantityUnit || null,
     date_purchased: datePurchased || null,
     expiration_date: expirationDate || null,
   }),
 });
 
 export const updateFreezerItem = (
-  itemId: number, name: string, quantity?: string, datePurchased?: string, expirationDate?: string,
+  itemId: number, name: string, quantity?: string, quantityUnit?: string | null,
+  datePurchased?: string, expirationDate?: string,
 ) => request<FreezerItem>(`/api/freezer/items/${itemId}`, {
   method: 'PATCH',
   body: JSON.stringify({
     name, quantity: quantity || null,
+    quantity_unit: quantityUnit || null,
     date_purchased: datePurchased || null,
     expiration_date: expirationDate || null,
   }),

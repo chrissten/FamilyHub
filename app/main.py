@@ -52,6 +52,12 @@ def on_startup():
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_until DATE"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_series_id ON calendar_events (series_id)"))
         conn.commit()
+    # Add quantity_unit to freezer_items if this is an existing deployment
+    freezer_item_cols = [c["name"] for c in inspect(engine).get_columns("freezer_items")]
+    if "quantity_unit" not in freezer_item_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE freezer_items ADD COLUMN quantity_unit VARCHAR(10)"))
+            conn.commit()
     db = SessionLocal()
     try:
         seed_admin(db)

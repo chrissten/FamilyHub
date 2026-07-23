@@ -169,6 +169,7 @@ p.empty { color: #9aa5b1; }
 .item-edit-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .item-edit-form input[type="text"] { width: auto; flex: 1; margin: 0; }
 .item-edit-form .qty { flex: 0 0 70px; }
+.item-edit-form .qty-unit, .add-item-form .qty-unit { flex: 0 0 70px; width: auto; margin: 0; }
 .item-edit-form label.inline { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #52606d; }
 .item-edit-form label.inline input { width: auto; margin: 0; }
 .item-edit-form button { font-size: 0.8rem; padding: 0.3rem 0.6rem; }

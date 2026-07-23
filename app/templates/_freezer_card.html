@@ -17,6 +17,11 @@
         hx-on::after-request="if(event.detail.successful) this.reset()">
     <input type="text" name="name" placeholder="Item" required>
     <input type="text" name="quantity" placeholder="Qty" class="qty">
+    <select name="quantity_unit" class="qty-unit">
+      <option value="">unit</option>
+      <option value="oz">oz</option>
+      <option value="lb">lb</option>
+    </select>
     <label class="inline">Purchased <input type="date" name="date_purchased"></label>
     <label class="inline">Expires <input type="date" name="expiration_date"></label>
     <button type="submit">Add</button>

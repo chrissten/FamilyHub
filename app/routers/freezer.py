@@ -80,6 +80,7 @@ async def freezer_add_item(
     freezer_id: int,
     name: str = Form(...),
     quantity: str = Form(""),
+    quantity_unit: str = Form(""),
     date_purchased: str = Form(""),
     expiration_date: str = Form(""),
     db: Session = Depends(get_db),
@@ -89,6 +90,7 @@ async def freezer_add_item(
     item = FreezerItem(
         name=name,
         quantity=quantity or None,
+        quantity_unit=quantity_unit or None,
         date_purchased=_parse_form_date(date_purchased),
         expiration_date=_parse_form_date(expiration_date),
         freezer_id=freezer_id,
@@ -124,6 +126,7 @@ async def freezer_update_item(
     item_id: int,
     name: str = Form(...),
     quantity: str = Form(""),
+    quantity_unit: str = Form(""),
     date_purchased: str = Form(""),
     expiration_date: str = Form(""),
     db: Session = Depends(get_db),
@@ -133,6 +136,7 @@ async def freezer_update_item(
 
     item.name = name
     item.quantity = quantity or None
+    item.quantity_unit = quantity_unit or None
     item.date_purchased = _parse_form_date(date_purchased)
     item.expiration_date = _parse_form_date(expiration_date)
     db.commit()
@@ -229,6 +233,7 @@ async def api_create_freezer_item(
     item = FreezerItem(
         name=payload.name,
         quantity=payload.quantity,
+        quantity_unit=payload.quantity_unit,
         date_purchased=payload.date_purchased,
         expiration_date=payload.expiration_date,
         freezer_id=freezer_id,
@@ -254,6 +259,7 @@ async def api_update_freezer_item(
 
     item.name = payload.name
     item.quantity = payload.quantity
+    item.quantity_unit = payload.quantity_unit
     item.date_purchased = payload.date_purchased
     item.expiration_date = payload.expiration_date
     db.commit()
