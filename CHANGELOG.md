@@ -14,9 +14,12 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
-- **Agenda view doesn't scroll to today on web.** Mobile's Agenda tab now opens scrolled
-  to today (2026-07-15, v1.0.9 below); `_calendar_agenda.html` still renders starting at
-  the 1st of the month with no auto-scroll to `.agenda-day.today`. Not fixed here since it
+- **Agenda view is mobile-only for infinite scroll, seamless month navigation, and the
+  condensed one-card-per-day layout (2026-07-23, v1.2.12 below).** Mobile's Agenda tab now
+  scrolls continuously across months (loading the next/previous month automatically as you
+  reach either edge) and renders each day's events as rows inside a single card instead of
+  one card per event. `_calendar_agenda.html` still renders one month at a time with no
+  auto-scroll to `.agenda-day.today` and a separate card per event. Not fixed here since it
   wasn't asked for — flagging so it isn't rediscovered by accident.
 - **Dark mode is mobile-only (v1.1.0 below).** The web app has no theme system; all its
   colors are hardcoded in `app.css`. Not fixed here since it wasn't asked for.
@@ -31,6 +34,17 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-07-23 (1)
+- **[mobile]** v1.2.12 — Grocery tab: the "Add item" row moved from the bottom of each
+  category to the top (right below the category header), so it's reachable without
+  scrolling past every item first. Calendar Agenda tab: rebuilt as a true infinite scroll
+  spanning months — scrolling past the top or bottom edge loads the adjacent month
+  automatically (with a month-name divider between them), and Prev/Next/Today now scroll
+  within that continuous list instead of swapping out the whole month's data (which
+  previously could leave the list scrolled to the bottom of the new month instead of the
+  top). Each day's events are now grouped into a single card (thin divided rows) instead
+  of a separate shadowed card per event, condensing the view.
 
 ### 2026-07-22 (7)
 - **[web][mobile]** v1.2.11 — Freezer item quantity now has an optional unit (oz or lb),

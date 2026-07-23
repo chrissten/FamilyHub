@@ -6,7 +6,7 @@ import {
 } from '../../src/api/client';
 import type { CalendarEvent, User } from '../../src/api/types';
 import {
-  addDays, buildAgendaView, buildDayAgenda, buildMonthGrid, buildMultiDayView, dayLabel, isoDate,
+  addDays, buildDayAgenda, buildMonthGrid, buildMultiDayView, dayLabel, isoDate,
   monthLabel, rangeLabel, startOfWeek,
 } from '../../src/calendar/dateUtils';
 import MonthView from '../../src/calendar/MonthView';
@@ -31,6 +31,7 @@ export default function CalendarScreen() {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [view, setView] = useState<ViewKind>('month');
   const [anchor, setAnchor] = useState(() => new Date());
+  const [navNonce, setNavNonce] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -70,6 +71,7 @@ export default function CalendarScreen() {
   }
 
   function step(direction: -1 | 1) {
+    setNavNonce(n => n + 1);
     setAnchor(prev => {
       if (view === 'month' || view === 'agenda') return new Date(prev.getFullYear(), prev.getMonth() + direction, 1);
       if (view === 'week') return addDays(prev, 7 * direction);
@@ -79,6 +81,7 @@ export default function CalendarScreen() {
   }
 
   function goToday() {
+    setNavNonce(n => n + 1);
     setAnchor(new Date());
   }
 
@@ -143,16 +146,18 @@ export default function CalendarScreen() {
     );
   } else {
     headerLabel = monthLabel(anchor.getFullYear(), anchor.getMonth());
-    const days = buildAgendaView(events, anchor.getFullYear(), anchor.getMonth());
     body = (
       <AgendaView
-        days={days}
+        anchor={anchor}
+        navNonce={navNonce}
+        events={events}
         familySize={familySize}
         refreshing={refreshing}
         onRefresh={load}
         onAddEvent={openCreate}
         onEditEvent={openEdit}
         onDeleteEvent={handleDelete}
+        onVisibleMonthChange={setAnchor}
       />
     );
   }

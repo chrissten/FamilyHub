@@ -17,6 +17,10 @@ interface DraftItem {
   qty: string;
 }
 
+// Approximate rendered height (dp) of catHeaderRow + catAddRow, used to keep the
+// add-item row visible above the keyboard when scrolling a category into view.
+const HEADER_ADD_ROW_HEIGHT = 100;
+
 export default function GroceryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -104,9 +108,10 @@ export default function GroceryScreen() {
   }
 
   /** Keeps a category's add-item row from staying hidden behind the keyboard when it's
-   *  focused — the screen has no fixed add bar to push up (see useKeyboardHeight), so
-   *  instead scroll the last item of that category (immediately above its footer) to
-   *  the bottom of the visible area. */
+   *  focused — the screen has no fixed add bar to push up (see useKeyboardHeight). The
+   *  row now sits in the section header, right above the first item, so scroll that
+   *  item to the top of the visible area with enough offset to keep the header (and
+   *  its add row) uncovered too. */
   function focusCategoryInput(categoryId: number) {
     const secs = buildSections();
     const sectionIndex = secs.findIndex(s => s.categoryId === categoryId);
@@ -115,7 +120,7 @@ export default function GroceryScreen() {
     if (data.length === 0) return;
     try {
       sectionListRef.current?.scrollToLocation({
-        sectionIndex, itemIndex: data.length - 1, viewPosition: 1, animated: true,
+        sectionIndex, itemIndex: 0, viewPosition: 0, viewOffset: HEADER_ADD_ROW_HEIGHT, animated: true,
       });
     } catch {
       // list not measured yet — ignore
@@ -249,49 +254,49 @@ export default function GroceryScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadLists} />}
         renderSectionHeader={({ section }) => {
           const collapsible = !storeMode && section.categoryId != null;
-          return (
-            <TouchableOpacity
-              style={styles.catHeaderRow}
-              activeOpacity={collapsible ? 0.6 : 1}
-              disabled={!collapsible}
-              onPress={() => section.categoryId != null && toggleCategory(section.categoryId)}
-            >
-              <Text style={styles.catHeader}>{section.title}</Text>
-              {collapsible && (
-                <Text style={styles.catChevron}>{section.expanded ? '▾' : '▸'}</Text>
-              )}
-            </TouchableOpacity>
-          );
-        }}
-        renderSectionFooter={({ section }) => {
-          if (storeMode || section.categoryId == null || !section.expanded) return null;
-          const draft = getDraft(section.categoryId);
+          const showAddRow = !storeMode && section.categoryId != null && section.expanded;
           const categoryId = section.categoryId;
+          const draft = categoryId != null ? getDraft(categoryId) : { text: '', qty: '' };
           return (
-            <View style={styles.catAddRow}>
-              <TextInput
-                style={[styles.addInput, { flex: 3 }]}
-                placeholder="Add item…"
-                value={draft.text}
-                onChangeText={text => setDraftText(categoryId, text)}
-                onFocus={() => focusCategoryInput(categoryId)}
-                returnKeyType="done"
-                onSubmitEditing={() => handleAdd(categoryId)}
-                placeholderTextColor={colors.placeholder}
-              />
-              <TextInput
-                style={[styles.addInput, { flex: 1 }]}
-                placeholder="Qty"
-                value={draft.qty}
-                onChangeText={qty => setDraftQty(categoryId, qty)}
-                onFocus={() => focusCategoryInput(categoryId)}
-                returnKeyType="done"
-                onSubmitEditing={() => handleAdd(categoryId)}
-                placeholderTextColor={colors.placeholder}
-              />
-              <TouchableOpacity style={styles.addBtn} onPress={() => handleAdd(categoryId)}>
-                <Text style={styles.addBtnText}>Add</Text>
+            <View style={styles.catHeaderWrap}>
+              <TouchableOpacity
+                style={styles.catHeaderRow}
+                activeOpacity={collapsible ? 0.6 : 1}
+                disabled={!collapsible}
+                onPress={() => categoryId != null && toggleCategory(categoryId)}
+              >
+                <Text style={styles.catHeader}>{section.title}</Text>
+                {collapsible && (
+                  <Text style={styles.catChevron}>{section.expanded ? '▾' : '▸'}</Text>
+                )}
               </TouchableOpacity>
+              {showAddRow && categoryId != null && (
+                <View style={styles.catAddRow}>
+                  <TextInput
+                    style={[styles.addInput, { flex: 3 }]}
+                    placeholder="Add item…"
+                    value={draft.text}
+                    onChangeText={text => setDraftText(categoryId, text)}
+                    onFocus={() => focusCategoryInput(categoryId)}
+                    returnKeyType="done"
+                    onSubmitEditing={() => handleAdd(categoryId)}
+                    placeholderTextColor={colors.placeholder}
+                  />
+                  <TextInput
+                    style={[styles.addInput, { flex: 1 }]}
+                    placeholder="Qty"
+                    value={draft.qty}
+                    onChangeText={qty => setDraftQty(categoryId, qty)}
+                    onFocus={() => focusCategoryInput(categoryId)}
+                    returnKeyType="done"
+                    onSubmitEditing={() => handleAdd(categoryId)}
+                    placeholderTextColor={colors.placeholder}
+                  />
+                  <TouchableOpacity style={styles.addBtn} onPress={() => handleAdd(categoryId)}>
+                    <Text style={styles.addBtnText}>Add</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           );
         }}
@@ -355,6 +360,7 @@ function createStyles(colors: Colors) {
     storeModeBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     storeModeBtnText: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
     storeModeBtnTextActive: { color: colors.primaryText },
+    catHeaderWrap: { backgroundColor: colors.background },
     catHeaderRow: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6,
