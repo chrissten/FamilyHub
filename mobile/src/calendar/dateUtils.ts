@@ -37,20 +37,96 @@ export function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+let _deviceTz: string | null = null;
+
+/** The phone's current IANA timezone (e.g. "America/New_York"). Hermes ships full ICU
+ * so this works with no extra dependency. */
+export function deviceTimeZone(): string {
+  if (!_deviceTz) _deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return _deviceTz;
+}
+
+function zonedParts(instant: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  const parts: Record<string, string> = {};
+  for (const part of fmt.formatToParts(instant)) parts[part.type] = part.value;
+  const hour = parts.hour === '24' ? 0 : Number(parts.hour);
+  return {
+    y: Number(parts.year), mo: Number(parts.month), d: Number(parts.day),
+    h: hour, mi: Number(parts.minute), s: Number(parts.second),
+  };
+}
+
+/**
+ * Converts a true UTC instant (an ISO string from the API) to the wall-clock date/time
+ * observed in `timeZone`, returned as a Date whose own fields (getHours, getDate, ...)
+ * equal that wall clock. Mirrors app/timezones.py's to_local.
+ */
+function utcToZone(isoStr: string, timeZone: string): Date {
+  const p = zonedParts(new Date(isoStr), timeZone);
+  return new Date(p.y, p.mo - 1, p.d, p.h, p.mi, p.s);
+}
+
 const EVENT_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/;
 
 /**
- * Parses an event's start_time/end_time as the literal wall-clock date/time it encodes,
- * ignoring any trailing UTC/offset marker. The backend (and the web app) store and render
- * these as plain wall-clock values — never converted through a real timezone — so this
- * must match that, rather than `new Date(iso)`, which would reinterpret the digits as a
- * true UTC instant and shift them by the device's real timezone offset.
+ * Parses the literal digits of an all-day event's start_time/end_time, ignoring any
+ * offset. All-day events are pure UTC calendar-date boundaries with no timezone
+ * semantics (see app/routers/calendar.py's _annotate_display) — they must never be
+ * converted through a device's timezone, which could roll the date across midnight.
  */
-export function parseEventDate(dateStr: string): Date {
+function rawEventDate(dateStr: string): Date {
   const match = EVENT_DATE_RE.exec(dateStr);
   if (!match) return new Date(dateStr);
   const [, y, mo, d, h, mi, s] = match;
   return new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), s ? Number(s) : 0);
+}
+
+/**
+ * The wall-clock date/time to display for `event`'s start/end on this device: for a
+ * timed event, the true UTC instant converted to the device's current timezone; for an
+ * all-day event, the raw calendar-date boundary (never converted). Mirrors the
+ * backend's display_start/display_end (see app/routers/calendar.py's _annotate_display).
+ */
+export function eventStart(event: CalendarEvent): Date {
+  return event.all_day ? rawEventDate(event.start_time) : utcToZone(event.start_time, deviceTimeZone());
+}
+
+export function eventEnd(event: CalendarEvent): Date {
+  return event.all_day ? rawEventDate(event.end_time) : utcToZone(event.end_time, deviceTimeZone());
+}
+
+/**
+ * The wall-clock date/time in the event's own anchor timezone, rather than the
+ * device's — used to reconstruct edit-form defaults so editing shows the time as it
+ * was originally entered. Mirrors the backend edit routes' to_local(event.start_time,
+ * event.timezone).
+ */
+export function eventOwnZoneStart(event: CalendarEvent): Date {
+  return event.all_day ? rawEventDate(event.start_time) : utcToZone(event.start_time, event.timezone || deviceTimeZone());
+}
+
+export function eventOwnZoneEnd(event: CalendarEvent): Date {
+  return event.all_day ? rawEventDate(event.end_time) : utcToZone(event.end_time, event.timezone || deviceTimeZone());
+}
+
+/**
+ * Short zone abbreviation (e.g. "EDT") for the device's current zone at `event`'s
+ * instant — shown as a badge when the event was converted from a different timezone
+ * than the device's own. Returns null when no conversion happened (all-day, or the
+ * event's own zone already matches the device's).
+ */
+export function eventTzLabel(event: CalendarEvent): string | null {
+  if (event.all_day) return null;
+  const deviceTz = deviceTimeZone();
+  if ((event.timezone || deviceTz) === deviceTz) return null;
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: deviceTz, timeZoneName: 'short' });
+  const part = fmt.formatToParts(new Date(event.start_time)).find(p => p.type === 'timeZoneName');
+  return part?.value ?? deviceTz;
 }
 
 function dayKey(d: Date): string {
@@ -85,8 +161,10 @@ export function formatClock(hours: number, minutes: number, format: TimeFormat =
   return `${hour12}:${mm} ${period}`;
 }
 
+/** Formats a raw ISO instant as device-local clock time — for values not tied to a
+ * particular CalendarEvent (and so not eligible for the all-day raw-date bypass). */
 export function fmtTime(dateStr: string, format: TimeFormat = '12h'): string {
-  const d = parseEventDate(dateStr);
+  const d = utcToZone(dateStr, deviceTimeZone());
   return formatClock(d.getHours(), d.getMinutes(), format);
 }
 
@@ -94,11 +172,12 @@ export function fmtTime(dateStr: string, format: TimeFormat = '12h'): string {
  * Port of event_time_label in app/templating.py — the time label for an agenda/day-list
  * row representing `event` on `day`. For a timed event spanning multiple days, the raw
  * start/end time only makes sense on the day it actually occurs; other days it spans just
- * show as ongoing.
+ * show as ongoing. Uses device-local display times, with a zone-abbreviation suffix when
+ * the event was converted from a different timezone.
  */
 export function eventTimeLabel(event: CalendarEvent, day: Date, format: TimeFormat = '12h'): string {
-  const start = parseEventDate(event.start_time);
-  const end = parseEventDate(event.end_time);
+  const start = eventStart(event);
+  const end = eventEnd(event);
   const startDay = dateOnly(start);
   const endDay = dateOnly(end);
   if (event.all_day) {
@@ -107,15 +186,17 @@ export function eventTimeLabel(event: CalendarEvent, day: Date, format: TimeForm
     }
     return 'All day';
   }
+  const suffix = eventTzLabel(event);
+  const suffixStr = suffix ? ` ${suffix}` : '';
   if (endDay.getTime() === startDay.getTime()) {
-    return `${formatClock(start.getHours(), start.getMinutes(), format)} – ${formatClock(end.getHours(), end.getMinutes(), format)}`;
+    return `${formatClock(start.getHours(), start.getMinutes(), format)} – ${formatClock(end.getHours(), end.getMinutes(), format)}${suffixStr}`;
   }
   const day0 = dateOnly(day);
   if (day0.getTime() === startDay.getTime()) {
     return `${formatClock(start.getHours(), start.getMinutes(), format)} – continues`;
   }
   if (day0.getTime() === endDay.getTime()) {
-    return `continues – ${formatClock(end.getHours(), end.getMinutes(), format)}`;
+    return `continues – ${formatClock(end.getHours(), end.getMinutes(), format)}${suffixStr}`;
   }
   return 'Continues all day';
 }
@@ -144,10 +225,10 @@ export function buildMonthGrid(events: CalendarEvent[], year: number, month: num
 
   const eventsByDay = new Map<string, CalendarEvent[]>();
   for (const e of events) {
-    const eventStart = dateOnly(parseEventDate(e.start_time));
-    const eventEnd = dateOnly(parseEventDate(e.end_time));
-    const firstDay = eventStart.getTime() > gridStart.getTime() ? eventStart : gridStart;
-    const lastDay = eventEnd.getTime() < gridEnd.getTime() ? eventEnd : gridEnd;
+    const eventStartDay = dateOnly(eventStart(e));
+    const eventEndDay = dateOnly(eventEnd(e));
+    const firstDay = eventStartDay.getTime() > gridStart.getTime() ? eventStartDay : gridStart;
+    const lastDay = eventEndDay.getTime() < gridEnd.getTime() ? eventEndDay : gridEnd;
     for (let day = firstDay; day.getTime() <= lastDay.getTime(); day = addDays(day, 1)) {
       const key = dayKey(day);
       const bucket = eventsByDay.get(key);
@@ -158,7 +239,7 @@ export function buildMonthGrid(events: CalendarEvent[], year: number, month: num
   for (const dayEvents of eventsByDay.values()) {
     dayEvents.sort((a, b) => {
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
-      return parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime();
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
     });
   }
 
@@ -192,15 +273,15 @@ export interface DayBlock {
 export function layoutDayBlocks(events: CalendarEvent[], day: Date): DayBlock[] {
   const dayStartMs = dateOnly(day).getTime();
   const sorted = [...events].sort(
-    (a, b) => parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime()
+    (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
   );
 
   const columnsEnd: number[] = [];
   const placements: { event: CalendarEvent; col: number; start: number; end: number }[] = [];
 
   for (const event of sorted) {
-    const start = parseEventDate(event.start_time).getTime();
-    const end = parseEventDate(event.end_time).getTime();
+    const start = eventStart(event).getTime();
+    const end = eventEnd(event).getTime();
     let placedCol = -1;
     for (let i = 0; i < columnsEnd.length; i++) {
       if (start >= columnsEnd[i]) {
@@ -241,8 +322,8 @@ export interface DayColumn {
 function overlapsDay(event: CalendarEvent, day: Date): boolean {
   const dayStart = dateOnly(day).getTime();
   const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
-  const start = parseEventDate(event.start_time).getTime();
-  const end = parseEventDate(event.end_time).getTime();
+  const start = eventStart(event).getTime();
+  const end = eventEnd(event).getTime();
   return start <= dayEnd && end >= dayStart;
 }
 
@@ -265,7 +346,7 @@ export function buildDayAgenda(events: CalendarEvent[], day: Date): CalendarEven
     .filter(e => overlapsDay(e, day))
     .sort((a, b) => {
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
-      return parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime();
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
     });
 }
 
@@ -282,10 +363,10 @@ export function buildAgendaView(events: CalendarEvent[], year: number, month: nu
 
   const eventsByDay = new Map<string, CalendarEvent[]>();
   for (const e of events) {
-    const eventStart = dateOnly(parseEventDate(e.start_time));
-    const eventEnd = dateOnly(parseEventDate(e.end_time));
-    const firstDay = eventStart.getTime() > firstOfMonth.getTime() ? eventStart : firstOfMonth;
-    const lastDay = eventEnd.getTime() < lastOfMonth.getTime() ? eventEnd : lastOfMonth;
+    const eventStartDay = dateOnly(eventStart(e));
+    const eventEndDay = dateOnly(eventEnd(e));
+    const firstDay = eventStartDay.getTime() > firstOfMonth.getTime() ? eventStartDay : firstOfMonth;
+    const lastDay = eventEndDay.getTime() < lastOfMonth.getTime() ? eventEndDay : lastOfMonth;
     for (let day = firstDay; day.getTime() <= lastDay.getTime(); day = addDays(day, 1)) {
       const key = dayKey(day);
       const bucket = eventsByDay.get(key);
@@ -296,7 +377,7 @@ export function buildAgendaView(events: CalendarEvent[], year: number, month: nu
   for (const dayEvents of eventsByDay.values()) {
     dayEvents.sort((a, b) => {
       if (a.all_day !== b.all_day) return a.all_day ? -1 : 1;
-      return parseEventDate(a.start_time).getTime() - parseEventDate(b.start_time).getTime();
+      return new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
     });
   }
 

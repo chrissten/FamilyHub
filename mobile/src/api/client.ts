@@ -130,6 +130,7 @@ export const createEvent = (data: {
   start_time: string;
   end_time: string;
   all_day: boolean;
+  timezone: string;
   attendee_ids?: number[];
   recurrence?: RecurrenceOption;
   recurrence_until?: string | null;
@@ -142,6 +143,7 @@ export const updateEvent = (id: number, data: {
   start_time: string;
   end_time: string;
   all_day: boolean;
+  timezone: string;
   attendee_ids?: number[];
   recurrence_until?: string | null;
 }, scope: EventScope = 'this') => request<CalendarEvent>(

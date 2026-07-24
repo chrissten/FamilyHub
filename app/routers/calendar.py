@@ -1,28 +1,55 @@
 import calendar as cal
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import CalendarEvent, User
 from app.recurrence import RecurrenceRule, derive_rule_from_date, materialize_series, update_series_until
 from app.schemas import EventCreate, EventOut
 from app.templating import templates
+from app.timezones import COMMON_TIMEZONES, to_local, to_utc, tz_abbr
 
 router = APIRouter()
 
 
-def build_month_grid(db: Session, year: int, month: int) -> list[list[dict]]:
+def _viewer_tz(request: Request) -> str:
+    """The timezone to render times in for this request: a cookie set client-side (see
+    the inline script in base.html) from Intl.DateTimeFormat, falling back to the
+    configured default (first request, or JS disabled)."""
+    return request.cookies.get("tz") or settings.default_timezone
+
+
+def _annotate_display(events: list[CalendarEvent], viewer_tz: str) -> None:
+    """Attaches transient (unpersisted) display_start/display_end/tz_label to each event:
+    the viewer-local wall-clock time to render, and a zone-abbreviation badge when that
+    differs from the event's own anchor zone. All-day events bypass conversion entirely —
+    they're pure UTC calendar-date boundaries, and converting through an offset could
+    roll the date across a day boundary."""
+    for event in events:
+        if event.all_day:
+            event.display_start = event.start_time.replace(tzinfo=None)
+            event.display_end = event.end_time.replace(tzinfo=None)
+            event.tz_label = None
+            continue
+        event.display_start = to_local(event.start_time, viewer_tz)
+        event.display_end = to_local(event.end_time, viewer_tz)
+        event_tz = event.timezone or settings.default_timezone
+        event.tz_label = tz_abbr(event.start_time, viewer_tz) if event_tz != viewer_tz else None
+
+
+def build_month_grid(db: Session, year: int, month: int, viewer_tz: str) -> list[list[dict]]:
     month_calendar = cal.Calendar(firstweekday=6)  # weeks start on Sunday
     weeks = month_calendar.monthdatescalendar(year, month)
 
     grid_start, grid_end = weeks[0][0], weeks[-1][-1]
-    range_start = datetime.combine(grid_start, time.min)
-    range_end = datetime.combine(grid_end, time.max)
+    range_start = to_utc(datetime.combine(grid_start, time.min), viewer_tz)
+    range_end = to_utc(datetime.combine(grid_end, time.max), viewer_tz)
 
     events = (
         db.query(CalendarEvent)
@@ -30,11 +57,12 @@ def build_month_grid(db: Session, year: int, month: int) -> list[list[dict]]:
         .order_by(CalendarEvent.start_time)
         .all()
     )
+    _annotate_display(events, viewer_tz)
 
     events_by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
-        first_day = max(_naive(event.start_time).date(), grid_start)
-        last_day = min(_naive(event.end_time).date(), grid_end)
+        first_day = max(event.display_start.date(), grid_start)
+        last_day = min(event.display_end.date(), grid_end)
         day = first_day
         while day <= last_day:
             events_by_day.setdefault(day, []).append(event)
@@ -64,21 +92,17 @@ def _hour_label(hour: int) -> str:
     return f"{hour12} {period}"
 
 
-def _naive(dt: datetime) -> datetime:
-    """Strip tzinfo so comparisons work the same on Postgres (tz-aware) and SQLite (naive)."""
-    return dt.replace(tzinfo=None) if dt.tzinfo is not None else dt
-
-
 def layout_day_blocks(events: list[CalendarEvent], day: date) -> list[dict]:
-    """Greedy column layout for overlapping timed events within a single day."""
+    """Greedy column layout for overlapping timed events within a single day. Expects
+    events already annotated with display_start/display_end (see _annotate_display)."""
     day_start = datetime.combine(day, time.min)
     sorted_events = sorted(events, key=lambda e: e.start_time)
 
     columns_end: list[datetime] = []
     placements: list[tuple[CalendarEvent, int, datetime, datetime]] = []
     for event in sorted_events:
-        ev_start = _naive(event.start_time)
-        ev_end = _naive(event.end_time)
+        ev_start = event.display_start
+        ev_end = event.display_end
         placed_col = None
         for idx, col_end in enumerate(columns_end):
             if ev_start >= col_end:
@@ -108,21 +132,22 @@ def layout_day_blocks(events: list[CalendarEvent], day: date) -> list[dict]:
     return blocks
 
 
-def build_multi_day_view(db: Session, day_dates: list[date]) -> dict:
-    range_start = datetime.combine(day_dates[0], time.min)
-    range_end = datetime.combine(day_dates[-1], time.max)
+def build_multi_day_view(db: Session, day_dates: list[date], viewer_tz: str) -> dict:
+    range_start = to_utc(datetime.combine(day_dates[0], time.min), viewer_tz)
+    range_end = to_utc(datetime.combine(day_dates[-1], time.max), viewer_tz)
     events = (
         db.query(CalendarEvent)
         .filter(CalendarEvent.start_time <= range_end, CalendarEvent.end_time >= range_start)
         .order_by(CalendarEvent.start_time)
         .all()
     )
+    _annotate_display(events, viewer_tz)
 
     days = []
     for day in day_dates:
         day_start = datetime.combine(day, time.min)
         day_end = datetime.combine(day, time.max)
-        day_events = [e for e in events if _naive(e.start_time) <= day_end and _naive(e.end_time) >= day_start]
+        day_events = [e for e in events if e.display_start <= day_end and e.display_end >= day_start]
         days.append(
             {
                 "date": day,
@@ -153,12 +178,12 @@ def build_multi_day_view(db: Session, day_dates: list[date]) -> dict:
     }
 
 
-def build_agenda_view(db: Session, year: int, month: int) -> list[dict]:
+def build_agenda_view(db: Session, year: int, month: int, viewer_tz: str) -> list[dict]:
     """List every day in the month (including days with no events), Cozi-style."""
     first_day = date(year, month, 1)
     last_day = date(year, month, cal.monthrange(year, month)[1])
-    range_start = datetime.combine(first_day, time.min)
-    range_end = datetime.combine(last_day, time.max)
+    range_start = to_utc(datetime.combine(first_day, time.min), viewer_tz)
+    range_end = to_utc(datetime.combine(last_day, time.max), viewer_tz)
 
     events = (
         db.query(CalendarEvent)
@@ -166,11 +191,12 @@ def build_agenda_view(db: Session, year: int, month: int) -> list[dict]:
         .order_by(CalendarEvent.start_time)
         .all()
     )
+    _annotate_display(events, viewer_tz)
 
     events_by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
-        first = max(_naive(event.start_time).date(), first_day)
-        last = min(_naive(event.end_time).date(), last_day)
+        first = max(event.display_start.date(), first_day)
+        last = min(event.display_end.date(), last_day)
         day = first
         while day <= last:
             events_by_day.setdefault(day, []).append(event)
@@ -192,30 +218,33 @@ def build_agenda_view(db: Session, year: int, month: int) -> list[dict]:
     return days
 
 
-def build_week_view(db: Session, anchor: date) -> dict:
+def build_week_view(db: Session, anchor: date, viewer_tz: str) -> dict:
     weekday_from_sunday = (anchor.weekday() + 1) % 7
     week_start = anchor - timedelta(days=weekday_from_sunday)
     week_dates = [week_start + timedelta(days=i) for i in range(7)]
-    return build_multi_day_view(db, week_dates)
+    return build_multi_day_view(db, week_dates, viewer_tz)
 
 
-def build_three_day_view(db: Session, anchor: date) -> dict:
+def build_three_day_view(db: Session, anchor: date, viewer_tz: str) -> dict:
     day_dates = [anchor + timedelta(days=i) for i in range(3)]
-    return build_multi_day_view(db, day_dates)
+    return build_multi_day_view(db, day_dates, viewer_tz)
 
 
-def build_day_agenda(db: Session, the_date: date) -> list[CalendarEvent]:
-    day_start = datetime.combine(the_date, time.min)
-    day_end = datetime.combine(the_date, time.max)
-    return (
+def build_day_agenda(db: Session, the_date: date, viewer_tz: str) -> list[CalendarEvent]:
+    day_start = to_utc(datetime.combine(the_date, time.min), viewer_tz)
+    day_end = to_utc(datetime.combine(the_date, time.max), viewer_tz)
+    events = (
         db.query(CalendarEvent)
         .filter(CalendarEvent.start_time <= day_end, CalendarEvent.end_time >= day_start)
         .order_by(CalendarEvent.all_day.desc(), CalendarEvent.start_time)
         .all()
     )
+    _annotate_display(events, viewer_tz)
+    return events
 
 
-def build_view_context(db: Session, view: str, anchor: date) -> dict:
+def build_view_context(db: Session, view: str, anchor: date, request: Request) -> dict:
+    viewer_tz = _viewer_tz(request)
     focus = anchor.isoformat()
     ctx = {
         "view": view,
@@ -238,26 +267,26 @@ def build_view_context(db: Session, view: str, anchor: date) -> dict:
         ctx["year"] = year
         ctx["month"] = month
         ctx["month_name"] = cal.month_name[month]
-        ctx["days"] = build_agenda_view(db, year, month)
+        ctx["days"] = build_agenda_view(db, year, month, viewer_tz)
         ctx["partial"] = "_calendar_agenda.html"
     elif view == "week":
         ctx["prev_url"] = f"/calendar/week?date={(anchor - timedelta(days=7)).isoformat()}"
         ctx["next_url"] = f"/calendar/week?date={(anchor + timedelta(days=7)).isoformat()}"
         ctx["today_url"] = f"/calendar/week?date={date.today().isoformat()}"
-        ctx.update(build_week_view(db, anchor))
+        ctx.update(build_week_view(db, anchor, viewer_tz))
         ctx["partial"] = "_calendar_week.html"
     elif view == "3day":
         ctx["prev_url"] = f"/calendar/3day?date={(anchor - timedelta(days=3)).isoformat()}"
         ctx["next_url"] = f"/calendar/3day?date={(anchor + timedelta(days=3)).isoformat()}"
         ctx["today_url"] = f"/calendar/3day?date={date.today().isoformat()}"
-        ctx.update(build_three_day_view(db, anchor))
+        ctx.update(build_three_day_view(db, anchor, viewer_tz))
         ctx["partial"] = "_calendar_week.html"
     elif view == "day":
         ctx["prev_url"] = f"/calendar/day?date={(anchor - timedelta(days=1)).isoformat()}"
         ctx["next_url"] = f"/calendar/day?date={(anchor + timedelta(days=1)).isoformat()}"
         ctx["today_url"] = f"/calendar/day?date={date.today().isoformat()}"
         ctx["the_date"] = anchor
-        ctx["events"] = build_day_agenda(db, anchor)
+        ctx["events"] = build_day_agenda(db, anchor, viewer_tz)
         ctx["partial"] = "_calendar_day.html"
     else:
         view = "month"
@@ -271,7 +300,7 @@ def build_view_context(db: Session, view: str, anchor: date) -> dict:
         ctx["year"] = year
         ctx["month"] = month
         ctx["month_name"] = cal.month_name[month]
-        ctx["grid"] = build_month_grid(db, year, month)
+        ctx["grid"] = build_month_grid(db, year, month, viewer_tz)
         ctx["partial"] = "_calendar_month.html"
 
     return ctx
@@ -288,7 +317,7 @@ def calendar_page(
     anchor = date.fromisoformat(date_param) if date_param else date.today()
     if view not in {"month", "week", "3day", "day", "agenda"}:
         view = "month"
-    ctx = build_view_context(db, view, anchor)
+    ctx = build_view_context(db, view, anchor, request)
     return templates.TemplateResponse(request, "calendar.html", {"current_user": current_user, **ctx})
 
 
@@ -299,7 +328,7 @@ def calendar_month_view(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ctx = build_view_context(db, "month", date.fromisoformat(date_param))
+    ctx = build_view_context(db, "month", date.fromisoformat(date_param), request)
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
@@ -310,7 +339,7 @@ def calendar_week_view(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ctx = build_view_context(db, "week", date.fromisoformat(date_param))
+    ctx = build_view_context(db, "week", date.fromisoformat(date_param), request)
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
@@ -321,7 +350,7 @@ def calendar_three_day_view(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ctx = build_view_context(db, "3day", date.fromisoformat(date_param))
+    ctx = build_view_context(db, "3day", date.fromisoformat(date_param), request)
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
@@ -332,7 +361,7 @@ def calendar_day_view(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ctx = build_view_context(db, "day", date.fromisoformat(date_param))
+    ctx = build_view_context(db, "day", date.fromisoformat(date_param), request)
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
@@ -343,7 +372,7 @@ def calendar_agenda_view(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    ctx = build_view_context(db, "agenda", date.fromisoformat(date_param))
+    ctx = build_view_context(db, "agenda", date.fromisoformat(date_param), request)
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
@@ -370,6 +399,8 @@ def calendar_new_form(
             "default_all_day": False,
             "default_start_time": "09:00",
             "default_end_time": "10:00",
+            "default_timezone": _viewer_tz(request),
+            "timezones": COMMON_TIMEZONES,
             "default_attendee_ids": [current_user.id],
             "members": members,
             "current_user": current_user,
@@ -395,24 +426,31 @@ def calendar_duplicate_form(
     if not source:
         raise HTTPException(status_code=404)
     members = db.query(User).order_by(User.display_name).all()
+    source_tz = source.timezone or settings.default_timezone
+    if source.all_day:
+        local_start, local_end = source.start_time, source.end_time
+    else:
+        local_start, local_end = to_local(source.start_time, source_tz), to_local(source.end_time, source_tz)
     return templates.TemplateResponse(
         request,
         "_event_form.html",
         {
             "event": None,
-            "default_date": source.start_time.date().isoformat(),
-            "default_end_date": source.end_time.date().isoformat(),
+            "default_date": local_start.date().isoformat(),
+            "default_end_date": local_end.date().isoformat(),
             "default_title": source.title,
             "default_description": source.description or "",
             "default_location": source.location or "",
             "default_all_day": source.all_day,
-            "default_start_time": source.start_time.strftime("%H:%M"),
-            "default_end_time": source.end_time.strftime("%H:%M"),
+            "default_start_time": local_start.strftime("%H:%M"),
+            "default_end_time": local_end.strftime("%H:%M"),
+            "default_timezone": source_tz,
+            "timezones": COMMON_TIMEZONES,
             "default_attendee_ids": [a.id for a in source.attendees],
             "members": members,
             "current_user": current_user,
             "return_view": return_view,
-            "return_date": return_date or source.start_time.date().isoformat(),
+            "return_date": return_date or local_start.date().isoformat(),
         },
     )
 
@@ -433,24 +471,34 @@ def calendar_edit_form(
     event_freq = None
     if event.recurrence_rule:
         event_freq = RecurrenceRule.model_validate_json(event.recurrence_rule).freq
+    event_tz = event.timezone or settings.default_timezone
+    if event.all_day:
+        local_start, local_end = event.start_time, event.end_time
+    else:
+        local_start, local_end = to_local(event.start_time, event_tz), to_local(event.end_time, event_tz)
     return templates.TemplateResponse(
         request,
         "_event_form.html",
         {
             "event": event,
             "event_freq": event_freq,
-            "default_date": None,
+            "default_date": local_start.date().isoformat(),
+            "default_end_date": local_end.date().isoformat(),
+            "default_start_time": local_start.strftime("%H:%M"),
+            "default_end_time": local_end.strftime("%H:%M"),
+            "default_timezone": event_tz,
+            "timezones": COMMON_TIMEZONES,
             "members": members,
             "current_user": current_user,
             "return_view": return_view,
-            "return_date": return_date or event.start_time.date().isoformat(),
+            "return_date": return_date or local_start.date().isoformat(),
         },
     )
 
 
 def _return_response(request: Request, db: Session, return_view: str, return_date: str):
     anchor = date.fromisoformat(return_date)
-    ctx = build_view_context(db, return_view, anchor)
+    ctx = build_view_context(db, return_view, anchor, request)
     return templates.TemplateResponse(request, ctx["partial"], ctx)
 
 
@@ -465,11 +513,13 @@ def _update_series(
     attendees: list[User],
     start_time_of_day: time,
     duration: timedelta,
+    timezone: str,
 ) -> None:
-    """Applies a "whole series" edit: title/description/location/all_day/attendees are
-    overwritten on every occurrence, but only the time-of-day (not the date) is applied,
-    so each occurrence keeps its own calendar date. The edited occurrence's duration
-    (which may span multiple days) is preserved across every other occurrence."""
+    """Applies a "whole series" edit: title/description/location/all_day/attendees/
+    timezone are overwritten on every occurrence, but only the time-of-day (not the
+    date) is applied, so each occurrence keeps its own calendar date — read via each
+    row's *current* timezone before it gets overwritten below. The edited occurrence's
+    duration (which may span multiple days) is preserved across every other occurrence."""
     rows = db.query(CalendarEvent).filter(CalendarEvent.series_id == series_id).all()
     for row in rows:
         row.title = title
@@ -478,8 +528,12 @@ def _update_series(
         row.all_day = all_day
         row.attendees = attendees
         if not all_day:
-            row.start_time = datetime.combine(row.start_time.date(), start_time_of_day)
-            row.end_time = row.start_time + duration
+            old_tz = row.timezone or timezone
+            local_date = to_local(row.start_time, old_tz).date()
+            naive_start = datetime.combine(local_date, start_time_of_day)
+            row.start_time = to_utc(naive_start, timezone)
+            row.end_time = to_utc(naive_start + duration, timezone)
+        row.timezone = timezone
     db.commit()
 
 
@@ -494,6 +548,7 @@ def calendar_create_event(
     start_time_str: str = Form("09:00"),
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
+    timezone: str = Form(...),
     attendee_ids: list[int] = Form([]),
     repeat: str = Form("none"),
     repeat_until_mode: str = Form("never"),
@@ -523,17 +578,22 @@ def calendar_create_event(
         rule = derive_rule_from_date(repeat, day)
         materialize_series(
             db, current_user.id, title, description or None, location or None, all_day,
-            attendees, rule, start_dt, end_dt, until=until,
+            attendees, rule, start_dt, end_dt, timezone, until=until,
         )
     else:
+        if all_day:
+            start_time, end_time = start_dt.replace(tzinfo=dt_timezone.utc), end_dt.replace(tzinfo=dt_timezone.utc)
+        else:
+            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, timezone)
         event = CalendarEvent(
             owner_id=current_user.id,
             title=title,
             description=description or None,
             location=location or None,
-            start_time=start_dt,
-            end_time=end_dt,
+            start_time=start_time,
+            end_time=end_time,
             all_day=all_day,
+            timezone=timezone,
         )
         event.attendees = attendees
         db.add(event)
@@ -553,6 +613,7 @@ def calendar_update_event(
     start_time_str: str = Form("09:00"),
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
+    timezone: str = Form(...),
     attendee_ids: list[int] = Form([]),
     scope: str = Form("this"),
     repeat_until_mode: str = Form("never"),
@@ -587,16 +648,22 @@ def calendar_update_event(
             title=title, description=description or None, location=location or None,
             all_day=all_day, attendees=attendees,
             start_time_of_day=start_dt.time(), duration=end_dt - start_dt,
+            timezone=timezone,
         )
         until = date.fromisoformat(repeat_until) if repeat_until_mode == "on" and repeat_until else None
         update_series_until(db, event.series_id, until, min_until=start_dt.date())
     else:
+        if all_day:
+            start_time, end_time = start_dt.replace(tzinfo=dt_timezone.utc), end_dt.replace(tzinfo=dt_timezone.utc)
+        else:
+            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, timezone)
         event.title = title
         event.description = description or None
         event.location = location or None
-        event.start_time = start_dt
-        event.end_time = end_dt
+        event.start_time = start_time
+        event.end_time = end_time
         event.all_day = all_day
+        event.timezone = timezone
         event.attendees = attendees
         if event.series_id:
             event.series_id = None
@@ -642,11 +709,17 @@ def api_create_event(
         events = materialize_series(
             db, current_user.id, payload.title, payload.description, payload.location,
             payload.all_day, attendees, rule, payload.start_time, payload.end_time,
-            until=payload.recurrence_until,
+            payload.timezone, until=payload.recurrence_until,
         )
         return events[0]
-    data = payload.model_dump(exclude={"attendee_ids", "recurrence", "recurrence_until"})
-    event = CalendarEvent(owner_id=current_user.id, **data)
+    if payload.all_day:
+        start_time = payload.start_time.replace(tzinfo=dt_timezone.utc)
+        end_time = payload.end_time.replace(tzinfo=dt_timezone.utc)
+    else:
+        start_time = to_utc(payload.start_time, payload.timezone)
+        end_time = to_utc(payload.end_time, payload.timezone)
+    data = payload.model_dump(exclude={"attendee_ids", "recurrence", "recurrence_until", "start_time", "end_time"})
+    event = CalendarEvent(owner_id=current_user.id, **data, start_time=start_time, end_time=end_time)
     event.attendees = attendees
     db.add(event)
     db.commit()
@@ -673,17 +746,23 @@ def api_update_event(
             title=payload.title, description=payload.description, location=payload.location,
             all_day=payload.all_day, attendees=attendees,
             start_time_of_day=payload.start_time.time(), duration=payload.end_time - payload.start_time,
+            timezone=payload.timezone,
         )
         update_series_until(db, event.series_id, payload.recurrence_until, min_until=payload.start_time.date())
         db.refresh(event)
         return event
 
+    if payload.all_day:
+        event.start_time = payload.start_time.replace(tzinfo=dt_timezone.utc)
+        event.end_time = payload.end_time.replace(tzinfo=dt_timezone.utc)
+    else:
+        event.start_time = to_utc(payload.start_time, payload.timezone)
+        event.end_time = to_utc(payload.end_time, payload.timezone)
     event.title = payload.title
     event.description = payload.description
     event.location = payload.location
-    event.start_time = payload.start_time
-    event.end_time = payload.end_time
     event.all_day = payload.all_day
+    event.timezone = payload.timezone
     event.attendees = attendees
     if event.series_id:
         event.series_id = None

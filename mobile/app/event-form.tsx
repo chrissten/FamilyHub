@@ -6,8 +6,9 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createEvent, updateEvent, deleteEvent, type EventScope, type RecurrenceOption } from '../src/api/client';
-import { dayLabel, formatClock, isoDate, parseEventDate } from '../src/calendar/dateUtils';
+import { dayLabel, deviceTimeZone, eventOwnZoneEnd, eventOwnZoneStart, formatClock, isoDate } from '../src/calendar/dateUtils';
 import { monthlyLabel, weekdayLabel } from '../src/calendar/recurrence';
+import { COMMON_TIMEZONES } from '../src/calendar/timezones';
 import { useTimeFormat, type TimeFormat } from '../src/preferences';
 import { takePendingEventForm } from '../src/calendar/formState';
 import { useTheme, type Colors } from '../src/theme';
@@ -49,11 +50,13 @@ export default function EventFormScreen() {
   const [title, setTitle] = useState(event?.title ?? '');
   const [description, setDescription] = useState(event?.description ?? '');
   const [location, setLocation] = useState(event?.location ?? '');
-  const [date, setDate] = useState(() => (event ? isoDate(parseEventDate(event.start_time)) : initialDate));
-  const [endDate, setEndDate] = useState(() => (event ? isoDate(parseEventDate(event.end_time)) : initialDate));
+  const [date, setDate] = useState(() => (event ? isoDate(eventOwnZoneStart(event)) : initialDate));
+  const [endDate, setEndDate] = useState(() => (event ? isoDate(eventOwnZoneEnd(event)) : initialDate));
   const [allDay, setAllDay] = useState(event?.all_day ?? false);
-  const [startTime, setStartTime] = useState(() => (event ? timeOf(parseEventDate(event.start_time)) : '09:00'));
-  const [endTime, setEndTime] = useState(() => (event ? timeOf(parseEventDate(event.end_time)) : '10:00'));
+  const [startTime, setStartTime] = useState(() => (event ? timeOf(eventOwnZoneStart(event)) : '09:00'));
+  const [endTime, setEndTime] = useState(() => (event ? timeOf(eventOwnZoneEnd(event)) : '10:00'));
+  const [timezone, setTimezone] = useState(() => event?.timezone || deviceTimeZone());
+  const [tzExpanded, setTzExpanded] = useState(false);
   const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set(event?.attendees.map(a => a.id) ?? []));
   const [repeat, setRepeat] = useState<RecurrenceOption>('none');
   const [repeatUntilMode, setRepeatUntilMode] = useState<'never' | 'on'>(event?.series_until ? 'on' : 'never');
@@ -120,8 +123,8 @@ export default function EventFormScreen() {
       return;
     }
     const lastDay = endDate && endDate >= date ? endDate : date;
-    const start = allDay ? `${date}T00:00:00Z` : `${date}T${startTime}:00Z`;
-    let end = allDay ? `${lastDay}T23:59:00Z` : `${lastDay}T${endTime}:00Z`;
+    const start = allDay ? `${date}T00:00:00` : `${date}T${startTime}:00`;
+    let end = allDay ? `${lastDay}T23:59:00` : `${lastDay}T${endTime}:00`;
     if (end < start) end = start;
     const values = {
       title: title.trim(),
@@ -130,6 +133,7 @@ export default function EventFormScreen() {
       start_time: start,
       end_time: end,
       all_day: allDay,
+      timezone,
       attendee_ids: Array.from(attendeeIds),
     };
     const recurrenceUntil = repeatUntilMode === 'on' && repeatUntil ? repeatUntil : null;
@@ -270,6 +274,28 @@ export default function EventFormScreen() {
               display="default"
               onChange={handleTimeChange}
             />
+          )}
+          {!allDay && (
+            <View style={styles.repeatSection}>
+              <Text style={styles.rowLabel}>Time zone</Text>
+              {!tzExpanded ? (
+                <TouchableOpacity onPress={() => setTzExpanded(true)}>
+                  <Text style={styles.linkButton}>{timezone} (change)</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.repeatOptions}>
+                  {COMMON_TIMEZONES.map(tz => (
+                    <TouchableOpacity
+                      key={tz}
+                      style={[styles.repeatPill, timezone === tz && styles.repeatPillActive]}
+                      onPress={() => { setTimezone(tz); setTzExpanded(false); }}
+                    >
+                      <Text style={[styles.repeatPillText, timezone === tz && styles.repeatPillTextActive]}>{tz}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
           )}
           {isNew && (
             <View style={styles.repeatSection}>

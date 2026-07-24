@@ -22,32 +22,39 @@ def event_tooltip_range(event) -> str:
     """Human-readable time range for a chip/block tooltip. Includes the weekday
     alongside each time when the event spans more than one calendar day, since a
     bare time range ("6:00 PM-12:00 PM") is ambiguous once start and end fall on
-    different dates."""
-    start, end = event.start_time, event.end_time
+    different dates. Uses the viewer-local display_start/display_end (see
+    _annotate_display in routers/calendar.py) rather than the raw stored UTC instant,
+    and appends a zone-abbreviation badge when the event was converted from a
+    different timezone."""
+    start, end = event.display_start, event.display_end
     if event.all_day:
         if end.date() > start.date():
             return f"All day ({start.month}/{start.day}–{end.month}/{end.day})"
         return "All day"
+    suffix = f" {event.tz_label}" if event.tz_label else ""
     if end.date() > start.date():
-        return f"{_WEEKDAY_ABBR[start.weekday()]} {fmt_time(start)} – {_WEEKDAY_ABBR[end.weekday()]} {fmt_time(end)}"
-    return f"{fmt_time(start)}–{fmt_time(end)}"
+        return f"{_WEEKDAY_ABBR[start.weekday()]} {fmt_time(start)} – {_WEEKDAY_ABBR[end.weekday()]} {fmt_time(end)}{suffix}"
+    return f"{fmt_time(start)}–{fmt_time(end)}{suffix}"
 
 
 def event_time_label(event, day_date: date) -> str:
     """Time label for an agenda/day-list row representing `event` on `day_date`.
     For a timed event spanning multiple days, the raw start/end time only makes
-    sense on the day it actually occurs; other days it spans just show as ongoing."""
-    start, end = event.start_time, event.end_time
+    sense on the day it actually occurs; other days it spans just show as ongoing.
+    Uses the viewer-local display_start/display_end, with a zone-abbreviation badge
+    when the event was converted from a different timezone."""
+    start, end = event.display_start, event.display_end
     if event.all_day:
         if end.date() > start.date():
             return f"All day ({start.month}/{start.day}–{end.month}/{end.day})"
         return "All day"
+    suffix = f" {event.tz_label}" if event.tz_label else ""
     if end.date() == start.date():
-        return f"{fmt_time(start)} – {fmt_time(end)}"
+        return f"{fmt_time(start)} – {fmt_time(end)}{suffix}"
     if day_date == start.date():
         return f"{fmt_time(start)} – continues"
     if day_date == end.date():
-        return f"continues – {fmt_time(end)}"
+        return f"continues – {fmt_time(end)}{suffix}"
     return "Continues all day"
 
 

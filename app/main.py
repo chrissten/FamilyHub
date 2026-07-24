@@ -8,9 +8,11 @@ from app.config import settings
 from sqlalchemy import inspect, text
 
 from app.database import Base, SessionLocal, engine
+from app.models import CalendarEvent
 from app.recurrence import top_up_recurring_series
 from app.routers import auth, calendar, freezer, grocery, todo, users
 from app.seed import seed_admin
+from app.timezones import to_utc
 
 app = FastAPI(title="FamilyHub")
 
@@ -50,8 +52,29 @@ def on_startup():
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_id VARCHAR(36)"))
         if "series_until" not in event_cols:
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_until DATE"))
+        if "timezone" not in event_cols:
+            conn.execute(text("ALTER TABLE calendar_events ADD COLUMN timezone VARCHAR(64)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_series_id ON calendar_events (series_id)"))
         conn.commit()
+    if "timezone" not in event_cols:
+        # One-time backfill: existing start_time/end_time were naive wall-clock values
+        # with no real timezone semantics. Reinterpret them as wall clock in
+        # settings.default_timezone and rewrite as true UTC instants. All-day events are
+        # untouched — they're pure date boundaries, never timezone-converted.
+        db = SessionLocal()
+        try:
+            for event in db.query(CalendarEvent).all():
+                if event.all_day:
+                    event.timezone = settings.default_timezone
+                    continue
+                naive_start = event.start_time.replace(tzinfo=None)
+                naive_end = event.end_time.replace(tzinfo=None)
+                event.start_time = to_utc(naive_start, settings.default_timezone)
+                event.end_time = to_utc(naive_end, settings.default_timezone)
+                event.timezone = settings.default_timezone
+            db.commit()
+        finally:
+            db.close()
     # Add quantity_unit to freezer_items if this is an existing deployment
     freezer_item_cols = [c["name"] for c in inspect(engine).get_columns("freezer_items")]
     if "quantity_unit" not in freezer_item_cols:

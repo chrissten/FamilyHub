@@ -1,7 +1,9 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+from app.config import settings
 
 
 class UserOut(BaseModel):
@@ -37,6 +39,7 @@ class EventBase(BaseModel):
     start_time: datetime
     end_time: datetime
     all_day: bool = False
+    timezone: str = Field(default_factory=lambda: settings.default_timezone)
 
 
 class EventCreate(EventBase):
@@ -54,6 +57,14 @@ class EventOut(EventBase):
     attendees: list[UserOut]
     series_id: str | None = None
     series_until: date | None = None
+
+    @field_serializer("start_time", "end_time")
+    def _ensure_utc_offset(self, dt: datetime) -> datetime:
+        """SQLite hands back naive datetimes (still UTC by convention — see
+        CalendarEvent.start_time); without an explicit offset, clients would parse the
+        JSON string as their own local time instead of UTC. Postgres already returns
+        tz-aware values, so this is a no-op there."""
+        return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
 class GroceryListCreate(BaseModel):

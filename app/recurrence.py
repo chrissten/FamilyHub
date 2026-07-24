@@ -1,5 +1,5 @@
 import calendar as cal
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone as tz
 from typing import Literal
 from uuid import uuid4
 
@@ -8,6 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import CalendarEvent, User
+from app.timezones import to_local, to_utc
 
 HORIZON_MONTHS = 24
 TOPUP_THRESHOLD_MONTHS = 18
@@ -94,12 +95,17 @@ def materialize_series(
     rule: RecurrenceRule,
     first_start: datetime,
     first_end: datetime,
+    timezone: str,
     until: date | None = None,
 ) -> list[CalendarEvent]:
-    """`until` is the user-chosen end date for the series (None means "repeats forever").
-    A bounded series is materialized in full immediately (capped by MAX_OCCURRENCES); an
-    unbounded one only gets HORIZON_MONTHS worth of rows and is topped up over time by
-    top_up_recurring_series."""
+    """`first_start`/`first_end` are naive wall-clock datetimes in `timezone`. `until` is
+    the user-chosen end date for the series (None means "repeats forever"). A bounded
+    series is materialized in full immediately (capped by MAX_OCCURRENCES); an unbounded
+    one only gets HORIZON_MONTHS worth of rows and is topped up over time by
+    top_up_recurring_series.
+
+    Each occurrence is localized independently (rather than shifting a single UTC anchor
+    by a fixed duration) so the series stays correct across DST transitions."""
     duration = first_end - first_start
     boundary = until if until else _add_months(first_start.date(), HORIZON_MONTHS)
     dates = generate_dates(rule, first_start.date(), boundary)
@@ -111,14 +117,20 @@ def materialize_series(
     events = []
     for d in dates:
         start_dt = datetime.combine(d, first_start.time())
+        end_dt = start_dt + duration
+        if all_day:
+            start_time, end_time = start_dt.replace(tzinfo=tz.utc), end_dt.replace(tzinfo=tz.utc)
+        else:
+            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, timezone)
         event = CalendarEvent(
             owner_id=owner_id,
             title=title,
             description=description,
             location=location,
-            start_time=start_dt,
-            end_time=start_dt + duration,
+            start_time=start_time,
+            end_time=end_time,
             all_day=all_day,
+            timezone=timezone,
             recurrence_rule=rule_json,
             series_id=series_id,
             series_until=until,
@@ -144,7 +156,13 @@ def _extend_series(db: Session, series_id: str, target_until: date) -> None:
     )
     if not template or not template.recurrence_rule:
         return
-    last_date = template.start_time.date()
+    template_tz = template.timezone
+    template_local_start = (
+        template.start_time.replace(tzinfo=None)
+        if template.all_day
+        else to_local(template.start_time, template_tz)
+    )
+    last_date = template_local_start.date()
     if last_date >= target_until:
         return
 
@@ -154,15 +172,21 @@ def _extend_series(db: Session, series_id: str, target_until: date) -> None:
     new_dates = generate_dates(rule, next_after, target_until)
     attendees = list(template.attendees)
     for d in new_dates:
-        start_dt = datetime.combine(d, template.start_time.time())
+        start_dt = datetime.combine(d, template_local_start.time())
+        end_dt = start_dt + duration
+        if template.all_day:
+            start_time, end_time = start_dt.replace(tzinfo=tz.utc), end_dt.replace(tzinfo=tz.utc)
+        else:
+            start_time, end_time = to_utc(start_dt, template_tz), to_utc(end_dt, template_tz)
         event = CalendarEvent(
             owner_id=template.owner_id,
             title=template.title,
             description=template.description,
             location=template.location,
-            start_time=start_dt,
-            end_time=start_dt + duration,
+            start_time=start_time,
+            end_time=end_time,
             all_day=template.all_day,
+            timezone=template_tz,
             recurrence_rule=template.recurrence_rule,
             series_id=series_id,
             series_until=template.series_until,
@@ -189,7 +213,10 @@ def update_series_until(db: Session, series_id: str, new_until: date | None, min
 
     if new_until is not None:
         for row in rows:
-            if row.start_time.date() > new_until:
+            row_local_date = (
+                row.start_time.date() if row.all_day else to_local(row.start_time, row.timezone).date()
+            )
+            if row_local_date > new_until:
                 db.delete(row)
         db.commit()
         _extend_series(db, series_id, new_until)
@@ -217,6 +244,9 @@ def top_up_recurring_series(db: Session) -> None:
     for series_id, last_start in rows:
         if last_start is None:
             continue
+        # Coarse month-scale pre-filter — UTC date vs. the occurrence's own local date
+        # differs by at most a day, which doesn't matter at this granularity. The actual
+        # extension in _extend_series uses the template's own timezone correctly.
         last_date = last_start.date()
         if last_date >= threshold:
             continue

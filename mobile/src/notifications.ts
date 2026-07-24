@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getToken, getServerUrl, getGroceryLists, getGroceryItems, getEvents, getCurrentUserId,
 } from './api/client';
-import { dayLabel, eventTimeLabel, parseEventDate } from './calendar/dateUtils';
+import { dayLabel, eventTimeLabel, eventStart } from './calendar/dateUtils';
 import { loadTimeFormat } from './preferences';
 
 const TASK_NAME = 'familyhub-poll';
@@ -67,7 +67,7 @@ async function checkNewEvents(): Promise<void> {
   const newEvents = events.filter(e => e.id > lastSeen && e.owner_id !== myId);
   if (newEvents.length === 1) {
     const event = newEvents[0];
-    const start = parseEventDate(event.start_time);
+    const start = eventStart(event);
     const format = await loadTimeFormat();
     await Notifications.scheduleNotificationAsync({
       content: {

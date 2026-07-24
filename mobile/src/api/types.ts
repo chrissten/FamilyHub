@@ -11,9 +11,12 @@ export interface CalendarEvent {
   title: string;
   description?: string;
   location?: string;
+  /** True UTC instant (ISO 8601 with offset/Z) — convert to device-local for display. */
   start_time: string;
   end_time: string;
   all_day: boolean;
+  /** IANA zone the event is anchored to, e.g. "America/New_York". */
+  timezone: string;
   owner_id: number;
   owner: User;
   attendees: User[];

@@ -2,7 +2,9 @@
 <form
   x-data="{
     allDay: {{ 'true' if event and event.all_day else 'false' }},
-    startDate: '{{ event.start_time.date().isoformat() if event else default_date }}',
+    startDate: '{{ default_date }}',
+    timezone: '{{ default_timezone }}',
+    tzExpanded: false,
     repeat: 'none',
     untilMode: '{{ 'on' if event and event.series_until else 'never' }}',
     untilDate: '{{ event.series_until.isoformat() if event and event.series_until else '' }}',
@@ -29,18 +31,38 @@
   <label>Location<input type="text" name="location" value="{{ event.location if event else default_location }}"></label>
   <label>Start date
     <input type="date" name="start_date" x-model="startDate"
-           value="{{ event.start_time.date().isoformat() if event else default_date }}" required>
+           value="{{ default_date }}" required>
   </label>
   <label class="inline">
     <input type="checkbox" name="all_day" value="true" x-model="allDay">
     All day
   </label>
-  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ event.start_time.strftime('%H:%M') if event else default_start_time }}"></label>
+  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ default_start_time }}"></label>
   <label>End date
     <input type="date" name="end_date"
-           value="{{ event.end_time.date().isoformat() if event else default_end_date }}">
+           value="{{ default_end_date }}">
   </label>
-  <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ event.end_time.strftime('%H:%M') if event else default_end_time }}"></label>
+  <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ default_end_time }}"></label>
+  <div x-cloak x-show="!allDay" class="repeat-section">
+    <template x-if="!tzExpanded">
+      <div>
+        <button type="button" class="link-button" @click="tzExpanded = true">
+          Time zone: <span x-text="timezone"></span> (change)
+        </button>
+        <input type="hidden" name="timezone" x-model="timezone">
+      </div>
+    </template>
+    <template x-if="tzExpanded">
+      <label>
+        Time zone
+        <select name="timezone" x-model="timezone">
+          {% for tz_name in timezones %}
+          <option value="{{ tz_name }}">{{ tz_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </template>
+  </div>
 
   {% if not event %}
   <label>Repeat

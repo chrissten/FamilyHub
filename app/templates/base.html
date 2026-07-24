@@ -12,6 +12,12 @@
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <script src="https://unpkg.com/htmx-ext-ws@2.0.1/ws.js"></script>
   <script src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js" defer></script>
+  <script>
+    // Lets the server render event times in this browser's own timezone (see
+    // app/routers/calendar.py's _viewer_tz) without needing a login-time preference.
+    document.cookie = "tz=" + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)
+      + ";path=/;max-age=31536000;samesite=lax";
+  </script>
 </head>
 <body>
   {% if current_user %}

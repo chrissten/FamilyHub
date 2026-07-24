@@ -35,6 +35,27 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-24
+- **[web][mobile]** v1.2.13 — Events now carry a real per-event timezone instead of a
+  naive wall-clock value shown identically to everyone. `calendar_events.start_time`/
+  `end_time` are now genuine UTC instants (matching what the column was always declared
+  as); a new `timezone` column (IANA name, e.g. "America/New_York") anchors each event.
+  Viewers in a different timezone than an event's anchor zone see it converted to their
+  own current local time, with a short zone-abbreviation badge (e.g. "6:00 PM EDT") so a
+  converted time is visibly distinguishable from a plain local one — same-zone viewing
+  (the common case) renders identically to before. Creating/editing an event defaults
+  the timezone to the device's/browser's current zone (auto-detected) but exposes a
+  "Time zone: ... (change)" control to anchor it to a different one (e.g. a flight or a
+  call with someone elsewhere); a whole-series edit updates every occurrence's timezone
+  the same way it already overwrites title/description/attendees, and each recurring
+  occurrence is localized independently so a series correctly shifts UTC offset across a
+  DST transition instead of drifting by an hour. Existing deployments get a one-time
+  startup migration (`app/main.py`) that reinterprets existing wall-clock values as local
+  time in a new `default_timezone` setting and rewrites them as true UTC instants —
+  this touches the production DB in place, unlike the additive-column migrations so far.
+  New `app/timezones.py` (backend) and mobile `dateUtils.ts`/`timezones.ts` hold the
+  zoneinfo/Intl conversion helpers and the shared curated timezone list.
+
 ### 2026-07-23 (1)
 - **[mobile]** v1.2.12 — Grocery tab: the "Add item" row moved from the bottom of each
   category to the top (right below the category header), so it's reachable without

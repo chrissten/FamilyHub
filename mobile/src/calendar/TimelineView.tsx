@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
-import { dateOnly, parseEventDate, type DayColumn, HOURS, WEEKDAY_SHORT, hourLabel } from './dateUtils';
+import { dateOnly, eventStart, eventEnd, type DayColumn, HOURS, WEEKDAY_SHORT, hourLabel } from './dateUtils';
 import { useTimeFormat } from '../preferences';
 import { useTheme, type Colors } from '../theme';
 
@@ -48,8 +48,8 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
           <View key={day.date.toISOString()} style={styles.allDayCell}>
             {day.allDayEvents.map(event => {
               const attendees = event.attendees.length ? event.attendees : [event.owner];
-              const continuesBefore = dateOnly(parseEventDate(event.start_time)).getTime() < day.date.getTime();
-              const continuesAfter = dateOnly(parseEventDate(event.end_time)).getTime() > day.date.getTime();
+              const continuesBefore = dateOnly(eventStart(event)).getTime() < day.date.getTime();
+              const continuesAfter = dateOnly(eventEnd(event)).getTime() > day.date.getTime();
               return (
                 <TouchableOpacity
                   key={event.id}
@@ -86,8 +86,8 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
               {HOURS.map(h => <View key={h} style={styles.hourRow} />)}
               {day.blocks.map(block => {
                 const attendees = block.event.attendees.length ? block.event.attendees : [block.event.owner];
-                const continuesBefore = dateOnly(parseEventDate(block.event.start_time)).getTime() < day.date.getTime();
-                const continuesAfter = dateOnly(parseEventDate(block.event.end_time)).getTime() > day.date.getTime();
+                const continuesBefore = dateOnly(eventStart(block.event)).getTime() < day.date.getTime();
+                const continuesAfter = dateOnly(eventEnd(block.event)).getTime() > day.date.getTime();
                 return (
                   <TouchableOpacity
                     key={block.event.id}

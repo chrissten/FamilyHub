@@ -13,5 +13,7 @@ class Settings(BaseSettings):
     admin_display_name: str = "Christopher"
     admin_color: str = "#4A90D9"
 
+    default_timezone: str = "America/New_York"
+
 
 settings = Settings()
