@@ -35,6 +35,20 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-25 (2)
+- **[web][mobile]** Fixed a bug in the 2026-07-24 timezone migration (v1.2.13, below): the
+  one-time backfill assumed the family's home zone was `America/New_York` (a hardcoded
+  default in `app/config.py` that was never actually confirmed against where this family
+  is) instead of the correct `America/Chicago` — every legacy event ended up anchored one
+  hour off (DST itself was applied correctly throughout; verified January events compute
+  at UTC-5/EST and June events at UTC-4/EDT as expected — the bug was the assumed base
+  zone, not DST handling). Corrected all 611 affected production rows directly (recovered
+  each event's original wall-clock digits by reversing the wrong `America/New_York`
+  conversion, then re-localized through `America/Chicago`; all-day events were untouched
+  either time, since they're zone-agnostic). `default_timezone` now defaults to
+  `America/Chicago` in code and is also set explicitly as a Railway `DEFAULT_TIMEZONE` env
+  var, so the fallback isn't silently dependent on a hardcoded guess again.
+
 ### 2026-07-25
 - **[mobile]** v1.2.14 — Added a persistent "Display Time Zone" setting (Settings →
   Display Time Zone): pin event times to a specific zone (e.g. Central) regardless of
