@@ -6,7 +6,7 @@ import {
 import { Stack, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createEvent, updateEvent, deleteEvent, type EventScope, type RecurrenceOption } from '../src/api/client';
-import { dayLabel, deviceTimeZone, eventOwnZoneEnd, eventOwnZoneStart, formatClock, isoDate } from '../src/calendar/dateUtils';
+import { dayLabel, effectiveTimeZone, eventOwnZoneEnd, eventOwnZoneStart, formatClock, isoDate } from '../src/calendar/dateUtils';
 import { monthlyLabel, weekdayLabel } from '../src/calendar/recurrence';
 import { COMMON_TIMEZONES } from '../src/calendar/timezones';
 import { useTimeFormat, type TimeFormat } from '../src/preferences';
@@ -55,7 +55,7 @@ export default function EventFormScreen() {
   const [allDay, setAllDay] = useState(event?.all_day ?? false);
   const [startTime, setStartTime] = useState(() => (event ? timeOf(eventOwnZoneStart(event)) : '09:00'));
   const [endTime, setEndTime] = useState(() => (event ? timeOf(eventOwnZoneEnd(event)) : '10:00'));
-  const [timezone, setTimezone] = useState(() => event?.timezone || deviceTimeZone());
+  const [timezone, setTimezone] = useState(() => event?.timezone || effectiveTimeZone());
   const [tzExpanded, setTzExpanded] = useState(false);
   const [attendeeIds, setAttendeeIds] = useState<Set<number>>(new Set(event?.attendees.map(a => a.id) ?? []));
   const [repeat, setRepeat] = useState<RecurrenceOption>('none');

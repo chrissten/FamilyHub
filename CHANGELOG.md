@@ -35,6 +35,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-25 (3)
+- **[mobile]** v1.2.15 — Creating a new event now defaults its timezone to the pinned
+  Display Time Zone override (Settings, added in v1.2.14) when one is set, instead of
+  always defaulting to the device's actual current zone. Editing an existing event is
+  unaffected (still keeps that event's own already-stored timezone).
+  `event-form.tsx`'s initial timezone state now reads `effectiveTimeZone()` instead of
+  `deviceTimeZone()` directly. Also fixed a related latent bug found while wiring this
+  up: the pinned override lived only in an in-memory cache populated when the Settings
+  screen loaded, so on a cold app start it wouldn't take effect anywhere (calendar
+  display or event creation) until the user visited Settings at least once that
+  session — `app/_layout.tsx` now eagerly loads it (and the time-format preference) at
+  startup.
+
 ### 2026-07-25 (2)
 - **[web][mobile]** Fixed a bug in the 2026-07-24 timezone migration (v1.2.13, below): the
   one-time backfill assumed the family's home zone was `America/New_York` (a hardcoded
