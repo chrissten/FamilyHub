@@ -8,7 +8,9 @@ import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { getServerUrl, setServerUrl, clearAuth } from '../../src/api/client';
 import { getNotifPrefs, setNotifPref, requestNotificationPermission } from '../../src/notifications';
-import { loadTimeFormat, setTimeFormat, type TimeFormat } from '../../src/preferences';
+import { loadTimeFormat, setTimeFormat, loadDisplayTimezone, setDisplayTimezone, type TimeFormat } from '../../src/preferences';
+import { deviceTimeZone } from '../../src/calendar/dateUtils';
+import { COMMON_TIMEZONES } from '../../src/calendar/timezones';
 import { useTheme, setThemeMode, type ThemeMode, type Colors } from '../../src/theme';
 
 const appVersion = Constants.expoConfig?.version;
@@ -28,20 +30,31 @@ export default function SettingsScreen() {
   const [notifEvents, setNotifEvents] = useState(false);
   const [notifGrocery, setNotifGrocery] = useState(false);
   const [timeFormat, setTimeFormatState] = useState<TimeFormat>('12h');
+  const [displayTz, setDisplayTzState] = useState<string | null>(null);
+  const [tzExpanded, setTzExpanded] = useState(false);
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load() {
-    const [url, prefs, format] = await Promise.all([getServerUrl(), getNotifPrefs(), loadTimeFormat()]);
+    const [url, prefs, format, tz] = await Promise.all([
+      getServerUrl(), getNotifPrefs(), loadTimeFormat(), loadDisplayTimezone(),
+    ]);
     setServerUrlState(url);
     setNotifEvents(prefs.events);
     setNotifGrocery(prefs.grocery);
     setTimeFormatState(format);
+    setDisplayTzState(tz);
   }
 
   async function handleTimeFormatChange(format: TimeFormat) {
     setTimeFormatState(format);
     await setTimeFormat(format);
+  }
+
+  async function handleDisplayTzChange(tz: string | null) {
+    setDisplayTzState(tz);
+    setTzExpanded(false);
+    await setDisplayTimezone(tz);
   }
 
   async function saveUrl() {
@@ -132,6 +145,42 @@ export default function SettingsScreen() {
             <Text style={[styles.segmentText, timeFormat === '24h' && styles.segmentTextActive]}>24-hour</Text>
           </TouchableOpacity>
         </View>
+      </View>
+
+      <Text style={styles.section}>Display Time Zone</Text>
+      <View style={styles.card}>
+        <Text style={styles.hint}>
+          Event times are shown in this zone, even if your phone is somewhere else.
+        </Text>
+        <TouchableOpacity
+          style={[styles.tzPill, !displayTz && styles.tzPillActive]}
+          onPress={() => handleDisplayTzChange(null)}
+        >
+          <Text style={[styles.tzPillText, !displayTz && styles.tzPillTextActive]}>
+            Device ({deviceTimeZone()})
+          </Text>
+        </TouchableOpacity>
+        {displayTz && (
+          <TouchableOpacity style={[styles.tzPill, styles.tzPillActive]} onPress={() => setTzExpanded(e => !e)}>
+            <Text style={[styles.tzPillText, styles.tzPillTextActive]}>{displayTz}</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity onPress={() => setTzExpanded(e => !e)} style={{ marginTop: 4 }}>
+          <Text style={styles.navRowLabel}>{tzExpanded ? 'Hide zone list' : 'Choose a specific zone…'}</Text>
+        </TouchableOpacity>
+        {tzExpanded && (
+          <View style={styles.tzList}>
+            {COMMON_TIMEZONES.map(tz => (
+              <TouchableOpacity
+                key={tz}
+                style={[styles.tzPill, displayTz === tz && styles.tzPillActive]}
+                onPress={() => handleDisplayTzChange(tz)}
+              >
+                <Text style={[styles.tzPillText, displayTz === tz && styles.tzPillTextActive]}>{tz}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       <Text style={styles.section}>Notifications</Text>
@@ -241,6 +290,14 @@ function createStyles(colors: Colors) {
     segmentText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
     segmentTextActive: { color: colors.primaryText },
     hint: { fontSize: 13, color: colors.textFaint, lineHeight: 18, marginBottom: 14 },
+    tzList: { marginTop: 8, gap: 8 },
+    tzPill: {
+      borderRadius: 8, paddingVertical: 10, paddingHorizontal: 12,
+      backgroundColor: colors.surfaceAlt, marginBottom: 8,
+    },
+    tzPillActive: { backgroundColor: colors.primary },
+    tzPillText: { fontSize: 14, color: colors.text },
+    tzPillTextActive: { color: colors.primaryText, fontWeight: '600' },
     row: {
       flexDirection: 'row', alignItems: 'center',
       paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,

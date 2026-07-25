@@ -35,6 +35,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-25
+- **[mobile]** v1.2.14 — Added a persistent "Display Time Zone" setting (Settings →
+  Display Time Zone): pin event times to a specific zone (e.g. Central) regardless of
+  where the phone currently is, instead of always following the device's detected zone.
+  Defaults to "Device" (today's behavior, auto-following the phone). Stored locally via
+  AsyncStorage (`pref_display_timezone`), same per-device pattern as the existing 12h/24h
+  time-format preference — not synced to the account or to the web app, which has no
+  settings page to host it. New `preferences.ts` exports
+  (`loadDisplayTimezone`/`setDisplayTimezone`/`useDisplayTimezone`/
+  `getCachedDisplayTimezone`) and a new `dateUtils.ts` `effectiveTimeZone()` (pinned
+  override, falling back to `deviceTimeZone()`) that `eventStart`/`eventEnd`/
+  `eventTzLabel`/`fmtTime` now go through instead of the device zone directly.
+
 ### 2026-07-24
 - **[web][mobile]** v1.2.13 — Events now carry a real per-event timezone instead of a
   naive wall-clock value shown identically to everyone. `calendar_events.start_time`/

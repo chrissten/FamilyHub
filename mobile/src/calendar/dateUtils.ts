@@ -1,5 +1,5 @@
 import type { CalendarEvent } from '../api/types';
-import type { TimeFormat } from '../preferences';
+import { getCachedDisplayTimezone, type TimeFormat } from '../preferences';
 
 export const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -46,6 +46,12 @@ export function deviceTimeZone(): string {
   return _deviceTz;
 }
 
+/** The timezone event times are displayed in: the user's pinned override from Settings
+ * (see preferences.ts's DisplayTimezone), or the device's current zone if unset. */
+export function effectiveTimeZone(): string {
+  return getCachedDisplayTimezone() || deviceTimeZone();
+}
+
 function zonedParts(instant: Date, timeZone: string) {
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone, hourCycle: 'h23',
@@ -87,17 +93,18 @@ function rawEventDate(dateStr: string): Date {
 }
 
 /**
- * The wall-clock date/time to display for `event`'s start/end on this device: for a
- * timed event, the true UTC instant converted to the device's current timezone; for an
- * all-day event, the raw calendar-date boundary (never converted). Mirrors the
- * backend's display_start/display_end (see app/routers/calendar.py's _annotate_display).
+ * The wall-clock date/time to display for `event`'s start/end: for a timed event, the
+ * true UTC instant converted to the effective display timezone (the user's pinned
+ * override, or the device's current zone); for an all-day event, the raw calendar-date
+ * boundary (never converted). Mirrors the backend's display_start/display_end (see
+ * app/routers/calendar.py's _annotate_display).
  */
 export function eventStart(event: CalendarEvent): Date {
-  return event.all_day ? rawEventDate(event.start_time) : utcToZone(event.start_time, deviceTimeZone());
+  return event.all_day ? rawEventDate(event.start_time) : utcToZone(event.start_time, effectiveTimeZone());
 }
 
 export function eventEnd(event: CalendarEvent): Date {
-  return event.all_day ? rawEventDate(event.end_time) : utcToZone(event.end_time, deviceTimeZone());
+  return event.all_day ? rawEventDate(event.end_time) : utcToZone(event.end_time, effectiveTimeZone());
 }
 
 /**
@@ -115,18 +122,18 @@ export function eventOwnZoneEnd(event: CalendarEvent): Date {
 }
 
 /**
- * Short zone abbreviation (e.g. "EDT") for the device's current zone at `event`'s
+ * Short zone abbreviation (e.g. "EDT") for the effective display zone at `event`'s
  * instant — shown as a badge when the event was converted from a different timezone
- * than the device's own. Returns null when no conversion happened (all-day, or the
- * event's own zone already matches the device's).
+ * than the one it's being displayed in. Returns null when no conversion happened
+ * (all-day, or the event's own zone already matches the display zone).
  */
 export function eventTzLabel(event: CalendarEvent): string | null {
   if (event.all_day) return null;
-  const deviceTz = deviceTimeZone();
-  if ((event.timezone || deviceTz) === deviceTz) return null;
-  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: deviceTz, timeZoneName: 'short' });
+  const displayTz = effectiveTimeZone();
+  if ((event.timezone || displayTz) === displayTz) return null;
+  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: displayTz, timeZoneName: 'short' });
   const part = fmt.formatToParts(new Date(event.start_time)).find(p => p.type === 'timeZoneName');
-  return part?.value ?? deviceTz;
+  return part?.value ?? displayTz;
 }
 
 function dayKey(d: Date): string {
@@ -161,10 +168,11 @@ export function formatClock(hours: number, minutes: number, format: TimeFormat =
   return `${hour12}:${mm} ${period}`;
 }
 
-/** Formats a raw ISO instant as device-local clock time — for values not tied to a
- * particular CalendarEvent (and so not eligible for the all-day raw-date bypass). */
+/** Formats a raw ISO instant as clock time in the effective display timezone — for
+ * values not tied to a particular CalendarEvent (and so not eligible for the all-day
+ * raw-date bypass). */
 export function fmtTime(dateStr: string, format: TimeFormat = '12h'): string {
-  const d = utcToZone(dateStr, deviceTimeZone());
+  const d = utcToZone(dateStr, effectiveTimeZone());
   return formatClock(d.getHours(), d.getMinutes(), format);
 }
 
