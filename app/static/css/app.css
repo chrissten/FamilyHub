@@ -179,7 +179,7 @@ button[type="button"] { background: #9aa5b1; }
   position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
   width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 50%; background: transparent; padding: 0;
-  font-size: 15px; color: #1f2933; cursor: pointer;
+  font-size: 15px; color: #1f2933; cursor: pointer; touch-action: none;
 }
 .time-dial-numbers .time-dial-number.selected { color: white; font-weight: 700; }
 .time-dial-actions { display: flex; gap: 0.5rem; align-self: flex-end; }
