@@ -1,6 +1,8 @@
 import calendar as cal
 from datetime import date, datetime, time, timedelta, timezone as dt_timezone
 from typing import Literal
+from urllib.parse import unquote
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
@@ -22,7 +24,17 @@ def _viewer_tz(request: Request) -> str:
     """The timezone to render times in for this request: a cookie set client-side (see
     the inline script in base.html) from Intl.DateTimeFormat, falling back to the
     configured default (first request, or JS disabled)."""
-    return request.cookies.get("tz") or settings.default_timezone
+    raw = request.cookies.get("tz")
+    if not raw:
+        return settings.default_timezone
+    # http.cookies (used by Starlette) doesn't URL-decode values, but the cookie is
+    # set client-side with encodeURIComponent (e.g. "America/Chicago" -> "America%2FChicago").
+    tz_name = unquote(raw)
+    try:
+        ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        return settings.default_timezone
+    return tz_name
 
 
 def _annotate_display(events: list[CalendarEvent], viewer_tz: str) -> None:
