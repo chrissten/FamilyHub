@@ -97,16 +97,19 @@ def materialize_series(
     first_end: datetime,
     timezone: str,
     until: date | None = None,
+    end_timezone: str | None = None,
 ) -> list[CalendarEvent]:
-    """`first_start`/`first_end` are naive wall-clock datetimes in `timezone`. `until` is
-    the user-chosen end date for the series (None means "repeats forever"). A bounded
-    series is materialized in full immediately (capped by MAX_OCCURRENCES); an unbounded
-    one only gets HORIZON_MONTHS worth of rows and is topped up over time by
+    """`first_start`/`first_end` are naive wall-clock datetimes in `timezone`/`end_timezone`
+    respectively (`end_timezone` None means "same as `timezone`" — see CalendarEvent.end_timezone).
+    `until` is the user-chosen end date for the series (None means "repeats forever"). A
+    bounded series is materialized in full immediately (capped by MAX_OCCURRENCES); an
+    unbounded one only gets HORIZON_MONTHS worth of rows and is topped up over time by
     top_up_recurring_series.
 
     Each occurrence is localized independently (rather than shifting a single UTC anchor
     by a fixed duration) so the series stays correct across DST transitions."""
     duration = first_end - first_start
+    end_tz = end_timezone or timezone
     boundary = until if until else _add_months(first_start.date(), HORIZON_MONTHS)
     dates = generate_dates(rule, first_start.date(), boundary)
     if not dates:
@@ -121,7 +124,7 @@ def materialize_series(
         if all_day:
             start_time, end_time = start_dt.replace(tzinfo=tz.utc), end_dt.replace(tzinfo=tz.utc)
         else:
-            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, timezone)
+            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, end_tz)
         event = CalendarEvent(
             owner_id=owner_id,
             title=title,
@@ -131,6 +134,7 @@ def materialize_series(
             end_time=end_time,
             all_day=all_day,
             timezone=timezone,
+            end_timezone=end_timezone,
             recurrence_rule=rule_json,
             series_id=series_id,
             series_until=until,
@@ -157,6 +161,7 @@ def _extend_series(db: Session, series_id: str, target_until: date) -> None:
     if not template or not template.recurrence_rule:
         return
     template_tz = template.timezone
+    template_end_tz = template.end_timezone or template_tz
     template_local_start = (
         template.start_time.replace(tzinfo=None)
         if template.all_day
@@ -177,7 +182,7 @@ def _extend_series(db: Session, series_id: str, target_until: date) -> None:
         if template.all_day:
             start_time, end_time = start_dt.replace(tzinfo=tz.utc), end_dt.replace(tzinfo=tz.utc)
         else:
-            start_time, end_time = to_utc(start_dt, template_tz), to_utc(end_dt, template_tz)
+            start_time, end_time = to_utc(start_dt, template_tz), to_utc(end_dt, template_end_tz)
         event = CalendarEvent(
             owner_id=template.owner_id,
             title=template.title,
@@ -187,6 +192,7 @@ def _extend_series(db: Session, series_id: str, target_until: date) -> None:
             end_time=end_time,
             all_day=template.all_day,
             timezone=template_tz,
+            end_timezone=template.end_timezone,
             recurrence_rule=template.recurrence_rule,
             series_id=series_id,
             series_until=template.series_until,

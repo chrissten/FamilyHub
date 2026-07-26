@@ -54,6 +54,10 @@ def on_startup():
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN series_until DATE"))
         if "timezone" not in event_cols:
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN timezone VARCHAR(64)"))
+        if "end_timezone" not in event_cols:
+            # NULL means "same as `timezone`" (see CalendarEvent.end_timezone) — no backfill
+            # needed, existing rows are already correct under that fallback.
+            conn.execute(text("ALTER TABLE calendar_events ADD COLUMN end_timezone VARCHAR(64)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_series_id ON calendar_events (series_id)"))
         conn.commit()
     if "timezone" not in event_cols:

@@ -38,21 +38,24 @@ def _viewer_tz(request: Request) -> str:
 
 
 def _annotate_display(events: list[CalendarEvent], viewer_tz: str) -> None:
-    """Attaches transient (unpersisted) display_start/display_end/tz_label to each event:
-    the viewer-local wall-clock time to render, and a zone-abbreviation badge when that
-    differs from the event's own anchor zone. All-day events bypass conversion entirely —
-    they're pure UTC calendar-date boundaries, and converting through an offset could
-    roll the date across a day boundary."""
+    """Attaches transient (unpersisted) display_start/display_end/tz_label/end_tz_label to
+    each event: the viewer-local wall-clock time to render, and zone-abbreviation badges
+    when those differ from the event's own anchor zone(s). All-day events bypass conversion
+    entirely — they're pure UTC calendar-date boundaries, and converting through an offset
+    could roll the date across a day boundary."""
     for event in events:
         if event.all_day:
             event.display_start = event.start_time.replace(tzinfo=None)
             event.display_end = event.end_time.replace(tzinfo=None)
             event.tz_label = None
+            event.end_tz_label = None
             continue
         event.display_start = to_local(event.start_time, viewer_tz)
         event.display_end = to_local(event.end_time, viewer_tz)
         event_tz = event.timezone or settings.default_timezone
+        end_event_tz = event.end_timezone or event_tz
         event.tz_label = tz_abbr(event.start_time, viewer_tz) if event_tz != viewer_tz else None
+        event.end_tz_label = tz_abbr(event.end_time, viewer_tz) if end_event_tz != viewer_tz else None
 
 
 def build_month_grid(db: Session, year: int, month: int, viewer_tz: str) -> list[list[dict]]:
@@ -412,6 +415,7 @@ def calendar_new_form(
             "default_start_time": "09:00",
             "default_end_time": "10:00",
             "default_timezone": _viewer_tz(request),
+            "default_end_timezone": _viewer_tz(request),
             "timezones": COMMON_TIMEZONES,
             "default_attendee_ids": [current_user.id],
             "members": members,
@@ -439,10 +443,11 @@ def calendar_duplicate_form(
         raise HTTPException(status_code=404)
     members = db.query(User).order_by(User.display_name).all()
     source_tz = source.timezone or settings.default_timezone
+    source_end_tz = source.end_timezone or source_tz
     if source.all_day:
         local_start, local_end = source.start_time, source.end_time
     else:
-        local_start, local_end = to_local(source.start_time, source_tz), to_local(source.end_time, source_tz)
+        local_start, local_end = to_local(source.start_time, source_tz), to_local(source.end_time, source_end_tz)
     return templates.TemplateResponse(
         request,
         "_event_form.html",
@@ -457,6 +462,7 @@ def calendar_duplicate_form(
             "default_start_time": local_start.strftime("%H:%M"),
             "default_end_time": local_end.strftime("%H:%M"),
             "default_timezone": source_tz,
+            "default_end_timezone": source_end_tz,
             "timezones": COMMON_TIMEZONES,
             "default_attendee_ids": [a.id for a in source.attendees],
             "members": members,
@@ -484,10 +490,11 @@ def calendar_edit_form(
     if event.recurrence_rule:
         event_freq = RecurrenceRule.model_validate_json(event.recurrence_rule).freq
     event_tz = event.timezone or settings.default_timezone
+    event_end_tz = event.end_timezone or event_tz
     if event.all_day:
         local_start, local_end = event.start_time, event.end_time
     else:
-        local_start, local_end = to_local(event.start_time, event_tz), to_local(event.end_time, event_tz)
+        local_start, local_end = to_local(event.start_time, event_tz), to_local(event.end_time, event_end_tz)
     return templates.TemplateResponse(
         request,
         "_event_form.html",
@@ -499,6 +506,7 @@ def calendar_edit_form(
             "default_start_time": local_start.strftime("%H:%M"),
             "default_end_time": local_end.strftime("%H:%M"),
             "default_timezone": event_tz,
+            "default_end_timezone": event_end_tz,
             "timezones": COMMON_TIMEZONES,
             "members": members,
             "current_user": current_user,
@@ -526,12 +534,14 @@ def _update_series(
     start_time_of_day: time,
     duration: timedelta,
     timezone: str,
+    end_timezone: str | None = None,
 ) -> None:
     """Applies a "whole series" edit: title/description/location/all_day/attendees/
     timezone are overwritten on every occurrence, but only the time-of-day (not the
     date) is applied, so each occurrence keeps its own calendar date — read via each
     row's *current* timezone before it gets overwritten below. The edited occurrence's
     duration (which may span multiple days) is preserved across every other occurrence."""
+    end_tz = end_timezone or timezone
     rows = db.query(CalendarEvent).filter(CalendarEvent.series_id == series_id).all()
     for row in rows:
         row.title = title
@@ -544,8 +554,9 @@ def _update_series(
             local_date = to_local(row.start_time, old_tz).date()
             naive_start = datetime.combine(local_date, start_time_of_day)
             row.start_time = to_utc(naive_start, timezone)
-            row.end_time = to_utc(naive_start + duration, timezone)
+            row.end_time = to_utc(naive_start + duration, end_tz)
         row.timezone = timezone
+        row.end_timezone = end_timezone
     db.commit()
 
 
@@ -561,6 +572,7 @@ def calendar_create_event(
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
     timezone: str = Form(...),
+    end_timezone: str = Form(""),
     attendee_ids: list[int] = Form([]),
     repeat: str = Form("none"),
     repeat_until_mode: str = Form("never"),
@@ -570,6 +582,9 @@ def calendar_create_event(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    end_timezone = end_timezone or None
+    if end_timezone == timezone:
+        end_timezone = None
     day = date.fromisoformat(start_date)
     last_day = date.fromisoformat(end_date) if end_date else day
     if last_day < day:
@@ -590,13 +605,13 @@ def calendar_create_event(
         rule = derive_rule_from_date(repeat, day)
         materialize_series(
             db, current_user.id, title, description or None, location or None, all_day,
-            attendees, rule, start_dt, end_dt, timezone, until=until,
+            attendees, rule, start_dt, end_dt, timezone, until=until, end_timezone=end_timezone,
         )
     else:
         if all_day:
             start_time, end_time = start_dt.replace(tzinfo=dt_timezone.utc), end_dt.replace(tzinfo=dt_timezone.utc)
         else:
-            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, timezone)
+            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, end_timezone or timezone)
         event = CalendarEvent(
             owner_id=current_user.id,
             title=title,
@@ -606,6 +621,7 @@ def calendar_create_event(
             end_time=end_time,
             all_day=all_day,
             timezone=timezone,
+            end_timezone=end_timezone,
         )
         event.attendees = attendees
         db.add(event)
@@ -626,6 +642,7 @@ def calendar_update_event(
     end_time_str: str = Form("10:00"),
     all_day: bool = Form(False),
     timezone: str = Form(...),
+    end_timezone: str = Form(""),
     attendee_ids: list[int] = Form([]),
     scope: str = Form("this"),
     repeat_until_mode: str = Form("never"),
@@ -638,6 +655,10 @@ def calendar_update_event(
     event = db.get(CalendarEvent, event_id)
     if not event:
         raise HTTPException(status_code=404)
+
+    end_timezone = end_timezone or None
+    if end_timezone == timezone:
+        end_timezone = None
 
     day = date.fromisoformat(start_date)
     last_day = date.fromisoformat(end_date) if end_date else day
@@ -660,7 +681,7 @@ def calendar_update_event(
             title=title, description=description or None, location=location or None,
             all_day=all_day, attendees=attendees,
             start_time_of_day=start_dt.time(), duration=end_dt - start_dt,
-            timezone=timezone,
+            timezone=timezone, end_timezone=end_timezone,
         )
         until = date.fromisoformat(repeat_until) if repeat_until_mode == "on" and repeat_until else None
         update_series_until(db, event.series_id, until, min_until=start_dt.date())
@@ -668,7 +689,7 @@ def calendar_update_event(
         if all_day:
             start_time, end_time = start_dt.replace(tzinfo=dt_timezone.utc), end_dt.replace(tzinfo=dt_timezone.utc)
         else:
-            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, timezone)
+            start_time, end_time = to_utc(start_dt, timezone), to_utc(end_dt, end_timezone or timezone)
         event.title = title
         event.description = description or None
         event.location = location or None
@@ -676,6 +697,7 @@ def calendar_update_event(
         event.end_time = end_time
         event.all_day = all_day
         event.timezone = timezone
+        event.end_timezone = end_timezone
         event.attendees = attendees
         if event.series_id:
             event.series_id = None
@@ -721,7 +743,7 @@ def api_create_event(
         events = materialize_series(
             db, current_user.id, payload.title, payload.description, payload.location,
             payload.all_day, attendees, rule, payload.start_time, payload.end_time,
-            payload.timezone, until=payload.recurrence_until,
+            payload.timezone, until=payload.recurrence_until, end_timezone=payload.end_timezone,
         )
         return events[0]
     if payload.all_day:
@@ -729,7 +751,7 @@ def api_create_event(
         end_time = payload.end_time.replace(tzinfo=dt_timezone.utc)
     else:
         start_time = to_utc(payload.start_time, payload.timezone)
-        end_time = to_utc(payload.end_time, payload.timezone)
+        end_time = to_utc(payload.end_time, payload.end_timezone or payload.timezone)
     data = payload.model_dump(exclude={"attendee_ids", "recurrence", "recurrence_until", "start_time", "end_time"})
     event = CalendarEvent(owner_id=current_user.id, **data, start_time=start_time, end_time=end_time)
     event.attendees = attendees
@@ -758,7 +780,7 @@ def api_update_event(
             title=payload.title, description=payload.description, location=payload.location,
             all_day=payload.all_day, attendees=attendees,
             start_time_of_day=payload.start_time.time(), duration=payload.end_time - payload.start_time,
-            timezone=payload.timezone,
+            timezone=payload.timezone, end_timezone=payload.end_timezone,
         )
         update_series_until(db, event.series_id, payload.recurrence_until, min_until=payload.start_time.date())
         db.refresh(event)
@@ -769,12 +791,13 @@ def api_update_event(
         event.end_time = payload.end_time.replace(tzinfo=dt_timezone.utc)
     else:
         event.start_time = to_utc(payload.start_time, payload.timezone)
-        event.end_time = to_utc(payload.end_time, payload.timezone)
+        event.end_time = to_utc(payload.end_time, payload.end_timezone or payload.timezone)
     event.title = payload.title
     event.description = payload.description
     event.location = payload.location
     event.all_day = payload.all_day
     event.timezone = payload.timezone
+    event.end_timezone = payload.end_timezone
     event.attendees = attendees
     if event.series_id:
         event.series_id = None

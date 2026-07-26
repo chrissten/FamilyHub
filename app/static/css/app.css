@@ -139,6 +139,53 @@ button[type="button"] { background: #9aa5b1; }
 .agenda-day .agenda-list { margin-top: 0.4rem; }
 .agenda-day-empty { color: #9aa5b1; font-size: 0.85rem; padding: 0.4rem 0 0; font-style: italic; }
 
+/* Circular time picker */
+.time-dial-field { margin-bottom: 0.75rem; }
+.time-dial-label { display: block; font-size: 0.9rem; margin-bottom: 0.25rem; }
+.time-dial-input-row { display: flex; align-items: center; gap: 0.4rem; }
+.time-dial-icon-btn {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  width: 2.1rem; height: 2.1rem; padding: 0; color: white;
+}
+.time-dial-panel {
+  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+  border: 1px solid #cbd2d9; border-radius: 8px; padding: 1rem; margin-top: 0.25rem; background: #f9fafb;
+}
+.time-dial-num {
+  width: 2.6rem; margin: 0; padding: 0.5rem 0.25rem; text-align: center;
+  font-size: 1rem; border: 1px solid #cbd2d9; border-radius: 4px;
+}
+.time-dial-num::-webkit-outer-spin-button, .time-dial-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.time-dial-colon { font-size: 1rem; color: #1f2933; }
+.time-dial-ampm { display: flex; flex-direction: column; gap: 2px; }
+.time-dial-ampm button { padding: 0.15rem 0.5rem; font-size: 0.75rem; background: #e4e7eb; color: #1f2933; border-radius: 4px; }
+.time-dial-ampm button.active { background: #4A90D9; color: white; }
+.time-dial-wrap { position: relative; width: min(240px, 68vw); height: min(240px, 68vw); }
+.time-dial { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; }
+.time-dial:focus { outline: 2px solid #4A90D9; outline-offset: 2px; }
+.time-dial-face { fill: white; stroke: #cbd2d9; stroke-width: 1; }
+.time-dial-hand { stroke: #4A90D9; stroke-width: 2; }
+.time-dial-knob { fill: #4A90D9; }
+.time-dial-center { fill: #4A90D9; }
+/* Numbers/ticks are HTML overlays, not SVG <text>/<template> — <template x-for> inside <svg>
+   doesn't work because browsers don't give SVG-child <template> elements a content fragment. */
+.time-dial-ticks, .time-dial-numbers { position: absolute; inset: 0; pointer-events: none; }
+.time-dial-tick {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #cbd2d9;
+  transform: translate(-50%, -50%);
+}
+.time-dial-tick.major { background: #9aa5b1; }
+.time-dial-numbers .time-dial-number {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%; background: transparent; padding: 0;
+  font-size: 15px; color: #1f2933; cursor: pointer;
+}
+.time-dial-numbers .time-dial-number.selected { color: white; font-weight: 700; }
+.time-dial-actions { display: flex; gap: 0.5rem; align-self: flex-end; }
+.duration-note { margin: -0.5rem 0 0.75rem; font-size: 0.8rem; color: #52606d; }
+.tz-note { margin: -0.25rem 0 0.75rem; }
+
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; }
 .modal { background: white; padding: 1.5rem; border-radius: 8px; width: min(480px, 94vw); max-height: 90vh; overflow-y: auto; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }

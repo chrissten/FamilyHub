@@ -40,6 +40,9 @@ class EventBase(BaseModel):
     end_time: datetime
     all_day: bool = False
     timezone: str = Field(default_factory=lambda: settings.default_timezone)
+    # Zone the end time was entered in, if different from `timezone` (e.g. a flight
+    # landing in another zone). None means "same as `timezone`".
+    end_timezone: str | None = None
 
 
 class EventCreate(EventBase):

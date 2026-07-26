@@ -43,6 +43,7 @@ class CalendarEvent(Base):
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     all_day: Mapped[bool] = mapped_column(Boolean, default=False)
     timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    end_timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
     recurrence_rule: Mapped[str | None] = mapped_column(String(200), nullable=True)
     series_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     series_until: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -1,0 +1,62 @@
+<div class="time-dial-field" x-cloak x-show="!allDay"
+     x-data="timeDial('{{ time_dial_field }}', '{{ time_dial_value }}')">
+  <label class="time-dial-label">{{ time_dial_label }}
+    <div class="time-dial-input-row">
+      <input type="number" class="time-dial-num" min="1" max="12" x-ref="hourInput"
+             @focus="mode = 'hour'; $event.target.select()" @click="mode = 'hour'; $event.target.select()"
+             @input="onHourTyped($event)" @blur="onFieldBlur()" aria-label="Hour">
+      <span class="time-dial-colon">:</span>
+      <input type="number" class="time-dial-num" min="0" max="59" x-ref="minuteInput"
+             @focus="mode = 'minute'; $event.target.select()" @click="mode = 'minute'; $event.target.select()"
+             @input="onMinuteTyped($event)" @blur="onFieldBlur()" aria-label="Minute">
+      <div class="time-dial-ampm">
+        <button type="button" :class="{ active: !isPM }" @click="setPM(false)">AM</button>
+        <button type="button" :class="{ active: isPM }" @click="setPM(true)">PM</button>
+      </div>
+      <input type="hidden" name="{{ time_dial_field }}" :value="value">
+      <button type="button" class="time-dial-icon-btn" @click="openPicker()" aria-label="Open {{ time_dial_label | lower }} picker">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+          <path d="M12 7v5l3.5 2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+    </div>
+  </label>
+  <template x-if="open">
+    <div class="time-dial-panel" @keydown.escape="cancel()">
+      <div class="time-dial-wrap">
+        <svg class="time-dial" viewBox="0 0 200 200" x-ref="dial" tabindex="0"
+             @pointerdown="startDrag($event)" @pointermove="drag($event)"
+             @pointerup="endDrag($event)" @pointercancel="endDrag($event)"
+             @keydown.up.prevent="mode === 'hour' ? bumpHour(1) : bumpMinute(1)"
+             @keydown.right.prevent="mode === 'hour' ? bumpHour(1) : bumpMinute(5)"
+             @keydown.down.prevent="mode === 'hour' ? bumpHour(-1) : bumpMinute(-1)"
+             @keydown.left.prevent="mode === 'hour' ? bumpHour(-1) : bumpMinute(-5)">
+          <circle cx="100" cy="100" r="98" class="time-dial-face"></circle>
+          <line x1="100" y1="100" :x2="handPoint.x" :y2="handPoint.y" class="time-dial-hand"></line>
+          <circle :cx="handPoint.x" :cy="handPoint.y" r="14" class="time-dial-knob"></circle>
+          <circle cx="100" cy="100" r="3" class="time-dial-center"></circle>
+        </svg>
+        <div class="time-dial-ticks" x-show="mode === 'minute'">
+          <template x-for="(pt, i) in minuteTicks" :key="i">
+            <span class="time-dial-tick" :class="{ major: i % 5 === 0 }"
+                  :style="`left:${pt.x / 2}%; top:${pt.y / 2}%`"></span>
+          </template>
+        </div>
+        <div class="time-dial-numbers">
+          <template x-for="pt in (mode === 'hour' ? hourPoints : minutePoints)" :key="pt.value">
+            <button type="button" class="time-dial-number"
+                    :class="{ selected: (mode === 'hour' ? hour12 === pt.value : minutes === pt.value) }"
+                    :style="`left:${pt.x / 2}%; top:${pt.y / 2}%`"
+                    @click="mode === 'hour' ? selectHour(pt.value) : selectMinute(pt.value)"
+                    x-text="pt.label"></button>
+          </template>
+        </div>
+      </div>
+      <div class="time-dial-actions">
+        <button type="button" class="link-button" @click="cancel()">Cancel</button>
+        <button type="button" @click="confirm()">Set time</button>
+      </div>
+    </div>
+  </template>
+</div>

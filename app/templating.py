@@ -8,6 +8,9 @@ templates = Jinja2Templates(directory="app/templates")
 _css_path = os.path.join("app", "static", "css", "app.css")
 templates.env.globals["asset_version"] = str(int(os.path.getmtime(_css_path)))
 
+_time_picker_js_path = os.path.join("app", "static", "js", "time-picker.js")
+templates.env.globals["js_asset_version"] = str(int(os.path.getmtime(_time_picker_js_path)))
+
 
 def fmt_time(dt: datetime) -> str:
     hour12 = dt.hour % 12 or 12
@@ -16,6 +19,20 @@ def fmt_time(dt: datetime) -> str:
 
 
 _WEEKDAY_ABBR = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _tz_suffixes(event) -> tuple[str, str]:
+    """Start/end zone-abbreviation badge suffixes (each "" or " EST"-style) for an event,
+    given the tz_label/end_tz_label set by _annotate_display. When the event's start and
+    end share the same anchor zone (the common case), only the end gets a badge — matching
+    the single trailing badge this app has always shown. When they genuinely differ (e.g. a
+    flight landing in another zone), both ends get their own badge so the difference is
+    visible in the rendered range."""
+    end_tz_label = getattr(event, "end_tz_label", None)
+    differs = bool(end_tz_label) and end_tz_label != event.tz_label
+    start_suffix = f" {event.tz_label}" if event.tz_label and differs else ""
+    end_suffix = f" {end_tz_label}" if differs else (f" {event.tz_label}" if event.tz_label else "")
+    return start_suffix, end_suffix
 
 
 def event_tooltip_range(event) -> str:
@@ -31,10 +48,10 @@ def event_tooltip_range(event) -> str:
         if end.date() > start.date():
             return f"All day ({start.month}/{start.day}–{end.month}/{end.day})"
         return "All day"
-    suffix = f" {event.tz_label}" if event.tz_label else ""
+    start_suffix, end_suffix = _tz_suffixes(event)
     if end.date() > start.date():
-        return f"{_WEEKDAY_ABBR[start.weekday()]} {fmt_time(start)} – {_WEEKDAY_ABBR[end.weekday()]} {fmt_time(end)}{suffix}"
-    return f"{fmt_time(start)}–{fmt_time(end)}{suffix}"
+        return f"{_WEEKDAY_ABBR[start.weekday()]} {fmt_time(start)}{start_suffix} – {_WEEKDAY_ABBR[end.weekday()]} {fmt_time(end)}{end_suffix}"
+    return f"{fmt_time(start)}{start_suffix}–{fmt_time(end)}{end_suffix}"
 
 
 def event_time_label(event, day_date: date) -> str:
@@ -48,13 +65,13 @@ def event_time_label(event, day_date: date) -> str:
         if end.date() > start.date():
             return f"All day ({start.month}/{start.day}–{end.month}/{end.day})"
         return "All day"
-    suffix = f" {event.tz_label}" if event.tz_label else ""
+    start_suffix, end_suffix = _tz_suffixes(event)
     if end.date() == start.date():
-        return f"{fmt_time(start)} – {fmt_time(end)}{suffix}"
+        return f"{fmt_time(start)}{start_suffix} – {fmt_time(end)}{end_suffix}"
     if day_date == start.date():
-        return f"{fmt_time(start)} – continues"
+        return f"{fmt_time(start)}{start_suffix} – continues"
     if day_date == end.date():
-        return f"continues – {fmt_time(end)}{suffix}"
+        return f"continues – {fmt_time(end)}{end_suffix}"
     return "Continues all day"
 
 

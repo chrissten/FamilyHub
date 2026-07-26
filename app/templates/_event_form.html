@@ -3,11 +3,66 @@
   x-data="{
     allDay: {{ 'true' if event and event.all_day else 'false' }},
     startDate: '{{ default_date }}',
+    endDate: '{{ default_end_date }}',
+    startTimeStr: '{{ default_start_time }}',
+    endTimeStr: '{{ default_end_time }}',
     timezone: '{{ default_timezone }}',
     tzExpanded: false,
+    endTimezone: '{{ default_end_timezone }}',
+    endTzDiffers: {{ 'true' if event and event.end_timezone and event.end_timezone != event.timezone else 'false' }},
+    endTzExpanded: false,
     repeat: 'none',
     untilMode: '{{ 'on' if event and event.series_until else 'never' }}',
     untilDate: '{{ event.series_until.isoformat() if event and event.series_until else '' }}',
+    onTimeChanged(e) {
+      if (e.detail.field === 'start_time_str') this.startTimeStr = e.detail.value;
+      else if (e.detail.field === 'end_time_str') this.endTimeStr = e.detail.value;
+    },
+    // Resolves a wall-clock date+time as observed in `tz` to a true UTC instant (ms).
+    // Needed because when start/end are in different zones, subtracting their wall-clock
+    // strings directly gives the wrong elapsed time (e.g. 3pm CST -> 6pm EST is 2 real
+    // hours, not 3) — this pins each side to its own zone's UTC offset first.
+    zonedInstantMs(dateStr, timeStr, tzName) {
+      const guessMs = Date.parse(dateStr + 'T' + timeStr + ':00Z');
+      const offsetMinutesAt = (ms) => {
+        const parts = {};
+        for (const p of new Intl.DateTimeFormat('en-US', {
+          timeZone: tzName, hour12: false,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+        }).formatToParts(new Date(ms))) parts[p.type] = p.value;
+        const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, Number(parts.hour) % 24, parts.minute, parts.second);
+        return (asUtc - ms) / 60000;
+      };
+      const offset = offsetMinutesAt(guessMs);
+      const utcMs = guessMs - offset * 60000;
+      const offset2 = offsetMinutesAt(utcMs);
+      return offset2 === offset ? utcMs : guessMs - offset2 * 60000;
+    },
+    durationLabel() {
+      if (this.allDay || !this.startTimeStr || !this.endTimeStr) return '';
+      let startMs, endMs;
+      if (this.endTimezone && this.endTimezone !== this.timezone) {
+        try {
+          startMs = this.zonedInstantMs(this.startDate, this.startTimeStr, this.timezone);
+          endMs = this.zonedInstantMs(this.endDate, this.endTimeStr, this.endTimezone);
+        } catch (e) {
+          return '';
+        }
+      } else {
+        startMs = new Date(this.startDate + 'T' + this.startTimeStr).getTime();
+        endMs = new Date(this.endDate + 'T' + this.endTimeStr).getTime();
+      }
+      if (isNaN(startMs) || isNaN(endMs)) return '';
+      const mins = Math.round((endMs - startMs) / 60000);
+      if (mins < 0) return 'End time is before start time';
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      const parts = [];
+      if (h > 0) parts.push(h + ' hour' + (h !== 1 ? 's' : ''));
+      if (m > 0 || h === 0) parts.push(m + ' minute' + (m !== 1 ? 's' : ''));
+      return 'Duration: ' + parts.join(' ');
+    },
     weekdayName(d) {
       const dt = new Date(d + 'T00:00:00');
       return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt.getDay()];
@@ -23,7 +78,8 @@
   }"
   hx-post="{{ '/calendar/events/' + event.id|string if event else '/calendar/events' }}"
   hx-target="#calendar-view" hx-swap="innerHTML"
-  hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))">
+  hx-on::after-request="if(event.detail.successful) window.dispatchEvent(new Event('close-modal'))"
+  @time-changed="onTimeChanged($event)">
   <input type="hidden" name="return_view" value="{{ return_view }}">
   <input type="hidden" name="return_date" value="{{ return_date }}">
   <label>Title<input type="text" name="title" value="{{ event.title if event else default_title }}" required></label>
@@ -37,13 +93,11 @@
     <input type="checkbox" name="all_day" value="true" x-model="allDay">
     All day
   </label>
-  <label x-cloak x-show="!allDay">Start time<input type="time" name="start_time_str" value="{{ default_start_time }}"></label>
-  <label>End date
-    <input type="date" name="end_date"
-           value="{{ default_end_date }}">
-  </label>
-  <label x-cloak x-show="!allDay">End time<input type="time" name="end_time_str" value="{{ default_end_time }}"></label>
-  <div x-cloak x-show="!allDay" class="repeat-section">
+  {% set time_dial_field = "start_time_str" %}
+  {% set time_dial_label = "Start time" %}
+  {% set time_dial_value = default_start_time %}
+  {% include "_time_dial.html" with context %}
+  <div x-cloak x-show="!allDay" class="tz-note">
     <template x-if="!tzExpanded">
       <div>
         <button type="button" class="link-button" @click="tzExpanded = true">
@@ -63,6 +117,50 @@
       </label>
     </template>
   </div>
+  <label>End date
+    <input type="date" name="end_date" x-model="endDate"
+           value="{{ default_end_date }}">
+  </label>
+  {% set time_dial_field = "end_time_str" %}
+  {% set time_dial_label = "End time" %}
+  {% set time_dial_value = default_end_time %}
+  {% include "_time_dial.html" with context %}
+  <div x-cloak x-show="!allDay" class="tz-note">
+    <template x-if="!endTzDiffers">
+      <div>
+        <button type="button" class="link-button" @click="endTzDiffers = true; endTzExpanded = true; endTimezone = timezone">
+          + Different time zone for end time
+        </button>
+        <input type="hidden" name="end_timezone" :value="timezone">
+      </div>
+    </template>
+    <template x-if="endTzDiffers">
+      <div>
+        <template x-if="!endTzExpanded">
+          <div>
+            <button type="button" class="link-button" @click="endTzExpanded = true">
+              End time zone: <span x-text="endTimezone"></span> (change)
+            </button>
+            <input type="hidden" name="end_timezone" x-model="endTimezone">
+          </div>
+        </template>
+        <template x-if="endTzExpanded">
+          <label>
+            End time zone
+            <select name="end_timezone" x-model="endTimezone">
+              {% for tz_name in timezones %}
+              <option value="{{ tz_name }}">{{ tz_name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </template>
+        <button type="button" class="link-button" @click="endTzDiffers = false; endTzExpanded = false">
+          (use start time zone)
+        </button>
+      </div>
+    </template>
+  </div>
+  <p x-cloak x-show="!allDay" class="duration-note" x-text="durationLabel()"></p>
 
   {% if not event %}
   <label>Repeat
