@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -15,6 +15,7 @@ import DayAgenda from '../../src/calendar/DayAgenda';
 import AgendaView from '../../src/calendar/AgendaView';
 import { setPendingEventForm } from '../../src/calendar/formState';
 import { useTheme, type Colors } from '../../src/theme';
+import { loadLastCalendarView, setLastCalendarView } from '../../src/preferences';
 
 type ViewKind = 'month' | 'week' | '3day' | 'day' | 'agenda';
 const VIEWS: { key: ViewKind; label: string }[] = [
@@ -29,12 +30,19 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const [view, setView] = useState<ViewKind>('month');
+  const [view, setViewState] = useState<ViewKind>('month');
   const [anchor, setAnchor] = useState(() => new Date());
   const [navNonce, setNavNonce] = useState(0);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [members, setMembers] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  function setView(next: ViewKind) {
+    setViewState(next);
+    setLastCalendarView(next);
+  }
+
+  useEffect(() => { loadLastCalendarView().then(setViewState); }, []);
 
   useFocusEffect(useCallback(() => { load(); }, []));
 

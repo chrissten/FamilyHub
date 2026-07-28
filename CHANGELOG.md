@@ -35,6 +35,22 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-28
+- **[web][mobile]** The app now reopens to whichever top-level screen (and, for
+  Calendar, whichever sub-view — e.g. Agenda) was last open, instead of always
+  defaulting to Grocery (web) or Calendar (mobile).
+  - **[web]** Each visit to `/calendar`, `/grocery`, `/todo`, or `/freezer` records
+    `last_page` in the server session (Calendar also records its `?view=` sub-view).
+    `/` and the post-login redirect now send the user to `last_page` instead of a
+    hardcoded `/grocery`. Cleared on logout, so a fresh login always starts at the
+    default.
+  - **[mobile]** New `pref_last_tab` / `pref_last_calendar_view` AsyncStorage keys
+    (`src/preferences.ts`), following the existing timezone/time-format preference
+    pattern. `(tabs)/_layout.tsx` records the active tab on every navigation;
+    `app/index.tsx` reads it on launch and routes straight there instead of always
+    landing on the Calendar tab. The Calendar screen's Month/Week/3 Day/Day/Agenda
+    picker now persists and restores the same way.
+
 ### 2026-07-25 (3)
 - **[mobile]** v1.2.15 — Creating a new event now defaults its timezone to the pinned
   Display Time Zone override (Settings, added in v1.2.14) when one is set, instead of

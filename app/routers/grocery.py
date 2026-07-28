@@ -79,6 +79,7 @@ def grocery_lists_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    request.session["last_page"] = "/grocery"
     lists = visible_lists_query(db, GroceryList, current_user).all()
     return templates.TemplateResponse(
         request, "grocery_lists.html", {"current_user": current_user, "lists": lists}

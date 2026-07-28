@@ -94,8 +94,8 @@ def on_startup():
 
 
 @app.get("/")
-def root():
-    return RedirectResponse(url="/grocery")
+def root(request: Request):
+    return RedirectResponse(url=request.session.get("last_page", "/grocery"))
 
 
 @app.get("/healthz")

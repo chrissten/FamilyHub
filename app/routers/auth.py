@@ -31,8 +31,9 @@ def login_submit(
             request, "login.html", {"error": "Invalid username or password"}, status_code=400
         )
 
+    last_page = request.session.get("last_page", "/grocery")
     request.session["user_id"] = user.id
-    return RedirectResponse(url="/grocery", status_code=status.HTTP_302_FOUND)
+    return RedirectResponse(url=last_page, status_code=status.HTTP_302_FOUND)
 
 
 @router.get("/logout")

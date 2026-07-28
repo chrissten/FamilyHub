@@ -25,6 +25,7 @@ def todo_lists_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    request.session["last_page"] = "/todo"
     lists = visible_lists_query(db, TodoList, current_user).all()
     return templates.TemplateResponse(
         request, "todo_lists.html", {"current_user": current_user, "lists": lists}

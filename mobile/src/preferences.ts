@@ -67,3 +67,31 @@ export function useDisplayTimezone(): string | null {
   }, []);
   return tz;
 }
+
+const LAST_TAB_KEY = 'pref_last_tab';
+const TABS = ['index', 'grocery', 'todo', 'freezer', 'settings'] as const;
+export type TabName = typeof TABS[number];
+
+/** Which bottom tab the user last had open, so relaunching the app returns them to it. */
+export async function loadLastTab(): Promise<TabName> {
+  const stored = await AsyncStorage.getItem(LAST_TAB_KEY);
+  return (TABS as readonly string[]).includes(stored ?? '') ? (stored as TabName) : 'index';
+}
+
+export async function setLastTab(value: TabName): Promise<void> {
+  await AsyncStorage.setItem(LAST_TAB_KEY, value);
+}
+
+const LAST_CALENDAR_VIEW_KEY = 'pref_last_calendar_view';
+const CALENDAR_VIEWS = ['month', 'week', '3day', 'day', 'agenda'] as const;
+export type CalendarViewKind = typeof CALENDAR_VIEWS[number];
+
+/** Which calendar sub-view (Month/Week/3 Day/Day/Agenda) was last selected. */
+export async function loadLastCalendarView(): Promise<CalendarViewKind> {
+  const stored = await AsyncStorage.getItem(LAST_CALENDAR_VIEW_KEY);
+  return (CALENDAR_VIEWS as readonly string[]).includes(stored ?? '') ? (stored as CalendarViewKind) : 'month';
+}
+
+export async function setLastCalendarView(value: CalendarViewKind): Promise<void> {
+  await AsyncStorage.setItem(LAST_CALENDAR_VIEW_KEY, value);
+}

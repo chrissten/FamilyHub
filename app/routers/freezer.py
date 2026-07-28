@@ -44,6 +44,7 @@ def freezer_lists_page(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    request.session["last_page"] = "/freezer"
     freezers = db.query(Freezer).order_by(Freezer.created_at).all()
     return templates.TemplateResponse(
         request, "freezer_lists.html", {"current_user": current_user, "freezers": freezers}

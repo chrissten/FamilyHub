@@ -332,6 +332,7 @@ def calendar_page(
     anchor = date.fromisoformat(date_param) if date_param else date.today()
     if view not in {"month", "week", "3day", "day", "agenda"}:
         view = "month"
+    request.session["last_page"] = f"/calendar?view={view}" if view != "month" else "/calendar"
     ctx = build_view_context(db, view, anchor, request)
     return templates.TemplateResponse(request, "calendar.html", {"current_user": current_user, **ctx})
 
