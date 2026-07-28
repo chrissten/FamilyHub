@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import type { CalendarEvent } from '../api/types';
 import AttendeeDots from './AttendeeDots';
-import { AgendaDay, MONTH_NAMES, WEEKDAY_NAMES, buildAgendaView, eventTimeLabel } from './dateUtils';
+import { AgendaDay, MONTH_NAMES, WEEKDAY_NAMES, buildAgendaView, dateOnly, eventTimeLabel } from './dateUtils';
 import { useTimeFormat } from '../preferences';
 import { useTheme, type Colors } from '../theme';
 
@@ -46,23 +46,35 @@ function addMonths(year: number, month: number, n: number): MonthKey {
   return { year: d.getFullYear(), month: d.getMonth() };
 }
 
-function buildRows(events: CalendarEvent[], months: MonthKey[]): AgendaRow[] {
+function buildDays(events: CalendarEvent[], months: MonthKey[]): AgendaDay[] {
+  const days: AgendaDay[] = [];
+  for (const m of months) days.push(...buildAgendaView(events, m.year, m.month));
+  return days;
+}
+
+/** Assigns a month-divider label to the first row of each month, based on the
+ *  filtered day list actually being rendered — the first day of a month may be
+ *  hidden below the "today" floor, so divider placement can't rely on raw month
+ *  position. */
+function withDividers(days: AgendaDay[]): AgendaRow[] {
   const rows: AgendaRow[] = [];
-  for (const m of months) {
-    const days = buildAgendaView(events, m.year, m.month);
-    days.forEach((day, i) => {
-      rows.push({
-        key: day.date.toISOString(),
-        day,
-        monthDivider: i === 0 ? `${MONTH_NAMES[m.month]} ${m.year}` : null,
-      });
+  let lastMonthKey = '';
+  for (const day of days) {
+    const mk = monthKeyStr(day.date.getFullYear(), day.date.getMonth());
+    rows.push({
+      key: day.date.toISOString(),
+      day,
+      monthDivider: mk === lastMonthKey ? null : `${MONTH_NAMES[day.date.getMonth()]} ${day.date.getFullYear()}`,
     });
+    lastMonthKey = mk;
   }
   return rows;
 }
 
-/** Port of app/templates/_calendar_agenda.html — a scrolling list spanning every day,
- *  seamlessly loading adjacent months as the user scrolls past either edge. */
+/** Port of app/templates/_calendar_agenda.html — a scrolling list of days starting at
+ *  today (or the requested anchor date), seamlessly loading later months as the user
+ *  scrolls past the bottom edge. Earlier days are only revealed by explicit Prev/Today
+ *  navigation or the "Load previous events" button — never by scrolling into the past. */
 export default function AgendaView({
   anchor, navNonce, events, familySize, refreshing, onRefresh, onAddEvent, onEditEvent, onDeleteEvent,
   onVisibleMonthChange,
@@ -74,11 +86,16 @@ export default function AgendaView({
 
   const [months, setMonths] = useState<MonthKey[]>(() => {
     const y = anchor.getFullYear(), m = anchor.getMonth();
-    return [addMonths(y, m, -1), { year: y, month: m }, addMonths(y, m, 1)];
+    return [{ year: y, month: m }, addMonths(y, m, 1)];
   });
-  const rows = useMemo(() => buildRows(events, months), [events, months]);
+  // The floor of what's shown — today (or the requested anchor date) by default.
+  // Only Prev/Today navigation or "Load previous events" move it earlier.
+  const [minDate, setMinDate] = useState<Date>(() => dateOnly(anchor));
+  const rows = useMemo(
+    () => withDividers(buildDays(events, months).filter(d => d.date.getTime() >= minDate.getTime())),
+    [events, months, minDate]
+  );
 
-  const loadingPrevRef = useRef(false);
   const loadingNextRef = useRef(false);
   const lastVisibleMonthKeyRef = useRef(monthKeyStr(anchor.getFullYear(), anchor.getMonth()));
   const onVisibleMonthChangeRef = useRef(onVisibleMonthChange);
@@ -95,6 +112,8 @@ export default function AgendaView({
 
     const y = anchor.getFullYear(), m = anchor.getMonth(), d = anchor.getDate();
     pendingScrollRef.current = { year: y, month: m, date: d };
+    const target = dateOnly(anchor);
+    setMinDate(prev => (target.getTime() < prev.getTime() ? target : prev));
     setMonths(prev => {
       const first = prev[0], last = prev[prev.length - 1];
       const target = y * 12 + m;
@@ -137,11 +156,17 @@ export default function AgendaView({
     });
   }, [rows]);
 
-  function loadPreviousMonth() {
-    if (loadingPrevRef.current) return;
-    loadingPrevRef.current = true;
-    setMonths(prev => [addMonths(prev[0].year, prev[0].month, -1), ...prev]);
-    setTimeout(() => { loadingPrevRef.current = false; }, 600);
+  /** Manually reveals earlier days: first the rest of the earliest loaded month
+   *  (if the floor is mid-month), then prepends the month before it. */
+  function loadPreviousEvents() {
+    const startOfMinMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    if (minDate.getTime() > startOfMinMonth.getTime()) {
+      setMinDate(startOfMinMonth);
+      return;
+    }
+    const prevMonth = addMonths(minDate.getFullYear(), minDate.getMonth(), -1);
+    setMonths(prev => [prevMonth, ...prev]);
+    setMinDate(new Date(prevMonth.year, prevMonth.month, 1));
   }
 
   function loadNextMonth() {
@@ -174,8 +199,11 @@ export default function AgendaView({
       keyExtractor={item => item.key}
       contentContainerStyle={styles.list}
       initialNumToRender={45}
-      onScroll={e => { if (e.nativeEvent.contentOffset.y < 400) loadPreviousMonth(); }}
-      scrollEventThrottle={200}
+      ListHeaderComponent={
+        <TouchableOpacity style={styles.loadPreviousBtn} onPress={loadPreviousEvents} hitSlop={8}>
+          <Text style={styles.loadPreviousText}>↑ Load previous events</Text>
+        </TouchableOpacity>
+      }
       onEndReached={loadNextMonth}
       onEndReachedThreshold={1}
       onViewableItemsChanged={onViewableItemsChanged}
@@ -245,6 +273,8 @@ export default function AgendaView({
 function createStyles(colors: Colors) {
   return StyleSheet.create({
     list: { padding: 12, paddingBottom: 80 },
+    loadPreviousBtn: { alignItems: 'center', paddingVertical: 10, marginBottom: 4 },
+    loadPreviousText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
     monthDivider: {
       fontSize: 13, fontWeight: '700', color: colors.textMuted,
       marginTop: 4, marginBottom: 10,

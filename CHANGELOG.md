@@ -14,13 +14,16 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
-- **Agenda view is mobile-only for infinite scroll, seamless month navigation, and the
-  condensed one-card-per-day layout (2026-07-23, v1.2.12 below).** Mobile's Agenda tab now
-  scrolls continuously across months (loading the next/previous month automatically as you
-  reach either edge) and renders each day's events as rows inside a single card instead of
-  one card per event. `_calendar_agenda.html` still renders one month at a time with no
-  auto-scroll to `.agenda-day.today` and a separate card per event. Not fixed here since it
-  wasn't asked for — flagging so it isn't rediscovered by accident.
+- **Agenda view is mobile-only for seamless forward month navigation, a default-to-today
+  starting position, and the condensed one-card-per-day layout (2026-07-23, v1.2.12; load
+  direction changed 2026-07-28, v1.2.17 below).** Mobile's Agenda tab opens scrolled to
+  today and loads later months automatically as you scroll past the bottom edge; earlier
+  days only appear via Prev/Today navigation or an explicit "Load previous events" button,
+  never by scrolling up. It also renders each day's events as rows inside a single card
+  instead of one card per event. `_calendar_agenda.html` still renders one month at a time
+  starting at the 1st with no auto-scroll to today, no load-more control, and a separate
+  card per event. Not fixed here since it wasn't asked for — flagging so it isn't
+  rediscovered by accident.
 - **Dark mode is mobile-only (v1.1.0 below).** The web app has no theme system; all its
   colors are hardcoded in `app.css`. Not fixed here since it wasn't asked for.
 - **Native date/time picker popups don't follow the in-app dark mode override.** Mobile's
@@ -34,6 +37,14 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-07-28 (2)
+- **[mobile]** v1.2.17 — Agenda tab now defaults to today instead of the 1st of the
+  month, and no longer auto-loads earlier months as you scroll up. `AgendaView.tsx`
+  filters rendered days to a `minDate` floor (today, or the requested date after
+  Prev/Today navigation) and replaces the old scroll-triggered previous-month load with
+  a "Load previous events" button at the top of the list; forward infinite scroll into
+  future months is unchanged.
 
 ### 2026-07-28
 - **[web][mobile]** The app now reopens to whichever top-level screen (and, for
