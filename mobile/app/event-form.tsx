@@ -12,6 +12,7 @@ import { COMMON_TIMEZONES } from '../src/calendar/timezones';
 import { useTimeFormat, type TimeFormat } from '../src/preferences';
 import { takePendingEventForm } from '../src/calendar/formState';
 import { useTheme, type Colors } from '../src/theme';
+import { useKeyboardHeight } from '../src/useKeyboardHeight';
 
 function parseIsoDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number);
@@ -66,6 +67,7 @@ export default function EventFormScreen() {
   const [timePickerField, setTimePickerField] = useState<'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
   const timeFormat = useTimeFormat();
+  const keyboardHeight = useKeyboardHeight();
   const isNew = !event || duplicating;
 
   function handleDateChange(pickerEvent: { type: string }, selected?: Date) {
@@ -227,7 +229,10 @@ export default function EventFormScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView keyboardShouldPersistTaps="handled">
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: keyboardHeight }}
+        >
           <TextInput
             style={styles.input} placeholder="Title *" value={title} onChangeText={setTitle}
             placeholderTextColor={colors.placeholder}

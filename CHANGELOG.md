@@ -38,6 +38,14 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-07-30
+- **[mobile]** v1.2.18 — Fixed the event form's Attendees list being trapped under the
+  on-screen keyboard, requiring a keyboard dismiss before a family member could be
+  tapped. `event-form.tsx`'s `ScrollView` now reserves bottom padding equal to the live
+  keyboard height (via `useKeyboardHeight`, the same fix already used on the Grocery/
+  To-Do/Freezer tabs), so the list can scroll fully clear of the keyboard instead of
+  relying on Android's `adjustResize`, which doesn't reach this modal screen reliably.
+
 ### 2026-07-28 (2)
 - **[mobile]** v1.2.17 — Agenda tab now defaults to today instead of the 1st of the
   month, and no longer auto-loads earlier months as you scroll up. `AgendaView.tsx`
