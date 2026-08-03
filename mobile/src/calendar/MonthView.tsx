@@ -68,6 +68,7 @@ export default function MonthView({
                         styles.chip,
                         continuesBefore && styles.chipContinuesBefore,
                         continuesAfter && styles.chipContinuesAfter,
+                        event.conflict && styles.chipConflict,
                       ]}
                       onPress={() => onEditEvent(event)}
                     >
@@ -119,6 +120,7 @@ function createStyles(colors: Colors) {
       borderTopRightRadius: 0, borderBottomRightRadius: 0,
       marginRight: -3, paddingRight: 1,
     },
+    chipConflict: { backgroundColor: colors.warningBg },
     chipText: { fontSize: 9.5, color: colors.chipText, flexShrink: 1 },
     moreText: { fontSize: 9, color: colors.textFaint, marginTop: 1, paddingHorizontal: 2 },
   });

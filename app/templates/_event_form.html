@@ -213,6 +213,10 @@
     </label>
     {% endfor %}
   </div>
+  <label class="inline conflict-label">
+    <input type="checkbox" name="conflict" value="true" {% if event and event.conflict %}checked{% endif %}>
+    ⚠️ Flag as conflict (needs discussion)
+  </label>
   <div class="form-actions">
     {% if event and event.series_id %}
     <button type="submit" hx-post="/calendar/events/{{ event.id }}" hx-vals='{"scope":"this"}'

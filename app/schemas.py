@@ -43,6 +43,7 @@ class EventBase(BaseModel):
     # Zone the end time was entered in, if different from `timezone` (e.g. a flight
     # landing in another zone). None means "same as `timezone`".
     end_timezone: str | None = None
+    conflict: bool = False
 
 
 class EventCreate(EventBase):

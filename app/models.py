@@ -47,6 +47,7 @@ class CalendarEvent(Base):
     recurrence_rule: Mapped[str | None] = mapped_column(String(200), nullable=True)
     series_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     series_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+    conflict: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

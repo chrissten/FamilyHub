@@ -54,6 +54,7 @@ export default function EventFormScreen() {
   const [date, setDate] = useState(() => (event ? isoDate(eventOwnZoneStart(event)) : initialDate));
   const [endDate, setEndDate] = useState(() => (event ? isoDate(eventOwnZoneEnd(event)) : initialDate));
   const [allDay, setAllDay] = useState(event?.all_day ?? false);
+  const [conflict, setConflict] = useState(event?.conflict ?? false);
   const [startTime, setStartTime] = useState(() => (event ? timeOf(eventOwnZoneStart(event)) : '09:00'));
   const [endTime, setEndTime] = useState(() => (event ? timeOf(eventOwnZoneEnd(event)) : '10:00'));
   const [timezone, setTimezone] = useState(() => event?.timezone || effectiveTimeZone());
@@ -136,6 +137,7 @@ export default function EventFormScreen() {
       end_time: end,
       all_day: allDay,
       timezone,
+      conflict,
       attendee_ids: Array.from(attendeeIds),
     };
     const recurrenceUntil = repeatUntilMode === 'on' && repeatUntil ? repeatUntil : null;
@@ -363,6 +365,11 @@ export default function EventFormScreen() {
           {isNew && attendeeIds.size === 0 && (
             <Text style={styles.hint}>No selection defaults to just you</Text>
           )}
+
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>⚠️ Flag as conflict</Text>
+            <Switch value={conflict} onValueChange={setConflict} trackColor={{ false: colors.border, true: colors.warning }} />
+          </View>
 
           {event && !duplicating && (
             <TouchableOpacity style={styles.duplicateBtn} onPress={handleDuplicate}>

@@ -24,7 +24,7 @@
     <ul class="agenda-list">
       {% for event in day.events %}
       {% set attendees = event.attendees if event.attendees else [event.owner] %}
-      <li class="agenda-item">
+      <li class="agenda-item {% if event.conflict %}conflict{% endif %}">
         <div class="agenda-time">{{ event | event_time_label(day.date) }}</div>
         <div class="agenda-body">
           <a href="#" class="agenda-title"

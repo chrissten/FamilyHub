@@ -46,7 +46,7 @@ export default function DayAgenda({
           const isAll = familySize > 1 && attendees.length >= familySize;
           return (
             <TouchableOpacity
-              style={styles.card}
+              style={[styles.card, item.conflict && styles.cardConflict]}
               onPress={() => onEditEvent(item)}
               onLongPress={() => confirmDelete(item)}
               activeOpacity={0.7}
@@ -88,6 +88,7 @@ function createStyles(colors: Colors) {
       shadowColor: colors.shadow, shadowOpacity: 0.06, shadowRadius: 4,
       shadowOffset: { width: 0, height: 2 }, elevation: 2,
     },
+    cardConflict: { backgroundColor: colors.warningBg },
     accent: { width: 5 },
     cardBody: { flex: 1, padding: 12 },
     cardTime: { fontSize: 13, color: colors.primary },

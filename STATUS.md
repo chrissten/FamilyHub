@@ -57,6 +57,13 @@ Re-synced from my.cozi.com into production again, same approach and scope as syn
 - Inserted 41 new future events (511 → 552 total), including newly-added items like "Fall Break", "HOLY CROSS RETREAT", "WGU graduation in Seattle", and several "Teacher training" days — all added to Cozi since the 2026-07-02 sync.
 - Also carried over `notes` from Cozi appointment details into the FamilyHub event's `description` field where present (small gap noticed vs. prior syncs — 2 items in the full Jan 2026 range had notes; unclear whether syncs #1/#2 captured this).
 
+## Cozi sync #4 (2026-07-22) — Dominic's working shifts only
+Scoped re-sync, not a full calendar pull: pulled Jan 2026 – Jun 2027 from Cozi again (`py-cozi`, installed temporarily and uninstalled after) but filtered to items where Dominic is the sole attendee and the description (trimmed/lowercased) is exactly "dominic working" — 60 such shifts found in Cozi.
+- Deduped by exact `(title, start_time, end_time)` against all existing `calendar_events` rows (not scoped to Dominic), same as prior syncs.
+- Unlike syncs #2/#3, **did** backfill past shifts this time (user explicitly asked to sync "all" of Dominic's working events, not just future ones) — inserted 34 new rows spanning Jan 2026 through the confirmed-future 7/23–7/24, including several already-past shifts (e.g. 7/1, 7/20, 7/21) that earlier future-only syncs had permanently skipped since they were already past-due at each sync's run time. 26 of the 60 already existed. Total events 577 → 611.
+- All inserted rows use `owner_id` = christopher (id 1) with Dominic as the sole `event_attendees` row, matching the pattern of every pre-existing "Dominic Working" event.
+- Cozi's `startTime`/`endTime` are stored as-is with a UTC tzinfo tag (no timezone conversion) — confirmed this matches how every prior sync stored these fields, by comparing a known Cozi local time against its existing DB row.
+
 ## Next steps when we resume
 Nothing is pending from the feature requests so far — calendar (month/week/day views + attendees), multi-list grocery, multi-list to-do, public/private visibility, Docker, GitHub, and the live Railway deployment are all done and verified. Possible future asks: add other family members via the **Family** page on the live site (Lindsay/Dominic/Monica only exist in local test data, not yet in production), add Alembic migrations once the schema needs to change, or add an in-app password-change feature (currently the only way to change a password is a direct DB update or the `ADMIN_PASSWORD` env var, which doesn't retroactively update an already-seeded row).
 

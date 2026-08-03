@@ -31,7 +31,7 @@
       {% set attendees = event.attendees if event.attendees else [event.owner] %}
       {% set continues_before = event.display_start.date() < day.date %}
       {% set continues_after = event.display_end.date() > day.date %}
-      <a href="#" class="event-chip {% if continues_before %}continues-before{% endif %} {% if continues_after %}continues-after{% endif %}"
+      <a href="#" class="event-chip {% if continues_before %}continues-before{% endif %} {% if continues_after %}continues-after{% endif %} {% if event.conflict %}conflict{% endif %}"
          title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ event.title }} ({{ event | event_tooltip_range }})"
          hx-get="/calendar/events/{{ event.id }}/edit?return_view={{ view }}&return_date={{ focus_date }}"
          hx-target="#modal-content" hx-swap="innerHTML"
@@ -57,7 +57,7 @@
       {% set attendees = block.event.attendees if block.event.attendees else [block.event.owner] %}
       {% set continues_before = block.event.display_start.date() < day.date %}
       {% set continues_after = block.event.display_end.date() > day.date %}
-      <a href="#" class="week-event-block {% if continues_before %}continues-before{% endif %} {% if continues_after %}continues-after{% endif %}"
+      <a href="#" class="week-event-block {% if continues_before %}continues-before{% endif %} {% if continues_after %}continues-after{% endif %} {% if block.event.conflict %}conflict{% endif %}"
          style="top: calc(var(--hour-h) * {{ block.top_hours }}); height: calc(var(--hour-h) * {{ block.height_hours }}); left: {{ block.left_pct }}%; width: calc({{ block.width_pct }}% - 2px); border-left-color: {{ attendees[0].color_hex }};"
          title="{{ attendees | map(attribute='display_name') | join(', ') }}: {{ block.event.title }} ({{ block.event | event_tooltip_range }})"
          hx-get="/calendar/events/{{ block.event.id }}/edit?return_view={{ view }}&return_date={{ focus_date }}"

@@ -57,6 +57,7 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
                     styles.chip,
                     continuesBefore && styles.chipContinuesBefore,
                     continuesAfter && styles.chipContinuesAfter,
+                    event.conflict && styles.chipConflict,
                   ]}
                   onPress={() => onEditEvent(event)}
                 >
@@ -95,6 +96,7 @@ export default function TimelineView({ days, familySize, refreshing, onRefresh, 
                       styles.eventBlock,
                       continuesBefore && styles.eventBlockContinuesBefore,
                       continuesAfter && styles.eventBlockContinuesAfter,
+                      block.event.conflict && styles.eventBlockConflict,
                       {
                         top: block.topHours * HOUR_HEIGHT,
                         height: Math.max(block.heightHours * HOUR_HEIGHT, 22),
@@ -145,6 +147,7 @@ function createStyles(colors: Colors) {
       marginRight: -1, paddingRight: 1,
     },
     chipText: { fontSize: 9.5, color: colors.chipText, flexShrink: 1 },
+    chipConflict: { backgroundColor: colors.warningBg },
     body: { flex: 1 },
     bodyRow: { flexDirection: 'row' },
     hourRow: {
@@ -158,6 +161,7 @@ function createStyles(colors: Colors) {
     },
     eventBlockContinuesBefore: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
     eventBlockContinuesAfter: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+    eventBlockConflict: { backgroundColor: colors.warningBg },
     eventBlockTitle: { fontSize: 9.5, color: colors.chipText },
   });
 }

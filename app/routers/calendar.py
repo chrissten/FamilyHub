@@ -574,6 +574,7 @@ def calendar_create_event(
     all_day: bool = Form(False),
     timezone: str = Form(...),
     end_timezone: str = Form(""),
+    conflict: bool = Form(False),
     attendee_ids: list[int] = Form([]),
     repeat: str = Form("none"),
     repeat_until_mode: str = Form("never"),
@@ -623,6 +624,7 @@ def calendar_create_event(
             all_day=all_day,
             timezone=timezone,
             end_timezone=end_timezone,
+            conflict=conflict,
         )
         event.attendees = attendees
         db.add(event)
@@ -644,6 +646,7 @@ def calendar_update_event(
     all_day: bool = Form(False),
     timezone: str = Form(...),
     end_timezone: str = Form(""),
+    conflict: bool = Form(False),
     attendee_ids: list[int] = Form([]),
     scope: str = Form("this"),
     repeat_until_mode: str = Form("never"),
@@ -699,6 +702,7 @@ def calendar_update_event(
         event.all_day = all_day
         event.timezone = timezone
         event.end_timezone = end_timezone
+        event.conflict = conflict
         event.attendees = attendees
         if event.series_id:
             event.series_id = None
@@ -799,6 +803,11 @@ def api_update_event(
     event.all_day = payload.all_day
     event.timezone = payload.timezone
     event.end_timezone = payload.end_timezone
+    if "conflict" in payload.model_fields_set:
+        # Older mobile clients built before this field existed never send it, so their
+        # JSON omits "conflict" entirely — falling back to the schema default (False)
+        # here would silently clear a flag someone else set from a newer client.
+        event.conflict = payload.conflict
     event.attendees = attendees
     if event.series_id:
         event.series_id = None

@@ -246,7 +246,11 @@ export default function AgendaView({
                   return (
                     <TouchableOpacity
                       key={item.id}
-                      style={[styles.eventRow, i === day.events.length - 1 && styles.eventRowLast]}
+                      style={[
+                        styles.eventRow,
+                        i === day.events.length - 1 && styles.eventRowLast,
+                        item.conflict && styles.eventRowConflict,
+                      ]}
                       onPress={() => onEditEvent(item)}
                       onLongPress={() => confirmDelete(item)}
                       activeOpacity={0.6}
@@ -298,6 +302,7 @@ function createStyles(colors: Colors) {
       borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     eventRowLast: { borderBottomWidth: 0 },
+    eventRowConflict: { backgroundColor: colors.warningBg },
     eventDot: { width: 7, height: 7, borderRadius: 3.5 },
     eventTime: { fontSize: 12, color: colors.primary, width: 68 },
     eventTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },

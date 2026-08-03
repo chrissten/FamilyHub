@@ -38,6 +38,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-03
+- **[web][mobile]** v1.2.19 — Events can now be flagged as a "conflict" (needs discussion),
+  highlighting them in yellow everywhere they appear.
+  - **[web]** New checkbox in the event form; `.conflict` class added to month/week/day/
+    agenda views (`#fff3cd` background). `CalendarEvent.conflict` column added with a
+    guarded migration for existing deployments.
+  - **[mobile]** Matching Switch in the event form; conflict styling uses the existing
+    `warningBg` theme token across Month, Timeline, Agenda, and Day views.
+  - The JSON `PUT /api/events/{id}` endpoint only overwrites `conflict` when the request
+    body explicitly includes it (via Pydantic's `model_fields_set`), so an older
+    already-installed mobile client that doesn't know about this field can't silently
+    clear a flag someone else set from a newer client.
+
 ### 2026-07-30
 - **[mobile]** v1.2.18 — Fixed the event form's Attendees list being trapped under the
   on-screen keyboard, requiring a keyboard dismiss before a family member could be

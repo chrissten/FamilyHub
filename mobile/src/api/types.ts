@@ -17,6 +17,7 @@ export interface CalendarEvent {
   all_day: boolean;
   /** IANA zone the event is anchored to, e.g. "America/New_York". */
   timezone: string;
+  conflict: boolean;
   owner_id: number;
   owner: User;
   attendees: User[];
