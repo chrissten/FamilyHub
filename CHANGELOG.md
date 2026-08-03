@@ -38,6 +38,23 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-03 (2)
+- **[mobile]** v1.2.20 — Fixed multi-second lag switching between Month/Week/3-Day/Day
+  views. Three causes, all fixed:
+  - `buildMonthGrid`/`buildMultiDayView`/`buildDayAgenda` (`app/(tabs)/index.tsx`) ran
+    inline in the render body on every render, including plain tab switches with no data
+    change; now `useMemo`'d on `[events, anchor]` so a tab switch alone is a cheap
+    re-render instead of re-walking every event with per-event `Intl.DateTimeFormat`
+    timezone conversion.
+  - `GET /api/events` had no date filtering and no eager-loading, so every load pulled
+    the entire (ever-growing) events table plus ~2N+1 queries for each event's
+    owner/attendees. It now accepts optional `start`/`end` params (same overlap
+    semantics as the web app's `build_month_grid`) and uses `joinedload`/`selectinload`;
+    mobile requests a rolling 12-months-back/15-months-forward window and re-fetches a
+    re-centered window when Prev/Next/Today or Agenda's scroll navigation moves outside
+    it.
+  - Added missing indexes on `calendar_events.start_time`/`end_time`.
+
 ### 2026-08-03
 - **[web][mobile]** v1.2.19 — Events can now be flagged as a "conflict" (needs discussion),
   highlighting them in yellow everywhere they appear.

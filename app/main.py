@@ -61,6 +61,8 @@ def on_startup():
         if "conflict" not in event_cols:
             conn.execute(text("ALTER TABLE calendar_events ADD COLUMN conflict BOOLEAN DEFAULT FALSE"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_series_id ON calendar_events (series_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_start_time ON calendar_events (start_time)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_calendar_events_end_time ON calendar_events (end_time)"))
         conn.commit()
     if "timezone" not in event_cols:
         # One-time backfill: existing start_time/end_time were naive wall-clock values

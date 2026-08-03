@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
@@ -26,6 +26,19 @@ const VIEWS: { key: ViewKind; label: string }[] = [
   { key: 'agenda', label: 'Agenda' },
 ];
 
+// How far around the viewed date to fetch at once. Wide enough that normal
+// Prev/Next/Today navigation and Agenda's scroll-driven month loading never fall
+// outside it, but still bounded so the request doesn't grow with the lifetime of the
+// calendar (recurring series only materialize ~24 months out — see app/recurrence.py).
+const RANGE_PAST_MONTHS = 12;
+const RANGE_FUTURE_MONTHS = 15;
+
+function windowFor(center: Date): { start: Date; end: Date } {
+  const start = addDays(new Date(center.getFullYear(), center.getMonth() - RANGE_PAST_MONTHS, 1), -1);
+  const end = addDays(new Date(center.getFullYear(), center.getMonth() + RANGE_FUTURE_MONTHS + 1, 0), 1);
+  return { start, end };
+}
+
 export default function CalendarScreen() {
   const router = useRouter();
   const { colors } = useTheme();
@@ -37,6 +50,12 @@ export default function CalendarScreen() {
   const [members, setMembers] = useState<User[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Read inside load()/effects so a stale closure (e.g. the useFocusEffect callback,
+  // memoized once on mount) still sees the current anchor and fetched range.
+  const anchorRef = useRef(anchor);
+  anchorRef.current = anchor;
+  const loadedRangeRef = useRef<{ start: Date; end: Date } | null>(null);
+
   function setView(next: ViewKind) {
     setViewState(next);
     setLastCalendarView(next);
@@ -46,10 +65,30 @@ export default function CalendarScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
-  async function load() {
+  // Whenever navigation (Prev/Next/Today, jumping into Day view, or Agenda's
+  // scroll-driven onVisibleMonthChange) moves the anchor outside the currently fetched
+  // range, pull in a new range centered on it.
+  useEffect(() => {
+    const loaded = loadedRangeRef.current;
+    if (!loaded) return;
+    if (anchor.getTime() < loaded.start.getTime() || anchor.getTime() > loaded.end.getTime()) {
+      load(anchor);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchor]);
+
+  async function load(center: Date = anchorRef.current) {
     setRefreshing(true);
     try {
-      const [evts, users] = await Promise.all([getEvents(), getUsers()]);
+      const loaded = loadedRangeRef.current;
+      const needsNewRange = !loaded
+        || center.getTime() < loaded.start.getTime() || center.getTime() > loaded.end.getTime();
+      const range = needsNewRange ? windowFor(center) : loaded;
+      const [evts, users] = await Promise.all([
+        getEvents({ start: range.start.toISOString(), end: range.end.toISOString() }),
+        getUsers(),
+      ]);
+      loadedRangeRef.current = range;
       setEvents(evts);
       setMembers(users);
     } catch {
@@ -99,15 +138,34 @@ export default function CalendarScreen() {
   }
 
   const familySize = members.length;
+
+  // Memoized so a plain view-tab switch (no change to events/anchor) is a cheap
+  // re-render instead of re-walking the whole event list and re-doing per-event
+  // timezone conversion (see dateUtils.ts's zonedParts) on every switch.
+  const monthGrid = useMemo(
+    () => buildMonthGrid(events, anchor.getFullYear(), anchor.getMonth()),
+    [events, anchor],
+  );
+  const weekDayDates = useMemo(() => {
+    const weekStart = startOfWeek(anchor);
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  }, [anchor]);
+  const weekDays = useMemo(() => buildMultiDayView(events, weekDayDates), [events, weekDayDates]);
+  const threeDayDates = useMemo(
+    () => Array.from({ length: 3 }, (_, i) => addDays(anchor, i)),
+    [anchor],
+  );
+  const threeDays = useMemo(() => buildMultiDayView(events, threeDayDates), [events, threeDayDates]);
+  const dayAgenda = useMemo(() => buildDayAgenda(events, anchor), [events, anchor]);
+
   let headerLabel = '';
   let body: ReactNode;
 
   if (view === 'month') {
     headerLabel = monthLabel(anchor.getFullYear(), anchor.getMonth());
-    const grid = buildMonthGrid(events, anchor.getFullYear(), anchor.getMonth());
     body = (
       <MonthView
-        grid={grid}
+        grid={monthGrid}
         familySize={familySize}
         refreshing={refreshing}
         onRefresh={load}
@@ -117,32 +175,26 @@ export default function CalendarScreen() {
       />
     );
   } else if (view === 'week') {
-    const weekStart = startOfWeek(anchor);
-    const dayDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-    headerLabel = rangeLabel(dayDates[0], dayDates[6]);
-    const days = buildMultiDayView(events, dayDates);
+    headerLabel = rangeLabel(weekDayDates[0], weekDayDates[6]);
     body = (
       <TimelineView
-        days={days} familySize={familySize} refreshing={refreshing} onRefresh={load}
+        days={weekDays} familySize={familySize} refreshing={refreshing} onRefresh={load}
         onAddEvent={openCreate} onEditEvent={openEdit}
       />
     );
   } else if (view === '3day') {
-    const dayDates = Array.from({ length: 3 }, (_, i) => addDays(anchor, i));
-    headerLabel = rangeLabel(dayDates[0], dayDates[2]);
-    const days = buildMultiDayView(events, dayDates);
+    headerLabel = rangeLabel(threeDayDates[0], threeDayDates[2]);
     body = (
       <TimelineView
-        days={days} familySize={familySize} refreshing={refreshing} onRefresh={load}
+        days={threeDays} familySize={familySize} refreshing={refreshing} onRefresh={load}
         onAddEvent={openCreate} onEditEvent={openEdit}
       />
     );
   } else if (view === 'day') {
     headerLabel = dayLabel(anchor);
-    const agenda = buildDayAgenda(events, anchor);
     body = (
       <DayAgenda
-        events={agenda}
+        events={dayAgenda}
         theDate={anchor}
         familySize={familySize}
         refreshing={refreshing}

@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.config import settings
 from app.database import get_db
@@ -734,8 +734,24 @@ def calendar_delete_event(
 
 
 @router.get("/api/events", response_model=list[EventOut])
-def api_list_events(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(CalendarEvent).order_by(CalendarEvent.start_time).all()
+def api_list_events(
+    start: datetime | None = Query(None),
+    end: datetime | None = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Lists events, optionally bounded to [start, end] (same overlap semantics as
+    build_month_grid: events whose span touches the range at all are included). Mobile
+    passes a range so it doesn't have to pull the entire, ever-growing events table on
+    every load; omitting both params preserves the old unbounded behavior."""
+    query = db.query(CalendarEvent).options(
+        joinedload(CalendarEvent.owner), selectinload(CalendarEvent.attendees)
+    )
+    if start is not None:
+        query = query.filter(CalendarEvent.end_time >= start)
+    if end is not None:
+        query = query.filter(CalendarEvent.start_time <= end)
+    return query.order_by(CalendarEvent.start_time).all()
 
 
 @router.post("/api/events", response_model=EventOut)

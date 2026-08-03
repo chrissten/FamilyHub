@@ -117,8 +117,12 @@ export async function login(serverUrl: string, username: string, password: strin
 
 // ── Calendar ──────────────────────────────────────────────────────────────────
 
-export const getEvents = () =>
-  request<CalendarEvent[]>('/api/events');
+export const getEvents = (range?: { start: string; end: string }) =>
+  request<CalendarEvent[]>(
+    range
+      ? `/api/events?start=${encodeURIComponent(range.start)}&end=${encodeURIComponent(range.end)}`
+      : '/api/events',
+  );
 
 export type RecurrenceOption = 'none' | 'weekly' | 'monthly';
 export type EventScope = 'this' | 'series';
