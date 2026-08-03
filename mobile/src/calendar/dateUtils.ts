@@ -52,12 +52,38 @@ export function effectiveTimeZone(): string {
   return getCachedDisplayTimezone() || deviceTimeZone();
 }
 
+// Intl.DateTimeFormat construction is expensive (notably so on Hermes/Android) but the
+// formatter itself is stateless and safe to reuse across calls, so every distinct
+// timeZone (and shape, for the tz-abbreviation variant below) gets built once and
+// cached, rather than once per event per call.
+const partsFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function partsFormatter(timeZone: string): Intl.DateTimeFormat {
+  let fmt = partsFormatterCache.get(timeZone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    partsFormatterCache.set(timeZone, fmt);
+  }
+  return fmt;
+}
+
+const tzNameFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function tzNameFormatter(timeZone: string): Intl.DateTimeFormat {
+  let fmt = tzNameFormatterCache.get(timeZone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'short' });
+    tzNameFormatterCache.set(timeZone, fmt);
+  }
+  return fmt;
+}
+
 function zonedParts(instant: Date, timeZone: string) {
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone, hourCycle: 'h23',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  const fmt = partsFormatter(timeZone);
   const parts: Record<string, string> = {};
   for (const part of fmt.formatToParts(instant)) parts[part.type] = part.value;
   const hour = parts.hour === '24' ? 0 : Number(parts.hour);
@@ -131,7 +157,7 @@ export function eventTzLabel(event: CalendarEvent): string | null {
   if (event.all_day) return null;
   const displayTz = effectiveTimeZone();
   if ((event.timezone || displayTz) === displayTz) return null;
-  const fmt = new Intl.DateTimeFormat('en-US', { timeZone: displayTz, timeZoneName: 'short' });
+  const fmt = tzNameFormatter(displayTz);
   const part = fmt.formatToParts(new Date(event.start_time)).find(p => p.type === 'timeZoneName');
   return part?.value ?? displayTz;
 }
@@ -335,10 +361,20 @@ function overlapsDay(event: CalendarEvent, day: Date): boolean {
   return start <= dayEnd && end >= dayStart;
 }
 
-/** Port of build_multi_day_view — used for both the week (7 days) and 3-day views. */
+/** Port of build_multi_day_view — used for both the week (7 days) and 3-day views.
+ *  Computes each event's start/end once (eventStart/eventEnd do a timezone conversion
+ *  per call) rather than re-deriving it for every day in the range — otherwise this is
+ *  O(events × days) conversions instead of O(events). */
 export function buildMultiDayView(events: CalendarEvent[], dayDates: Date[]): DayColumn[] {
+  const withRange = events.map(event => ({
+    event, start: eventStart(event).getTime(), end: eventEnd(event).getTime(),
+  }));
   return dayDates.map(day => {
-    const dayEvents = events.filter(e => overlapsDay(e, day));
+    const dayStart = dateOnly(day).getTime();
+    const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
+    const dayEvents = withRange
+      .filter(r => r.start <= dayEnd && r.end >= dayStart)
+      .map(r => r.event);
     return {
       date: day,
       isToday: isToday(day),

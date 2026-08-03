@@ -38,6 +38,20 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-03 (3)
+- **[mobile]** v1.2.21 — v1.2.20's fix wasn't enough; Week/3-Day switching was still
+  taking 20+ seconds against the real production dataset (644 events). Root causes in
+  `dateUtils.ts`, both now fixed:
+  - `zonedParts` constructed a brand-new `Intl.DateTimeFormat` on *every* call — expensive
+    on Hermes/Android, never reused. Formatters are now built once per timezone (and
+    cached separately for the tz-abbreviation variant used by `eventTzLabel`) and reused
+    across all calls. Benchmarked ~11x faster for the same call volume.
+  - `buildMultiDayView` (backs both Week and 3-Day) called `overlapsDay` — which itself
+    calls `eventStart`/`eventEnd` — once per (event, day) pair, so Week view alone did
+    ~644×7 ≈ 4,500 conversions instead of ~644. It now derives each event's start/end
+    once up front and reuses it across all days in the range, matching the pattern
+    `buildMonthGrid`/`buildAgendaView` already used.
+
 ### 2026-08-03 (2)
 - **[mobile]** v1.2.20 — Fixed multi-second lag switching between Month/Week/3-Day/Day
   views. Three causes, all fixed:
