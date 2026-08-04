@@ -2,9 +2,7 @@ import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../src/theme';
-import { getLaunchNotificationEventId, subscribeToNotificationTaps } from '../src/notifications';
-import { getEvents, getUsers } from '../src/api/client';
-import { setPendingEventForm } from '../src/calendar/formState';
+import { getLaunchOpensNotificationCenter, subscribeToNotificationTaps } from '../src/notifications';
 import { loadDisplayTimezone, loadTimeFormat } from '../src/preferences';
 
 // Import so TaskManager.defineTask() is called before any background event fires
@@ -23,20 +21,8 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    async function openEvent(eventId: number) {
-      try {
-        const [events, members] = await Promise.all([getEvents(), getUsers()]);
-        const event = events.find(e => e.id === eventId);
-        if (!event) return;
-        setPendingEventForm({ event, defaultDate: '', members });
-        router.push('/event-form');
-      } catch {
-        // not logged in yet, or the event was since deleted — nothing to open
-      }
-    }
-
-    getLaunchNotificationEventId().then(id => { if (id != null) openEvent(id); });
-    const sub = subscribeToNotificationTaps(openEvent);
+    getLaunchOpensNotificationCenter().then(shouldOpen => { if (shouldOpen) router.push('/notifications'); });
+    const sub = subscribeToNotificationTaps(() => router.push('/notifications'));
     return () => sub.remove();
   }, []);
 

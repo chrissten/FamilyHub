@@ -38,6 +38,20 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-03 (4)
+- **[mobile]** v1.2.22 — Added an in-app notification center so users can tell which
+  event a "new event" notification is actually about, especially when several fire at
+  once (previously a grouped notification just said "N new events added" with no way to
+  see which). New bell icon in the header (all tabs) with an unread-count badge;
+  tapping it, or tapping any new-event OS notification, opens `/notifications` — a list
+  of recently-added events (up to 50, persisted in AsyncStorage) each showing date,
+  time, description, location, attendees, and conflict flag, straight from a snapshot
+  taken at notification time (no refetch needed to render the list). Tapping a row
+  marks it read and opens that event in the edit form. Single- and multi-event OS
+  notifications now both route to this same list instead of the single-event case
+  jumping straight to the edit form as before. Grocery-item notifications are unchanged
+  (no unread tracking, no bell involvement) — scoped to events only.
+
 ### 2026-08-03 (3)
 - **[mobile]** v1.2.21 — v1.2.20's fix wasn't enough; Week/3-Day switching was still
   taking 20+ seconds against the real production dataset (644 events). Root causes in

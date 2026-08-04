@@ -3,6 +3,7 @@ import { Tabs, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme';
 import { setLastTab, type TabName } from '../../src/preferences';
+import NotificationBell from '../../src/NotificationBell';
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
@@ -34,6 +35,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: colors.primary },
         headerTintColor: '#fff',
         headerTitleStyle: { fontWeight: '700' },
+        headerRight: () => <NotificationBell />,
       }}
     >
       <Tabs.Screen

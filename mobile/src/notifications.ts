@@ -7,8 +7,10 @@ import {
 } from './api/client';
 import { dayLabel, eventTimeLabel, eventStart } from './calendar/dateUtils';
 import { loadTimeFormat } from './preferences';
+import { addNotificationRecords } from './notificationCenter';
 
 const TASK_NAME = 'familyhub-poll';
+const NOTIF_KIND_EVENTS = 'newEvents' as const;
 
 const KEYS = {
   LAST_EVENT_ID: 'poll_last_event_id',
@@ -65,6 +67,10 @@ async function checkNewEvents(): Promise<void> {
   await AsyncStorage.setItem(KEYS.LAST_EVENT_ID, String(latestId));
 
   const newEvents = events.filter(e => e.id > lastSeen && e.owner_id !== myId);
+  if (newEvents.length === 0) return;
+
+  await addNotificationRecords(newEvents);
+
   if (newEvents.length === 1) {
     const event = newEvents[0];
     const start = eventStart(event);
@@ -73,13 +79,17 @@ async function checkNewEvents(): Promise<void> {
       content: {
         title: `New event: ${event.title}`,
         body: `${dayLabel(start)} · ${eventTimeLabel(event, start, format)}`,
-        data: { eventId: event.id },
+        data: { kind: NOTIF_KIND_EVENTS },
       },
       trigger: null,
     });
-  } else if (newEvents.length > 1) {
+  } else {
     await Notifications.scheduleNotificationAsync({
-      content: { title: `${newEvents.length} new events added`, body: 'Tap to view in FamilyHub' },
+      content: {
+        title: `${newEvents.length} new events added`,
+        body: 'Tap to view in FamilyHub',
+        data: { kind: NOTIF_KIND_EVENTS },
+      },
       trigger: null,
     });
   }
@@ -125,22 +135,20 @@ async function checkNewGroceryItems(): Promise<void> {
   }
 }
 
-function eventIdFromResponse(response: Notifications.NotificationResponse | null): number | null {
-  const eventId = response?.notification.request.content.data?.eventId;
-  return typeof eventId === 'number' ? eventId : null;
+function isEventsNotification(response: Notifications.NotificationResponse | null): boolean {
+  return response?.notification.request.content.data?.kind === NOTIF_KIND_EVENTS;
 }
 
-/** Cold-start case: the app was launched by tapping a notification. */
-export async function getLaunchNotificationEventId(): Promise<number | null> {
+/** Cold-start case: true if the app was launched by tapping a new-events notification. */
+export async function getLaunchOpensNotificationCenter(): Promise<boolean> {
   const response = await Notifications.getLastNotificationResponseAsync();
-  return eventIdFromResponse(response);
+  return isEventsNotification(response);
 }
 
-/** Warm case: the app was already running (foreground or background) when a notification was tapped. */
-export function subscribeToNotificationTaps(onEventTap: (eventId: number) => void) {
+/** Warm case: fires when a new-events notification is tapped while the app is running. */
+export function subscribeToNotificationTaps(onTap: () => void) {
   return Notifications.addNotificationResponseReceivedListener(response => {
-    const eventId = eventIdFromResponse(response);
-    if (eventId != null) onEventTap(eventId);
+    if (isEventsNotification(response)) onTap();
   });
 }
 
