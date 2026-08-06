@@ -361,7 +361,7 @@ def api_list_items(list_id: int, db: Session = Depends(get_db), current_user: Us
         db.query(GroceryItem)
         .join(GroceryCategory)
         .filter(GroceryCategory.list_id == list_id)
-        .order_by(GroceryItem.created_at)
+        .order_by(GroceryItem.sort_order)
         .all()
     )
 
@@ -398,6 +398,7 @@ async def api_create_item(
     )
     db.add(item)
     db.commit()
+    _sort_items_alphabetically(db, payload.category_id)
     db.refresh(item)
 
     html = render_item(item, oob_mode="insert") + render_item_datalist(db, list_id)
