@@ -14,6 +14,10 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
+- **Grocery item drag-to-reorder is web-only (2026-08-06).** Web has a `/reorder` endpoint
+  driven by JS drag-and-drop in `grocery_list.html`; mobile's `grocery.tsx` has no
+  equivalent gesture or API call, so items can only be reordered by renaming (which
+  re-triggers the alphabetical sort). Deliberately deferred, not an oversight.
 - **Agenda view is mobile-only for seamless forward month navigation, a default-to-today
   starting position, and the condensed one-card-per-day layout (2026-07-23, v1.2.12; load
   direction changed 2026-07-28, v1.2.17 below).** Mobile's Agenda tab opens scrolled to
@@ -37,6 +41,16 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-08-06
+- **[web]** — Fixed grocery item ordering: the JSON API (used by mobile) listed items by
+  `created_at` instead of `sort_order`, so mobile's item order never matched the web app's
+  (which is alphabetized after each add, or manually drag-reordered). Items added via the
+  API also skipped the alphabetical re-sort the web add-item form applies. Both endpoints
+  now match web behavior; no mobile source changes were needed. Mobile still has no
+  drag-to-reorder UI of its own — logged as a known gap below.
+- **[mobile]** v1.2.23 — version bump only, to ship the backend ordering fix above with a
+  traceable build.
 
 ### 2026-08-03 (4)
 - **[mobile]** v1.2.22 — Added an in-app notification center so users can tell which
