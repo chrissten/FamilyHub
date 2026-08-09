@@ -262,6 +262,7 @@ async def grocery_update_item(
     item.name = name
     item.quantity = quantity or None
     db.commit()
+    _sort_items_alphabetically(db, item.category_id)
     db.refresh(item)
 
     html = render_item(item, oob_mode="replace") + render_item_datalist(db, list_id)
@@ -418,6 +419,7 @@ async def api_update_item(
     item.name = payload.name
     item.quantity = payload.quantity
     db.commit()
+    _sort_items_alphabetically(db, item.category_id)
     db.refresh(item)
 
     html = render_item(item, oob_mode="replace") + render_item_datalist(db, list_id)
