@@ -42,6 +42,17 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-09
+- **[web]** — Fixed grocery items keeping a stale `sort_order` after being renamed/edited
+  (web Edit form or `PATCH /api/grocery/items/{id}`): the rename saved but never re-ran the
+  alphabetical sort, so a renamed item stayed pinned at whatever position it had before the
+  edit — most visibly an early-created item stuck near the top of the list forever
+  regardless of its current name (reported as "Peppercorns" floating above items that
+  alphabetically precede it). Both rename endpoints now re-sort their category afterward.
+  Also backfilled production data — 59 items across 6 categories had stale sort_order
+  values from this bug and were re-sorted in place.
+- **[mobile]** v1.2.24 — version bump only, to ship the fix above with a traceable build.
+
 ### 2026-08-06
 - **[web]** — Fixed grocery item ordering: the JSON API (used by mobile) listed items by
   `created_at` instead of `sort_order`, so mobile's item order never matched the web app's
