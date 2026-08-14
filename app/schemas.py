@@ -89,6 +89,20 @@ class WidgetEventsOut(BaseModel):
     days: list[WidgetDayOut]
 
 
+class WidgetGridDayOut(BaseModel):
+    date: date
+    weekday: str
+    in_month: bool
+    is_today: bool
+    events: list[WidgetEventOut]
+
+
+class WidgetGridOut(BaseModel):
+    timezone: str
+    view: Literal["week", "month"]
+    weeks: list[list[WidgetGridDayOut]]
+
+
 class GroceryListCreate(BaseModel):
     name: str
     is_public: bool = True
