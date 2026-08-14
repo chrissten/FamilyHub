@@ -115,15 +115,15 @@ def widget_grid(
     db: Session = Depends(get_db),
     device: DeviceToken = Depends(get_device),
 ):
-    """Tabular feed for the grid-style e-ink widget: a week (Sunday-Saturday, matching
-    the web app's week-starts-on-Sunday convention) or the whole current calendar month
-    as weeks-of-days, each day carrying its own event list."""
+    """Tabular feed for the grid-style e-ink widget: a rolling 7-day window starting
+    today (unlike the web app's Sunday-start week, a glanceable e-ink frame should lead
+    with "what's happening now", not scroll back to a day that's already passed) or the
+    whole current calendar month as weeks-of-days, each day carrying its own event list."""
     viewer_tz = settings.default_timezone
     today = to_local(datetime.now(dt_timezone.utc), viewer_tz).date()
 
     if view == "week":
-        week_start = today - timedelta(days=(today.weekday() + 1) % 7)
-        week_dates = [[week_start + timedelta(days=i) for i in range(7)]]
+        week_dates = [[today + timedelta(days=i) for i in range(7)]]
     else:
         week_dates = cal.Calendar(firstweekday=6).monthdatescalendar(today.year, today.month)
 

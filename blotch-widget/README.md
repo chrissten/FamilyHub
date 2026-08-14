@@ -9,8 +9,8 @@ different widgets.
 
 - **`FamilyCalendarList.tsx`** — a simple agenda list, next 3 days or next
   week (`RANGE` input).
-- **`FamilyCalendarGrid.tsx`** — a tabular calendar, either the current
-  Sunday-Saturday week as 7 columns, or the whole current month as a
+- **`FamilyCalendarGrid.tsx`** — a tabular calendar, either a rolling 7-day
+  window starting today as 7 columns, or the whole current month as a
   traditional calendar grid (`VIEW` input).
 
 ## 1. Create a device token
@@ -46,6 +46,7 @@ what the Designer's starter template expects.
 |---|---|---|---|
 | `API_BASE_URL` | Public | String | `https://your-server.example.com` |
 | `VIEW` | Public | Select | Choices: `Week`, `Month` |
+| `TEXT_SIZE` | Public | Select | Choices: `Normal`, `Large`, `Extra Large` |
 | `API_TOKEN` | Private* | String | the token from step 1 |
 
 \* Start with `API_TOKEN` as **Private** (encrypted, set once by you) — that's

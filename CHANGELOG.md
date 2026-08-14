@@ -43,6 +43,15 @@ by accident (as happened with multi-day events on 2026-07-09).
 ## History (newest first)
 
 ### 2026-08-14
+- **[web]** — Reworked the Blotch grid widget (`blotch-widget/FamilyCalendarGrid.tsx`) for
+  readability on a 13in e-ink frame viewed from ~5ft: added a `TEXT_SIZE` input, gave week
+  view full per-event detail (time/title/location/attendees, attendees as monochrome
+  initials chips since e-ink has no reliable color), and trimmed month view to time+title
+  with attendee presence shown as dots. Also changed `GET /api/widget/grid?view=week`
+  (`app/routers/widget.py`) from a fixed Sunday-Saturday week to a rolling 7-day window
+  starting today, so the frame always leads with what's coming up instead of days already
+  past. No mobile changes — not a mobile-visible feature.
+
 - **[web]** — Added device-token auth (`app/models.py` `DeviceToken`, `app/deps.py`
   `get_device`) and a lean, day-grouped `GET /api/widget/events?days=N` endpoint, plus an
   admin-only `/devices` page to create/revoke tokens — the first non-interactive/machine
