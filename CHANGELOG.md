@@ -50,7 +50,11 @@ by accident (as happened with multi-day events on 2026-07-09).
   with attendee presence shown as dots. Also changed `GET /api/widget/grid?view=week`
   (`app/routers/widget.py`) from a fixed Sunday-Saturday week to a rolling 7-day window
   starting today, so the frame always leads with what's coming up instead of days already
-  past. No mobile changes — not a mobile-visible feature.
+  past. Dropped the per-day event cap entirely (was 3, then tuned up, then removed — a
+  fixed number always left dead space in some columns or clipped others). Added
+  `WidgetEventOut.all_attendees` (`app/schemas.py`, `app/routers/widget.py`) so both grid
+  layouts skip the attendee chips/dots when an event includes the whole household, instead
+  of spelling out every member. No mobile changes — not a mobile-visible feature.
 
 - **[web]** — Added device-token auth (`app/models.py` `DeviceToken`, `app/deps.py`
   `get_device`) and a lean, day-grouped `GET /api/widget/events?days=N` endpoint, plus an
