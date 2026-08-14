@@ -35,7 +35,9 @@ export const Widget = () => {
 
   const days = RANGE === "Next Week" ? 7 : 3;
   const size = SIZES[TEXT_SIZE as keyof typeof SIZES] ?? SIZES.Normal;
-  const url = `${API_BASE_URL}/api/widget/events?days=${days}`;
+  // Strips a trailing slash so a base URL like ".../railway.app/" doesn't turn into
+  // a double-slash path that 404s.
+  const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/events?days=${days}`;
 
   // NOTE: assumes useFetch's second argument accepts fetch-style { headers }.
   // Check the Designer's autocomplete for useFetch's real signature if this errors.

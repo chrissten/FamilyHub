@@ -33,7 +33,9 @@ export const Widget = () => {
 
   const view = VIEW === "Month" ? "month" : "week";
   const maxPerCell = view === "month" ? 3 : 6;
-  const url = `${API_BASE_URL}/api/widget/grid?view=${view}`;
+  // Strips a trailing slash so a base URL like ".../railway.app/" doesn't turn into
+  // a double-slash path that 404s.
+  const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/grid?view=${view}`;
 
   const { data } = useFetch<GridResponse>(url, {
     headers: { Authorization: `Bearer ${API_TOKEN}` },
