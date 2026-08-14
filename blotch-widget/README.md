@@ -37,6 +37,7 @@ what the Designer's starter template expects.
 |---|---|---|---|
 | `API_BASE_URL` | Public | String | `https://your-server.example.com` |
 | `RANGE` | Public | Select | Choices: `Next 3 Days`, `Next Week` |
+| `TEXT_SIZE` | Public | Select | Choices: `Normal`, `Large`, `Extra Large` |
 | `API_TOKEN` | Private* | String | the token from step 1 |
 
 **FamilyCalendarGrid:**

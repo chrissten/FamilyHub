@@ -19,12 +19,22 @@ type EventsResponse = {
   readonly days: readonly WidgetDay[];
 };
 
+// TEXT_SIZE input -> Tailwind classes. Larger sizes stack the time under the title
+// instead of side-by-side, since a big font next to a right-aligned time would
+// squeeze the title down to nothing on a narrow frame.
+const SIZES = {
+  Normal: { day: "text-2xl", event: "text-lg", stack: false },
+  Large: { day: "text-3xl", event: "text-xl", stack: true },
+  "Extra Large": { day: "text-4xl", event: "text-2xl", stack: true },
+} as const;
+
 export const Widget = () => {
-  // RANGE, API_BASE_URL: Public Inputs. API_TOKEN: Private Input — a FamilyHub
-  // device token created at /devices. See blotch-widget/README.md for exact setup.
-  const { RANGE, API_BASE_URL, API_TOKEN } = useInputs();
+  // RANGE, TEXT_SIZE, API_BASE_URL: Public Inputs. API_TOKEN: Private Input — a
+  // FamilyHub device token created at /devices. See blotch-widget/README.md.
+  const { RANGE, TEXT_SIZE, API_BASE_URL, API_TOKEN } = useInputs();
 
   const days = RANGE === "Next Week" ? 7 : 3;
+  const size = SIZES[TEXT_SIZE as keyof typeof SIZES] ?? SIZES.Normal;
   const url = `${API_BASE_URL}/api/widget/events?days=${days}`;
 
   // NOTE: assumes useFetch's second argument accepts fetch-style { headers }.
@@ -34,24 +44,30 @@ export const Widget = () => {
   });
 
   return (
-    <div className="size-full flex flex-col bg-white text-black p-4 gap-2">
-      <div className="flex-1 flex flex-col gap-2 overflow-hidden">
+    <div className="size-full flex flex-col bg-white text-black p-4 gap-3">
+      <div className="flex-1 flex flex-col gap-3 overflow-hidden">
         {data.days.map((day) => (
           <div key={day.date} className="flex flex-col border-t border-black/30 pt-1">
-            <span className="text-lg font-semibold">{day.label}</span>
+            <span className={`${size.day} font-semibold`}>{day.label}</span>
             {day.events.length === 0 ? (
-              <span className="text-sm text-black/50 pl-2">No events</span>
+              <span className={`${size.event} text-black/50 pl-2`}>No events</span>
             ) : (
-              day.events.map((event, i) => (
-                <div key={i} className="pl-2 flex justify-between gap-2 text-sm">
-                  <span className="font-medium truncate">
-                    {event.title}
-                    {event.attendees.length > 0 ? ` (${event.attendees.join(", ")})` : ""}
-                    {event.location ? ` — ${event.location}` : ""}
-                  </span>
-                  <span className="text-black/60 whitespace-nowrap">{event.time_label}</span>
-                </div>
-              ))
+              day.events.map((event, i) => {
+                const label = `${event.title}${
+                  event.attendees.length > 0 ? ` (${event.attendees.join(", ")})` : ""
+                }${event.location ? ` — ${event.location}` : ""}`;
+                return size.stack ? (
+                  <div key={i} className={`pl-2 flex flex-col ${size.event}`}>
+                    <span className="font-medium">{label}</span>
+                    <span className="text-black/60">{event.time_label}</span>
+                  </div>
+                ) : (
+                  <div key={i} className={`pl-2 flex justify-between gap-2 ${size.event}`}>
+                    <span className="font-medium truncate">{label}</span>
+                    <span className="text-black/60 whitespace-nowrap">{event.time_label}</span>
+                  </div>
+                );
+              })
             )}
           </div>
         ))}
