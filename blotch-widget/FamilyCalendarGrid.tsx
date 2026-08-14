@@ -39,6 +39,14 @@ export const Widget = () => {
     headers: { Authorization: `Bearer ${API_TOKEN}` },
   });
 
+  if (!data) {
+    return (
+      <div className="size-full flex items-center justify-center bg-white">
+        <span className="text-lg text-black/50">Loading…</span>
+      </div>
+    );
+  }
+
   return (
     <div className="size-full flex flex-col bg-white text-black p-2 gap-1">
       <div className="grid grid-cols-7 gap-1">

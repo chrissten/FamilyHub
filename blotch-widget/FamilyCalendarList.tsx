@@ -43,6 +43,14 @@ export const Widget = () => {
     headers: { Authorization: `Bearer ${API_TOKEN}` },
   });
 
+  if (!data) {
+    return (
+      <div className="size-full flex items-center justify-center bg-white">
+        <span className={`${size.event} text-black/50`}>Loading…</span>
+      </div>
+    );
+  }
+
   return (
     <div className="size-full flex flex-col bg-white text-black p-4 gap-3">
       <div className="flex-1 flex flex-col gap-3 overflow-hidden">
