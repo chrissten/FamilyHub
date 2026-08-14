@@ -39,10 +39,16 @@ export const Widget = () => {
     headers: { Authorization: `Bearer ${API_TOKEN}` },
   });
 
-  if (!data) {
+  // useFetch doesn't suspend, so `data` is undefined while loading. If the request
+  // fails (bad/missing token, wrong API_BASE_URL, etc.) the backend's JSON error body
+  // shows up here instead — truthy, but with no `weeks` — so check the shape, not
+  // just truthiness, and surface whatever the backend said instead of crashing.
+  if (!data || !Array.isArray((data as GridResponse | { detail?: string }).weeks)) {
     return (
-      <div className="size-full flex items-center justify-center bg-white">
-        <span className="text-lg text-black/50">Loading…</span>
+      <div className="size-full flex items-center justify-center bg-white p-4">
+        <span className="text-lg text-black/50 text-center">
+          {data ? `Couldn't load the calendar: ${(data as { detail?: string }).detail ?? "unexpected response"}` : "Loading…"}
+        </span>
       </div>
     );
   }
