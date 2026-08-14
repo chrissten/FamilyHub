@@ -54,7 +54,9 @@ by accident (as happened with multi-day events on 2026-07-09).
   fixed number always left dead space in some columns or clipped others). Added
   `WidgetEventOut.all_attendees` (`app/schemas.py`, `app/routers/widget.py`) so both grid
   layouts skip the attendee chips/dots when an event includes the whole household, instead
-  of spelling out every member. No mobile changes — not a mobile-visible feature.
+  of spelling out every member. Made the rolling week's length configurable — a new `DAYS`
+  input (default 7, 1-14) drives a `days` query param on `GET /api/widget/grid`, with grid
+  columns sized dynamically to match. No mobile changes — not a mobile-visible feature.
 
 - **[web]** — Added device-token auth (`app/models.py` `DeviceToken`, `app/deps.py`
   `get_device`) and a lean, day-grouped `GET /api/widget/events?days=N` endpoint, plus an
