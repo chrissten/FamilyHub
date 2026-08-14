@@ -2,7 +2,7 @@ from datetime import date as date_cls, datetime, time, timedelta
 from datetime import timezone as dt_timezone
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
 from app.database import get_db
@@ -52,6 +52,7 @@ def widget_events(
 
     events = (
         db.query(CalendarEvent)
+        .options(selectinload(CalendarEvent.attendees))
         .filter(CalendarEvent.start_time <= range_end, CalendarEvent.end_time >= range_start)
         .order_by(CalendarEvent.start_time)
         .all()
@@ -84,7 +85,12 @@ def widget_events(
                 date=day,
                 label=label,
                 events=[
-                    WidgetEventOut(title=e.title, location=e.location, time_label=_time_label(e, day, viewer_tz))
+                    WidgetEventOut(
+                        title=e.title,
+                        location=e.location,
+                        time_label=_time_label(e, day, viewer_tz),
+                        attendees=[a.display_name for a in e.attendees],
+                    )
                     for e in events_by_day.get(day, [])
                 ],
             )

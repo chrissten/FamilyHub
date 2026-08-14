@@ -75,6 +75,7 @@ class WidgetEventOut(BaseModel):
     title: str
     location: str | None
     time_label: str
+    attendees: list[str]
 
 
 class WidgetDayOut(BaseModel):

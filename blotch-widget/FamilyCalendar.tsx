@@ -5,6 +5,7 @@ type WidgetEvent = {
   readonly title: string;
   readonly location: string | null;
   readonly time_label: string;
+  readonly attendees: readonly string[];
 };
 
 type WidgetDay = {
@@ -34,9 +35,6 @@ export const Widget = () => {
 
   return (
     <div className="size-full flex flex-col bg-white text-black p-4 gap-2">
-      <span className="text-2xl font-bold border-b-2 border-black pb-2 mb-1">
-        {days === 7 ? "This Week" : "Next 3 Days"}
-      </span>
       <div className="flex-1 flex flex-col gap-2 overflow-hidden">
         {data.days.map((day) => (
           <div key={day.date} className="flex flex-col border-t border-black/30 pt-1">
@@ -48,6 +46,7 @@ export const Widget = () => {
                 <div key={i} className="pl-2 flex justify-between gap-2 text-sm">
                   <span className="font-medium truncate">
                     {event.title}
+                    {event.attendees.length > 0 ? ` (${event.attendees.join(", ")})` : ""}
                     {event.location ? ` — ${event.location}` : ""}
                   </span>
                   <span className="text-black/60 whitespace-nowrap">{event.time_label}</span>
