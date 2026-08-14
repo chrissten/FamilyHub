@@ -60,7 +60,10 @@ export const Widget = () => {
   const view = VIEW === "Month" ? "month" : "week";
   const weekSize = WEEK_SIZES[TEXT_SIZE as keyof typeof WEEK_SIZES] ?? WEEK_SIZES.Normal;
   const monthSize = MONTH_SIZES[TEXT_SIZE as keyof typeof MONTH_SIZES] ?? MONTH_SIZES.Normal;
-  const maxPerCell = 3;
+  // Week cards are multi-line (time/title/location/attendees) so fewer fit than month's
+  // single-line entries. Tuned against visible leftover space in the live frame, not a
+  // measured layout — nudge further if a column still has dead space or starts clipping.
+  const maxPerCell = view === "week" ? 5 : 6;
   // Strips a trailing slash so a base URL like ".../railway.app/" doesn't turn into
   // a double-slash path that 404s.
   const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/grid?view=${view}`;
