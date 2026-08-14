@@ -46,6 +46,7 @@ what the Designer's starter template expects.
 |---|---|---|---|
 | `API_BASE_URL` | Public | String | `https://your-server.example.com` |
 | `VIEW` | Public | Select | Choices: `Week`, `Month` |
+| `DAYS` | Public | Number | `7` — how many days the rolling Week view spans starting today, 1-14. Ignored for Month view. |
 | `TEXT_SIZE` | Public | Select | Choices: `Normal`, `Large`, `Extra Large` |
 | `API_TOKEN` | Private* | String | the token from step 1 |
 

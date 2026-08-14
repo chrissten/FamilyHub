@@ -117,18 +117,21 @@ def widget_events(
 @router.get("/api/widget/grid", response_model=WidgetGridOut)
 def widget_grid(
     view: Literal["week", "month"] = Query("week"),
+    days: int = Query(7, ge=1, le=14),
     db: Session = Depends(get_db),
     device: DeviceToken = Depends(get_device),
 ):
-    """Tabular feed for the grid-style e-ink widget: a rolling 7-day window starting
-    today (unlike the web app's Sunday-start week, a glanceable e-ink frame should lead
-    with "what's happening now", not scroll back to a day that's already passed) or the
-    whole current calendar month as weeks-of-days, each day carrying its own event list."""
+    """Tabular feed for the grid-style e-ink widget: a rolling window of `days` days
+    starting today (unlike the web app's Sunday-start week, a glanceable e-ink frame
+    should lead with "what's happening now", not scroll back to a day that's already
+    passed; `days` is ignored for `view=month`, which is always a full calendar month)
+    or the whole current calendar month as weeks-of-days, each day carrying its own
+    event list."""
     viewer_tz = settings.default_timezone
     today = to_local(datetime.now(dt_timezone.utc), viewer_tz).date()
 
     if view == "week":
-        week_dates = [[today + timedelta(days=i) for i in range(7)]]
+        week_dates = [[today + timedelta(days=i) for i in range(days)]]
     else:
         week_dates = cal.Calendar(firstweekday=6).monthdatescalendar(today.year, today.month)
 

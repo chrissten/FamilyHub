@@ -53,17 +53,22 @@ const MONTH_SIZES = {
 } as const;
 
 export const Widget = () => {
-  // VIEW: Public Select input — "Week" or "Month". TEXT_SIZE: Public Select input —
-  // "Normal", "Large", or "Extra Large". API_BASE_URL: Public String. API_TOKEN:
-  // Private String — a FamilyHub device token created at /devices.
-  const { VIEW, TEXT_SIZE, API_BASE_URL, API_TOKEN } = useInputs();
+  // VIEW: Public Select input — "Week" or "Month". DAYS: Public Number input — how many
+  // days the rolling week view spans starting today (ignored for Month view, which is
+  // always a full calendar month). TEXT_SIZE: Public Select input — "Normal", "Large", or
+  // "Extra Large". API_BASE_URL: Public String. API_TOKEN: Private String — a FamilyHub
+  // device token created at /devices.
+  const { VIEW, DAYS, TEXT_SIZE, API_BASE_URL, API_TOKEN } = useInputs();
 
   const view = VIEW === "Month" ? "month" : "week";
+  // Clamped to match the backend's own ge=1, le=14 bound on the `days` query param.
+  const days = Math.min(14, Math.max(1, Number(DAYS) || 7));
+  const cols = view === "week" ? days : 7;
   const weekSize = WEEK_SIZES[TEXT_SIZE as keyof typeof WEEK_SIZES] ?? WEEK_SIZES.Normal;
   const monthSize = MONTH_SIZES[TEXT_SIZE as keyof typeof MONTH_SIZES] ?? MONTH_SIZES.Normal;
   // Strips a trailing slash so a base URL like ".../railway.app/" doesn't turn into
   // a double-slash path that 404s.
-  const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/grid?view=${view}`;
+  const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/grid?view=${view}&days=${days}`;
 
   const { data } = useFetch<GridResponse>(url, {
     headers: { Authorization: `Bearer ${API_TOKEN}` },
@@ -85,7 +90,10 @@ export const Widget = () => {
 
   return (
     <div className="size-full flex flex-col bg-white text-black p-2 gap-1">
-      <div className="grid grid-cols-7 gap-1 border-b-2 border-black pb-1 mb-1">
+      <div
+        className="grid gap-1 border-b-2 border-black pb-1 mb-1"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
         {data.weeks[0].map((day) => (
           <div key={day.weekday} className={`${weekSize.header} font-semibold text-center text-black/70`}>
             {view === "week" && day.is_today ? "Today" : day.weekday}
@@ -94,7 +102,11 @@ export const Widget = () => {
       </div>
       <div className="flex-1 flex flex-col gap-1">
         {data.weeks.map((week, wi) => (
-          <div key={wi} className="flex-1 grid grid-cols-7 gap-1">
+          <div
+            key={wi}
+            className="flex-1 grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          >
             {week.map((day) => {
               return (
                 <div
