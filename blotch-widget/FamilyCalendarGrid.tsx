@@ -6,6 +6,7 @@ type WidgetEvent = {
   readonly location: string | null;
   readonly time_label: string;
   readonly attendees: readonly string[];
+  readonly all_attendees: boolean;
 };
 
 type WidgetGridDay = {
@@ -125,7 +126,7 @@ export const Widget = () => {
                           {event.location && (
                             <span className={`${weekSize.meta} text-black/60 truncate`}>{event.location}</span>
                           )}
-                          {event.attendees.length > 0 && (
+                          {event.attendees.length > 0 && !event.all_attendees && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {event.attendees.map((name) => (
                                 <span
@@ -150,7 +151,7 @@ export const Widget = () => {
                             )}
                             <span className="font-medium">{event.title}</span>
                           </div>
-                          {event.attendees.length > 0 && (
+                          {event.attendees.length > 0 && !event.all_attendees && (
                             <div className="flex items-center gap-0.5 mt-0.5">
                               {event.attendees.slice(0, 4).map((name, ai) => (
                                 <span key={ai} className="size-1.5 rounded-full bg-black/70 shrink-0" />

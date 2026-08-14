@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.config import settings
 from app.database import get_db
 from app.deps import get_device
-from app.models import CalendarEvent, DeviceToken
+from app.models import CalendarEvent, DeviceToken, User
 from app.schemas import WidgetDayOut, WidgetEventOut, WidgetEventsOut, WidgetGridDayOut, WidgetGridOut
 from app.templating import fmt_time
 from app.timezones import to_local, to_utc
@@ -35,12 +35,16 @@ def _time_label(event: CalendarEvent, day: date_cls, viewer_tz: str) -> str:
     return "Continues all day"
 
 
-def _widget_event_out(event: CalendarEvent, day: date_cls, viewer_tz: str) -> WidgetEventOut:
+def _widget_event_out(event: CalendarEvent, day: date_cls, viewer_tz: str, all_member_ids: set[int]) -> WidgetEventOut:
     return WidgetEventOut(
         title=event.title,
         location=event.location,
         time_label=_time_label(event, day, viewer_tz),
         attendees=[a.display_name for a in event.attendees],
+        # Lets the widgets skip the attendee list entirely when everyone's invited, since
+        # that's the assumed default — only true when the invited set is exactly everyone,
+        # not just "a lot of people", so a household of 5 with 4 attendees stays spelled out.
+        all_attendees=bool(all_member_ids) and {a.id for a in event.attendees} == all_member_ids,
     )
 
 
@@ -88,6 +92,7 @@ def widget_events(
     today = to_local(datetime.now(dt_timezone.utc), viewer_tz).date()
     last_day = today + timedelta(days=days - 1)
     events_by_day = _events_by_day(db, viewer_tz, today, last_day)
+    all_member_ids = {u.id for u in db.query(User.id).all()}
 
     day_list = []
     for i in range(days):
@@ -102,7 +107,7 @@ def widget_events(
             WidgetDayOut(
                 date=day,
                 label=label,
-                events=[_widget_event_out(e, day, viewer_tz) for e in events_by_day.get(day, [])],
+                events=[_widget_event_out(e, day, viewer_tz, all_member_ids) for e in events_by_day.get(day, [])],
             )
         )
 
@@ -129,6 +134,7 @@ def widget_grid(
 
     grid_start, grid_end = week_dates[0][0], week_dates[-1][-1]
     events_by_day = _events_by_day(db, viewer_tz, grid_start, grid_end)
+    all_member_ids = {u.id for u in db.query(User.id).all()}
 
     weeks_out = [
         [
@@ -137,7 +143,7 @@ def widget_grid(
                 weekday=_DAY_LABELS[day.weekday()],
                 in_month=(view != "month" or day.month == today.month),
                 is_today=(day == today),
-                events=[_widget_event_out(e, day, viewer_tz) for e in events_by_day.get(day, [])],
+                events=[_widget_event_out(e, day, viewer_tz, all_member_ids) for e in events_by_day.get(day, [])],
             )
             for day in week
         ]
