@@ -60,10 +60,6 @@ export const Widget = () => {
   const view = VIEW === "Month" ? "month" : "week";
   const weekSize = WEEK_SIZES[TEXT_SIZE as keyof typeof WEEK_SIZES] ?? WEEK_SIZES.Normal;
   const monthSize = MONTH_SIZES[TEXT_SIZE as keyof typeof MONTH_SIZES] ?? MONTH_SIZES.Normal;
-  // Week cards are multi-line (time/title/location/attendees) so fewer fit than month's
-  // single-line entries. Tuned against visible leftover space in the live frame, not a
-  // measured layout — nudge further if a column still has dead space or starts clipping.
-  const maxPerCell = view === "week" ? 5 : 6;
   // Strips a trailing slash so a base URL like ".../railway.app/" doesn't turn into
   // a double-slash path that 404s.
   const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/grid?view=${view}`;
@@ -99,8 +95,6 @@ export const Widget = () => {
         {data.weeks.map((week, wi) => (
           <div key={wi} className="flex-1 grid grid-cols-7 gap-1">
             {week.map((day) => {
-              const shown = day.events.slice(0, maxPerCell);
-              const hidden = day.events.length - shown.length;
               return (
                 <div
                   key={day.date}
@@ -120,7 +114,7 @@ export const Widget = () => {
 
                   {view === "week" ? (
                     <div className="flex flex-col gap-2 mt-1.5 overflow-hidden">
-                      {shown.map((event, i) => (
+                      {day.events.map((event, i) => (
                         <div key={i} className="flex flex-col border-t border-black/10 pt-1.5">
                           {event.time_label !== "All day" && (
                             <span className={`${weekSize.time} text-black/50`}>{shortTime(event.time_label)}</span>
@@ -145,11 +139,10 @@ export const Widget = () => {
                           )}
                         </div>
                       ))}
-                      {hidden > 0 && <span className={`${weekSize.meta} text-black/50`}>+{hidden} more</span>}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-0.5 mt-0.5 overflow-hidden">
-                      {shown.map((event, i) => (
+                      {day.events.map((event, i) => (
                         <div key={i} className={`${monthSize.event} leading-tight`}>
                           <div className="truncate">
                             {event.time_label !== "All day" && (
@@ -169,7 +162,6 @@ export const Widget = () => {
                           )}
                         </div>
                       ))}
-                      {hidden > 0 && <div className={`${monthSize.event} text-black/50`}>+{hidden} more</div>}
                     </div>
                   )}
                 </div>
