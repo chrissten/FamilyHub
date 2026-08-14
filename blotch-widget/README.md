@@ -67,6 +67,65 @@ Add each widget to the frame's page layout in the Frame Editor. Try both
 widget, to see which fit the frame's size best before deciding what to leave
 installed — the frame only supports 5 widget placements per page.
 
+## 5. Automating the schedule (bulk-editing switch times)
+
+The Schedule editor at `console.blotch.app/frames/studio?deviceUid=...&mode=schedule`
+has no duplicate/copy option — every switch between pages (e.g. Home ↔
+Calendar) has to be clicked in one at a time, which doesn't scale to a
+pattern repeated many times across a week. There's no separate Blotch REST
+API either: the console is an Angular SPA that talks directly to **Firestore**,
+so the schedule can be bulk-edited by writing to Firestore directly instead
+of clicking through the UI.
+
+Found by capturing a HAR of the Network tab during one manual schedule edit
+and decoding the `firestore.googleapis.com` WebChannel request bodies
+(`req0___data__=<url-encoded JSON>`). If Blotch changes their schema, redo it
+the same way: get a fresh HAR covering one manual edit, filter for
+`firestore.googleapis.com`, URL-decode the `req*___data__` params.
+
+**Auth** — Firebase project `blotch-firebase-project`, public web API key
+`REDACTED_FIREBASE_KEY`. Sign in with the normal Blotch
+account credentials via
+`POST https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=<API_KEY>`
+(`{email, password, returnSecureToken:true, clientType:"CLIENT_TYPE_WEB"}`) to
+get an `idToken`, then send it as `Authorization: Bearer <idToken>` on
+Firestore REST calls — no service account needed.
+
+**Data model** — the schedule lives on
+`https://firestore.googleapis.com/v1/projects/blotch-firebase-project/databases/(default)/documents/devices/{deviceUid}/data/settings`,
+field `timeline`, an array of blocks:
+
+```json
+{
+  "timeRange": { "start": 300, "end": 330 },
+  "pageUid": "35e9aed8-ec6c-49f7-ba9e-effb6d8dadd4",
+  "repeatInterval": 30
+}
+```
+
+- `start`/`end` are **minutes-of-week**, 0–10080 (Monday 00:00 = 0, Sunday
+  24:00 = 10080), interpreted in the device's own `timeZone` field on that
+  same `settings` doc (not UTC).
+- A block that runs to the exact end of the week is stored with `end: 0`
+  instead of `10080` — that's the app's own wraparound convention, not
+  something invented for this.
+- `repeatInterval: 30` is what the app's own default full-week blocks use;
+  its exact meaning is unclear, but reusing `30` for normal recurring weekly
+  blocks matches known-good behavior. One-off entries made through the UI use
+  `9007199254740991` (`Number.MAX_SAFE_INTEGER`) instead, likely a
+  "doesn't repeat" sentinel.
+- `pageUid` values are **per-device** — list them via
+  `GET .../devices/{deviceUid}/pages` (each page document has a `name`
+  field) rather than assuming an ID from a previous session.
+
+Write the whole `timeline` array in one shot with
+`PATCH .../data/settings?updateMask.fieldPaths=timeline`, body
+`{"fields": {"timeline": <arrayValue>}}` — simpler than trying to
+add/remove individual entries. Generate the full set of blocks locally
+(alternating pattern, day-part hold, etc.), merge adjacent same-page blocks
+to keep the array small, then push it in a single PATCH instead of one
+request per switch.
+
 ## Notes / things to double check against the live Designer
 
 The public docs at the time this was written didn't spell out `useFetch`'s
