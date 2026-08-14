@@ -55,6 +55,24 @@ class CalendarEvent(Base):
     attendees: Mapped[list["User"]] = relationship(secondary=event_attendees)
 
 
+class DeviceToken(Base):
+    """A long-lived, revocable credential for non-interactive clients (e.g. the Blotch
+    frame widget) that can't do a session/JWT login flow. Only the hash is stored;
+    the raw token is shown once at creation time and never again."""
+
+    __tablename__ = "device_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    label: Mapped[str] = mapped_column(String(100))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    token_prefix: Mapped[str] = mapped_column(String(8))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_by: Mapped["User"] = relationship()
+
+
 class GroceryList(Base):
     __tablename__ = "grocery_lists"
 

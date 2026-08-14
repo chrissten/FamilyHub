@@ -42,6 +42,16 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-14
+- **[web]** — Added device-token auth (`app/models.py` `DeviceToken`, `app/deps.py`
+  `get_device`) and a lean, day-grouped `GET /api/widget/events?days=N` endpoint, plus an
+  admin-only `/devices` page to create/revoke tokens — the first non-interactive/machine
+  credential this app has had (previously every endpoint required a session or user JWT).
+  Built for an external Blotch e-ink frame widget (`blotch-widget/FamilyCalendar.tsx`,
+  outside `app/`/`mobile/` since it's authored in Blotch's own Widget Designer, not
+  deployed by this repo) to pull upcoming events without a login flow. No mobile changes —
+  this isn't a mobile-visible feature, so no version bump.
+
 ### 2026-08-09
 - **[web]** — Fixed grocery items keeping a stale `sort_order` after being renamed/edited
   (web Edit form or `PATCH /api/grocery/items/{id}`): the rename saved but never re-ran the

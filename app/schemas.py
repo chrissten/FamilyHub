@@ -71,6 +71,23 @@ class EventOut(EventBase):
         return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
+class WidgetEventOut(BaseModel):
+    title: str
+    location: str | None
+    time_label: str
+
+
+class WidgetDayOut(BaseModel):
+    date: date
+    label: str
+    events: list[WidgetEventOut]
+
+
+class WidgetEventsOut(BaseModel):
+    timezone: str
+    days: list[WidgetDayOut]
+
+
 class GroceryListCreate(BaseModel):
     name: str
     is_public: bool = True

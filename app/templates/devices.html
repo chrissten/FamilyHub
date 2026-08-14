@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Devices - FamilyHub{% endblock %}
+{% block content %}
+<h1>Devices</h1>
+<p>API tokens for non-interactive clients that can't log in themselves — e.g. the Blotch
+   frame's calendar widget. Each token can read <code>/api/widget/events</code> only.</p>
+
+{% if new_token %}
+<div class="error" style="border-color: #4A90D9; background: #eef5fd; color: #1a1a1a;">
+  <strong>{{ new_token }}</strong>
+  <p>Copy this now — it won't be shown again. Paste it into the widget's <code>API_TOKEN</code> private input.</p>
+</div>
+{% endif %}
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<ul class="member-list">
+  {% for token in tokens %}
+  <li>
+    {{ token.label }} — <code>{{ token.token_prefix }}…</code>
+    (created {{ token.created_at.strftime("%Y-%m-%d") }}{% if token.last_used_at %}, last used {{ token.last_used_at.strftime("%Y-%m-%d %H:%M") }}{% else %}, never used{% endif %})
+    <form method="post" action="/devices/{{ token.id }}/revoke" style="display:inline"
+          onsubmit="return confirm('Revoke {{ token.label }}? Anything using this token will stop working immediately.')">
+      <button type="submit">Revoke</button>
+    </form>
+  </li>
+  {% else %}
+  <li>No device tokens yet.</li>
+  {% endfor %}
+</ul>
+
+<h2>Create a device token</h2>
+<form method="post" action="/devices" class="add-member-form">
+  <label>Label<input type="text" name="label" placeholder="Blotch frame" required></label>
+  <button type="submit">Create token</button>
+</form>
+{% endblock %}
