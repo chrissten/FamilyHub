@@ -2,18 +2,20 @@
   {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#freezer-{{ item.freezer_id }}-items"{% endif %}>
   <div class="item-row" x-show="!editing">
     <span class="drag-handle">⠿</span>
-    <span class="item-name">{{ item.name }}</span>
-    {% if item.quantity %}<span class="item-qty">({{ item.quantity }}{% if item.quantity_unit %} {{ item.quantity_unit }}{% endif %})</span>{% endif %}
+    <span class="item-info">
+      <span class="item-name">{{ item.name }}</span>
+      {% if item.quantity %}<span class="item-qty">({{ item.quantity }}{% if item.quantity_unit %} {{ item.quantity_unit }}{% endif %})</span>{% endif %}
+      <span class="item-meta">
+        {% if item.date_purchased %}purchased {{ item.date_purchased.isoformat() }}{% endif %}
+        {% if item.expiration_date %}&middot; expires {{ item.expiration_date.isoformat() }}{% endif %}
+        &middot; added by {{ item.added_by.display_name }}
+      </span>
+    </span>
     <span class="item-count-stepper">
       <button type="button" class="count-btn count-minus" hx-post="/freezer/items/{{ item.id }}/decrement" hx-target="this" hx-swap="none"
               hx-confirm="{% if item.count <= 1 %}Remove '{{ item.name }}' from the freezer?{% endif %}">&minus;</button>
       <span class="item-count">{{ item.count }}</span>
       <button type="button" class="count-btn count-plus" hx-post="/freezer/items/{{ item.id }}/increment" hx-target="this" hx-swap="none">+</button>
-    </span>
-    <span class="item-meta">
-      {% if item.date_purchased %}purchased {{ item.date_purchased.isoformat() }}{% endif %}
-      {% if item.expiration_date %}&middot; expires {{ item.expiration_date.isoformat() }}{% endif %}
-      &middot; added by {{ item.added_by.display_name }}
     </span>
     <a href="#" class="item-edit" @click.prevent="editing = true">Edit</a>
     <a href="#" class="item-delete" hx-post="/freezer/items/{{ item.id }}/delete" hx-target="this" hx-swap="none">&times;</a>

@@ -243,6 +243,7 @@ p.empty { color: #9aa5b1; }
 .grocery-item.expiring-soon { background: #fff3cd; border-left: 3px solid #8a6d1d; padding-left: 0.5rem; }
 .add-item-form label.inline { display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #52606d; }
 .add-item-form label.inline input { width: auto; margin: 0; }
+.item-info { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; flex: 1; min-width: 0; }
 .item-count-stepper { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
 .count-btn { width: 1.5rem; height: 1.5rem; line-height: 1; padding: 0; border: 1.5px solid #c1c7cf; border-radius: 4px; background: #f0f2f5; color: #52606d; font-size: 0.95rem; cursor: pointer; }
 .count-btn:hover { background: #e2e6ea; }
