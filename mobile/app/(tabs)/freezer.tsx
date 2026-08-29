@@ -1,11 +1,11 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, TextInput,
+  RefreshControl, Alert, TextInput, Modal,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import {
-  getFreezers, getFreezerItems, addFreezerItem, deleteFreezerItem,
+  getFreezers, getFreezerItems, addFreezerItem, updateFreezerItem, deleteFreezerItem,
   incrementFreezerItem, decrementFreezerItem,
 } from '../../src/api/client';
 import type { Freezer, FreezerItem } from '../../src/api/types';
@@ -37,6 +37,13 @@ export default function FreezerScreen() {
   const [newCount, setNewCount] = useState('1');
   const [newDatePurchased, setNewDatePurchased] = useState('');
   const [newExpirationDate, setNewExpirationDate] = useState('');
+  const [editingItem, setEditingItem] = useState<FreezerItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editQuantity, setEditQuantity] = useState('');
+  const [editQuantityUnit, setEditQuantityUnit] = useState<'' | 'oz' | 'lb'>('');
+  const [editDatePurchased, setEditDatePurchased] = useState('');
+  const [editExpirationDate, setEditExpirationDate] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useFocusEffect(useCallback(() => { loadFreezers(); }, []));
 
@@ -60,7 +67,35 @@ export default function FreezerScreen() {
     setItems(its);
   }
 
-  async function handleDelete(item: FreezerItem) {
+  function openEdit(item: FreezerItem) {
+    setEditingItem(item);
+    setEditName(item.name);
+    setEditQuantity(item.quantity ?? '');
+    setEditQuantityUnit((item.quantity_unit as 'oz' | 'lb' | null) ?? '');
+    setEditDatePurchased(item.date_purchased ?? '');
+    setEditExpirationDate(item.expiration_date ?? '');
+  }
+
+  async function handleSaveEdit() {
+    if (!editingItem || !editName.trim()) return;
+    setSavingEdit(true);
+    try {
+      const updated = await updateFreezerItem(
+        editingItem.id, editName.trim(), editQuantity.trim(), editQuantityUnit || null,
+        editDatePurchased.trim(), editExpirationDate.trim(), editingItem.count,
+      );
+      setItems(prev => prev.map(i => (i.id === updated.id ? updated : i)));
+      setEditingItem(null);
+    } catch {
+      Alert.alert('Error', 'Could not save changes. Check dates are in YYYY-MM-DD format.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function handleDeleteFromEdit() {
+    if (!editingItem) return;
+    const item = editingItem;
     Alert.alert('Delete', `Delete "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -69,6 +104,7 @@ export default function FreezerScreen() {
           try {
             await deleteFreezerItem(item.id);
             setItems(prev => prev.filter(i => i.id !== item.id));
+            setEditingItem(null);
           } catch {
             Alert.alert('Error', 'Could not delete item');
           }
@@ -171,7 +207,7 @@ export default function FreezerScreen() {
                 status === 'expired' && styles.itemExpired,
                 status === 'expiring-soon' && styles.itemExpiringSoon,
               ]}
-              onLongPress={() => handleDelete(item)}
+              onLongPress={() => openEdit(item)}
               activeOpacity={0.6}
             >
               <View style={{ flex: 1 }}>
@@ -271,6 +307,73 @@ export default function FreezerScreen() {
           </View>
         </View>
       )}
+
+      <Modal visible={!!editingItem} transparent animationType="fade" onRequestClose={() => setEditingItem(null)}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setEditingItem(null)}>
+          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
+            <Text style={styles.sheetTitle}>Edit item</Text>
+            <TextInput
+              style={styles.sheetInput}
+              placeholder="Item…"
+              value={editName}
+              onChangeText={setEditName}
+              placeholderTextColor={colors.placeholder}
+            />
+            <View style={styles.addRow}>
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Qty"
+                value={editQuantity}
+                onChangeText={setEditQuantity}
+                placeholderTextColor={colors.placeholder}
+              />
+              <View style={styles.unitToggle}>
+                {(['oz', 'lb'] as const).map(unit => (
+                  <TouchableOpacity
+                    key={unit}
+                    style={[styles.unitOption, editQuantityUnit === unit && styles.unitOptionActive]}
+                    onPress={() => setEditQuantityUnit(prev => (prev === unit ? '' : unit))}
+                  >
+                    <Text style={[styles.unitOptionText, editQuantityUnit === unit && styles.unitOptionTextActive]}>
+                      {unit}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.addRow}>
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Purchased YYYY-MM-DD"
+                value={editDatePurchased}
+                onChangeText={setEditDatePurchased}
+                keyboardType="numbers-and-punctuation"
+                placeholderTextColor={colors.placeholder}
+              />
+              <TextInput
+                style={[styles.addInput, { flex: 1 }]}
+                placeholder="Expires YYYY-MM-DD"
+                value={editExpirationDate}
+                onChangeText={setEditExpirationDate}
+                keyboardType="numbers-and-punctuation"
+                placeholderTextColor={colors.placeholder}
+              />
+            </View>
+            <View style={styles.sheetActions}>
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteFromEdit} disabled={savingEdit}>
+                <Text style={styles.deleteBtnText}>Delete</Text>
+              </TouchableOpacity>
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingItem(null)} disabled={savingEdit}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSaveEdit} disabled={savingEdit}>
+                <Text style={styles.saveBtnText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -326,5 +429,24 @@ function createStyles(colors: Colors) {
     unitOptionActive: { backgroundColor: colors.primary },
     unitOptionText: { fontSize: 13, color: colors.textFaint, fontWeight: '600' },
     unitOptionTextActive: { color: colors.primaryText },
+    overlay: {
+      flex: 1, backgroundColor: colors.overlay,
+      justifyContent: 'center', alignItems: 'center', padding: 24,
+    },
+    sheet: {
+      backgroundColor: colors.surface, borderRadius: 16, padding: 20, width: '100%', maxWidth: 400, gap: 8,
+    },
+    sheetTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 8, textAlign: 'center' },
+    sheetInput: {
+      backgroundColor: colors.surfaceAlt, borderRadius: 8,
+      paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: colors.text,
+    },
+    sheetActions: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 },
+    deleteBtn: { paddingVertical: 8, paddingHorizontal: 4 },
+    deleteBtnText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
+    cancelBtn: { paddingVertical: 8, paddingHorizontal: 12 },
+    cancelBtnText: { color: colors.textFaint, fontSize: 15, fontWeight: '600' },
+    saveBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16 },
+    saveBtnText: { color: colors.primaryText, fontSize: 15, fontWeight: '700' },
   });
 }
