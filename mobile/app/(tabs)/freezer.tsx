@@ -4,7 +4,10 @@ import {
   RefreshControl, Alert, TextInput,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { getFreezers, getFreezerItems, addFreezerItem, deleteFreezerItem } from '../../src/api/client';
+import {
+  getFreezers, getFreezerItems, addFreezerItem, deleteFreezerItem,
+  incrementFreezerItem, decrementFreezerItem,
+} from '../../src/api/client';
 import type { Freezer, FreezerItem } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
 import { useKeyboardHeight } from '../../src/useKeyboardHeight';
@@ -31,6 +34,7 @@ export default function FreezerScreen() {
   const [newName, setNewName] = useState('');
   const [newQuantity, setNewQuantity] = useState('');
   const [newQuantityUnit, setNewQuantityUnit] = useState<'' | 'oz' | 'lb'>('');
+  const [newCount, setNewCount] = useState('1');
   const [newDatePurchased, setNewDatePurchased] = useState('');
   const [newExpirationDate, setNewExpirationDate] = useState('');
 
@@ -79,15 +83,58 @@ export default function FreezerScreen() {
       const item = await addFreezerItem(
         selectedFreezer.id, newName.trim(), newQuantity.trim(), newQuantityUnit || null,
         newDatePurchased.trim(), newExpirationDate.trim(),
+        Math.max(1, parseInt(newCount, 10) || 1),
       );
       setItems(prev => [...prev, item]);
       setNewName('');
       setNewQuantity('');
       setNewQuantityUnit('');
+      setNewCount('1');
       setNewDatePurchased('');
       setNewExpirationDate('');
     } catch {
       Alert.alert('Error', 'Could not add item. Check dates are in YYYY-MM-DD format.');
+    }
+  }
+
+  async function handleIncrement(item: FreezerItem) {
+    setItems(prev => prev.map(i => (i.id === item.id ? { ...i, count: i.count + 1 } : i)));
+    try {
+      const updated = await incrementFreezerItem(item.id);
+      setItems(prev => prev.map(i => (i.id === item.id ? updated : i)));
+    } catch {
+      setItems(prev => prev.map(i => (i.id === item.id ? item : i)));
+      Alert.alert('Error', 'Could not update count');
+    }
+  }
+
+  async function handleDecrement(item: FreezerItem) {
+    if (item.count <= 1) {
+      Alert.alert('Remove item', `Remove "${item.name}" from the freezer?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove', style: 'destructive',
+          onPress: async () => {
+            try {
+              await decrementFreezerItem(item.id);
+              setItems(prev => prev.filter(i => i.id !== item.id));
+            } catch {
+              Alert.alert('Error', 'Could not update count');
+            }
+          },
+        },
+      ]);
+      return;
+    }
+    setItems(prev => prev.map(i => (i.id === item.id ? { ...i, count: i.count - 1 } : i)));
+    try {
+      const updated = await decrementFreezerItem(item.id);
+      if (!updated.deleted) {
+        setItems(prev => prev.map(i => (i.id === item.id ? (updated as FreezerItem) : i)));
+      }
+    } catch {
+      setItems(prev => prev.map(i => (i.id === item.id ? item : i)));
+      Alert.alert('Error', 'Could not update count');
     }
   }
 
@@ -139,6 +186,15 @@ export default function FreezerScreen() {
                   </Text>
                 )}
               </View>
+              <View style={styles.stepper}>
+                <TouchableOpacity style={styles.stepperBtn} onPress={() => handleDecrement(item)}>
+                  <Text style={styles.stepperBtnText}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.stepperCount}>{item.count}</Text>
+                <TouchableOpacity style={styles.stepperBtn} onPress={() => handleIncrement(item)}>
+                  <Text style={styles.stepperBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           );
         }}
@@ -182,6 +238,14 @@ export default function FreezerScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+              <TextInput
+                style={[styles.addInput, { flex: 0.7 }]}
+                placeholder="Count"
+                value={newCount}
+                onChangeText={setNewCount}
+                keyboardType="number-pad"
+                placeholderTextColor={colors.placeholder}
+              />
             </View>
             <View style={styles.addRow}>
               <TextInput
@@ -232,6 +296,13 @@ function createStyles(colors: Colors) {
     itemExpiringSoon: { backgroundColor: colors.warningBg, borderLeftWidth: 3, borderLeftColor: colors.warning },
     itemText: { fontSize: 16, color: colors.text },
     itemMeta: { fontSize: 12, color: colors.textFaint, marginTop: 2 },
+    stepper: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 8 },
+    stepperBtn: {
+      width: 28, height: 28, borderRadius: 6, backgroundColor: colors.surfaceAlt,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    stepperBtnText: { fontSize: 17, fontWeight: '700', color: colors.text, lineHeight: 20 },
+    stepperCount: { fontSize: 15, fontWeight: '700', color: colors.text, minWidth: 18, textAlign: 'center' },
     empty: { textAlign: 'center', color: colors.placeholder, marginTop: 80, fontSize: 15 },
     addBar: {
       backgroundColor: colors.surface,

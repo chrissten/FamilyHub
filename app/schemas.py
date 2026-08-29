@@ -202,6 +202,7 @@ class FreezerItemCreate(BaseModel):
     name: str
     quantity: str | None = None
     quantity_unit: Literal["oz", "lb"] | None = None
+    count: int = 1
     date_purchased: date | None = None
     expiration_date: date | None = None
 
@@ -210,6 +211,7 @@ class FreezerItemUpdate(BaseModel):
     name: str
     quantity: str | None = None
     quantity_unit: Literal["oz", "lb"] | None = None
+    count: int = 1
     date_purchased: date | None = None
     expiration_date: date | None = None
 
@@ -221,6 +223,7 @@ class FreezerItemOut(BaseModel):
     name: str
     quantity: str | None
     quantity_unit: str | None
+    count: int
     date_purchased: date | None
     expiration_date: date | None
     freezer_id: int

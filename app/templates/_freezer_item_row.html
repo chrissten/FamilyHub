@@ -4,6 +4,12 @@
     <span class="drag-handle">⠿</span>
     <span class="item-name">{{ item.name }}</span>
     {% if item.quantity %}<span class="item-qty">({{ item.quantity }}{% if item.quantity_unit %} {{ item.quantity_unit }}{% endif %})</span>{% endif %}
+    <span class="item-count-stepper">
+      <button type="button" class="count-btn count-minus" hx-post="/freezer/items/{{ item.id }}/decrement" hx-target="this" hx-swap="none"
+              hx-confirm="{% if item.count <= 1 %}Remove '{{ item.name }}' from the freezer?{% endif %}">&minus;</button>
+      <span class="item-count">{{ item.count }}</span>
+      <button type="button" class="count-btn count-plus" hx-post="/freezer/items/{{ item.id }}/increment" hx-target="this" hx-swap="none">+</button>
+    </span>
     <span class="item-meta">
       {% if item.date_purchased %}purchased {{ item.date_purchased.isoformat() }}{% endif %}
       {% if item.expiration_date %}&middot; expires {{ item.expiration_date.isoformat() }}{% endif %}
@@ -21,6 +27,7 @@
       <option value="oz" {% if item.quantity_unit == "oz" %}selected{% endif %}>oz</option>
       <option value="lb" {% if item.quantity_unit == "lb" %}selected{% endif %}>lb</option>
     </select>
+    <label class="inline">Count <input type="number" name="count" value="{{ item.count }}" min="1" class="count-input"></label>
     <label class="inline">Purchased <input type="date" name="date_purchased" value="{{ item.date_purchased.isoformat() if item.date_purchased else '' }}"></label>
     <label class="inline">Expires <input type="date" name="expiration_date" value="{{ item.expiration_date.isoformat() if item.expiration_date else '' }}"></label>
     <button type="submit">Save</button>

@@ -173,6 +173,7 @@ class FreezerItem(Base):
     name: Mapped[str] = mapped_column(String(200))
     quantity: Mapped[str | None] = mapped_column(String(50), nullable=True)
     quantity_unit: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    count: Mapped[int] = mapped_column(Integer, default=1)
     date_purchased: Mapped[date | None] = mapped_column(Date, nullable=True)
     expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     added_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

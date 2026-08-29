@@ -75,6 +75,7 @@ export interface FreezerItem {
   name: string;
   quantity?: string | null;
   quantity_unit?: string | null;
+  count: number;
   date_purchased?: string | null;
   expiration_date?: string | null;
   freezer_id: number;

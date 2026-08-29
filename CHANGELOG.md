@@ -42,6 +42,20 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-29
+- **[web]** — Added a per-item `count` to the freezer tracker (`FreezerItem.count`,
+  `app/routers/freezer.py`, `_freezer_item_row.html`) so multi-unit entries (e.g. "loaves of
+  bread", "bags of green beans") can be adjusted with +/- stepper buttons instead of
+  deleting and re-adding the whole item. Decrementing past 1 removes the item (with a
+  confirm prompt), matching the old delete behavior. New `POST
+  /freezer/items/{id}/increment` and `/decrement` endpoints (and JSON API equivalents under
+  `/api/freezer/items/{id}/...`) broadcast the updated row over the existing freezer
+  websocket. `count` defaults to 1 and is backfilled for existing rows via the same
+  add-column-on-startup pattern used for `quantity_unit`.
+- **[mobile]** v1.2.25 — added the same +/- stepper to `freezer.tsx`'s item rows (optimistic
+  update, rolled back on failure) plus a Count field in the add-item bar, using new
+  `incrementFreezerItem`/`decrementFreezerItem` client calls.
+
 ### 2026-08-14
 - **[web]** — Reworked the Blotch grid widget (`blotch-widget/FamilyCalendarGrid.tsx`) for
   readability on a 13in e-ink frame viewed from ~5ft: added a `TEXT_SIZE` input, gave week

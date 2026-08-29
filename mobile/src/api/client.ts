@@ -221,12 +221,13 @@ export const getFreezerItems = (freezerId: number) =>
 
 export const addFreezerItem = (
   freezerId: number, name: string, quantity?: string, quantityUnit?: string | null,
-  datePurchased?: string, expirationDate?: string,
+  datePurchased?: string, expirationDate?: string, count: number = 1,
 ) => request<FreezerItem>(`/api/freezer/freezers/${freezerId}/items`, {
   method: 'POST',
   body: JSON.stringify({
     name, quantity: quantity || null,
     quantity_unit: quantityUnit || null,
+    count,
     date_purchased: datePurchased || null,
     expiration_date: expirationDate || null,
   }),
@@ -234,12 +235,13 @@ export const addFreezerItem = (
 
 export const updateFreezerItem = (
   itemId: number, name: string, quantity?: string, quantityUnit?: string | null,
-  datePurchased?: string, expirationDate?: string,
+  datePurchased?: string, expirationDate?: string, count: number = 1,
 ) => request<FreezerItem>(`/api/freezer/items/${itemId}`, {
   method: 'PATCH',
   body: JSON.stringify({
     name, quantity: quantity || null,
     quantity_unit: quantityUnit || null,
+    count,
     date_purchased: datePurchased || null,
     expiration_date: expirationDate || null,
   }),
@@ -247,3 +249,9 @@ export const updateFreezerItem = (
 
 export const deleteFreezerItem = (itemId: number) =>
   request<{ ok: boolean }>(`/api/freezer/items/${itemId}`, { method: 'DELETE' });
+
+export const incrementFreezerItem = (itemId: number) =>
+  request<FreezerItem>(`/api/freezer/items/${itemId}/increment`, { method: 'POST' });
+
+export const decrementFreezerItem = (itemId: number) =>
+  request<{ ok: boolean; deleted?: boolean } & Partial<FreezerItem>>(`/api/freezer/items/${itemId}/decrement`, { method: 'POST' });

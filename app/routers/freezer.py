@@ -82,6 +82,7 @@ async def freezer_add_item(
     name: str = Form(...),
     quantity: str = Form(""),
     quantity_unit: str = Form(""),
+    count: int = Form(1),
     date_purchased: str = Form(""),
     expiration_date: str = Form(""),
     db: Session = Depends(get_db),
@@ -92,6 +93,7 @@ async def freezer_add_item(
         name=name,
         quantity=quantity or None,
         quantity_unit=quantity_unit or None,
+        count=max(count, 1),
         date_purchased=_parse_form_date(date_purchased),
         expiration_date=_parse_form_date(expiration_date),
         freezer_id=freezer_id,
@@ -128,6 +130,7 @@ async def freezer_update_item(
     name: str = Form(...),
     quantity: str = Form(""),
     quantity_unit: str = Form(""),
+    count: int = Form(1),
     date_purchased: str = Form(""),
     expiration_date: str = Form(""),
     db: Session = Depends(get_db),
@@ -138,6 +141,7 @@ async def freezer_update_item(
     item.name = name
     item.quantity = quantity or None
     item.quantity_unit = quantity_unit or None
+    item.count = max(count, 1)
     item.date_purchased = _parse_form_date(date_purchased)
     item.expiration_date = _parse_form_date(expiration_date)
     db.commit()
@@ -160,6 +164,47 @@ async def freezer_delete_item(
     db.commit()
 
     html = f'<li id="freezer-item-{item_id}" hx-swap-oob="delete"></li>'
+    await freezer_manager.broadcast(freezer_id, html)
+    return HTMLResponse(html)
+
+
+@router.post("/freezer/items/{item_id}/increment", response_class=HTMLResponse)
+async def freezer_increment_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item, freezer_id = _get_freezer_item_and_freezer_id(db, item_id)
+
+    item.count += 1
+    db.commit()
+    db.refresh(item)
+
+    html = render_freezer_item(item, oob_mode="replace")
+    await freezer_manager.broadcast(freezer_id, html)
+    return HTMLResponse(html)
+
+
+@router.post("/freezer/items/{item_id}/decrement", response_class=HTMLResponse)
+async def freezer_decrement_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item, freezer_id = _get_freezer_item_and_freezer_id(db, item_id)
+
+    item.count -= 1
+    if item.count <= 0:
+        db.delete(item)
+        db.commit()
+        html = f'<li id="freezer-item-{item_id}" hx-swap-oob="delete"></li>'
+        await freezer_manager.broadcast(freezer_id, html)
+        return HTMLResponse(html)
+
+    db.commit()
+    db.refresh(item)
+
+    html = render_freezer_item(item, oob_mode="replace")
     await freezer_manager.broadcast(freezer_id, html)
     return HTMLResponse(html)
 
@@ -235,6 +280,7 @@ async def api_create_freezer_item(
         name=payload.name,
         quantity=payload.quantity,
         quantity_unit=payload.quantity_unit,
+        count=max(payload.count, 1),
         date_purchased=payload.date_purchased,
         expiration_date=payload.expiration_date,
         freezer_id=freezer_id,
@@ -261,6 +307,7 @@ async def api_update_freezer_item(
     item.name = payload.name
     item.quantity = payload.quantity
     item.quantity_unit = payload.quantity_unit
+    item.count = max(payload.count, 1)
     item.date_purchased = payload.date_purchased
     item.expiration_date = payload.expiration_date
     db.commit()
@@ -283,3 +330,40 @@ async def api_delete_freezer_item(
     html = f'<li id="freezer-item-{item_id}" hx-swap-oob="delete"></li>'
     await freezer_manager.broadcast(freezer_id, html)
     return {"ok": True}
+
+
+@router.post("/api/freezer/items/{item_id}/increment", response_model=FreezerItemOut)
+async def api_increment_freezer_item(
+    item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    item, freezer_id = _get_freezer_item_and_freezer_id(db, item_id)
+
+    item.count += 1
+    db.commit()
+    db.refresh(item)
+
+    html = render_freezer_item(item, oob_mode="replace")
+    await freezer_manager.broadcast(freezer_id, html)
+    return item
+
+
+@router.post("/api/freezer/items/{item_id}/decrement")
+async def api_decrement_freezer_item(
+    item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    item, freezer_id = _get_freezer_item_and_freezer_id(db, item_id)
+
+    item.count -= 1
+    if item.count <= 0:
+        db.delete(item)
+        db.commit()
+        html = f'<li id="freezer-item-{item_id}" hx-swap-oob="delete"></li>'
+        await freezer_manager.broadcast(freezer_id, html)
+        return {"ok": True, "deleted": True}
+
+    db.commit()
+    db.refresh(item)
+
+    html = render_freezer_item(item, oob_mode="replace")
+    await freezer_manager.broadcast(freezer_id, html)
+    return FreezerItemOut.model_validate(item)
