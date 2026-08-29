@@ -42,6 +42,15 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-08-29 (2)
+- **[mobile]** v1.2.26 — Long-press on a freezer item now opens an edit sheet (name,
+  quantity/unit, purchased/expiration dates) instead of immediately prompting to delete it,
+  mirroring the modal pattern already used in `members.tsx`; Delete moved into the sheet
+  as its own button. No web change — the web freezer row already had separate Edit/Delete
+  controls, only mobile conflated them. (Inline quantity display next to the item name,
+  e.g. "Pork Shoulder (8 lb)", was already in place from the v1.2.25 work below — verified,
+  not re-implemented.)
+
 ### 2026-08-29
 - **[web]** — Added a per-item `count` to the freezer tracker (`FreezerItem.count`,
   `app/routers/freezer.py`, `_freezer_item_row.html`) so multi-unit entries (e.g. "loaves of
