@@ -33,9 +33,10 @@ def buildBase = localProps.getProperty('android.buildBase')
 // cmake file hardcodes an absolute path under the library's own node_modules/.../android/build,
 // ignoring any buildDir override, so redirecting these would leave CMake looking in a folder
 // that's never populated. They don't compile their own .so files, so skipping the redirect for
-// them doesn't reintroduce the OneDrive .so symlink problem below. (Only datetimepicker is
-// exempted — async-storage's codegen dir has built fine under the redirect since it was added.)
-def codegenAutolinkedProjects = ['react-native-community_datetimepicker']
+// them doesn't reintroduce the OneDrive .so symlink problem below. (async-storage added
+// 2026-08-29: current react-native/expo versions hardcode its codegen jni dir too, same as
+// datetimepicker — the redirect broke `configureCMakeDebug` with a missing-directory error.)
+def codegenAutolinkedProjects = ['react-native-community_datetimepicker', 'react-native-async-storage_async-storage']
 
 subprojects {
   if (buildBase && !codegenAutolinkedProjects.contains(project.name)) buildDir = "${buildBase}/${project.name}"
