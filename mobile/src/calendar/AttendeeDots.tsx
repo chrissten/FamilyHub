@@ -25,8 +25,8 @@ export default function AttendeeDots({ attendees, familySize }: { attendees: Use
 
 function createStyles(colors: Colors) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', gap: 3 },
-    dot: { width: 7, height: 7, borderRadius: 3.5 },
+    row: { flexDirection: 'row', gap: 5.4 },
+    dot: { width: 12.6, height: 12.6, borderRadius: 6.3 },
     badge: {
       backgroundColor: colors.primary, borderRadius: 6,
       paddingHorizontal: 5, paddingVertical: 1,

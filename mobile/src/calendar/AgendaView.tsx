@@ -303,7 +303,7 @@ function createStyles(colors: Colors) {
     },
     eventRowLast: { borderBottomWidth: 0 },
     eventRowConflict: { backgroundColor: colors.warningBg },
-    eventDot: { width: 7, height: 7, borderRadius: 3.5 },
+    eventDot: { width: 12.6, height: 12.6, borderRadius: 6.3 },
     eventTime: { fontSize: 12, color: colors.primary, width: 68 },
     eventTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
     eventLocation: { fontSize: 12, fontWeight: '400', color: colors.textFaint },
