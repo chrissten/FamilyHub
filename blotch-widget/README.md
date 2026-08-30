@@ -35,7 +35,7 @@ what the Designer's starter template expects.
 
 | Name | Kind | Type | Value / default |
 |---|---|---|---|
-| `API_BASE_URL` | Public | String | `https://your-server.example.com` |
+| `API_BASE_URL` | Public | String | your FamilyHub server URL, e.g. `https://your-server.example.com` |
 | `RANGE` | Public | Select | Choices: `Next 3 Days`, `Next Week` |
 | `TEXT_SIZE` | Public | Select | Choices: `Normal`, `Large`, `Extra Large` |
 | `API_TOKEN` | Private* | String | the token from step 1 |
@@ -44,7 +44,7 @@ what the Designer's starter template expects.
 
 | Name | Kind | Type | Value / default |
 |---|---|---|---|
-| `API_BASE_URL` | Public | String | `https://your-server.example.com` |
+| `API_BASE_URL` | Public | String | your FamilyHub server URL, e.g. `https://your-server.example.com` |
 | `VIEW` | Public | Select | Choices: `Week`, `Month` |
 | `DAYS` | Public | Number | `7` — how many days the rolling Week view spans starting today, 1-14. Ignored for Month view. |
 | `TEXT_SIZE` | Public | Select | Choices: `Normal`, `Large`, `Extra Large` |
@@ -83,16 +83,17 @@ and decoding the `firestore.googleapis.com` WebChannel request bodies
 the same way: get a fresh HAR covering one manual edit, filter for
 `firestore.googleapis.com`, URL-decode the `req*___data__` params.
 
-**Auth** — Firebase project `blotch-firebase-project`, public web API key
-`REDACTED_FIREBASE_KEY`. Sign in with the normal Blotch
-account credentials via
+**Auth** — Blotch's console uses a Firebase Web API key for its project (grab
+it yourself from a HAR capture the same way, or from the console's own bundled
+JS — it's not secret, but isn't reproduced here). Sign in with the normal
+Blotch account credentials via
 `POST https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=<API_KEY>`
 (`{email, password, returnSecureToken:true, clientType:"CLIENT_TYPE_WEB"}`) to
 get an `idToken`, then send it as `Authorization: Bearer <idToken>` on
 Firestore REST calls — no service account needed.
 
 **Data model** — the schedule lives on
-`https://firestore.googleapis.com/v1/projects/blotch-firebase-project/databases/(default)/documents/devices/{deviceUid}/data/settings`,
+`https://firestore.googleapis.com/v1/projects/<blotch-firebase-project>/databases/(default)/documents/devices/{deviceUid}/data/settings`,
 field `timeline`, an array of blocks:
 
 ```json

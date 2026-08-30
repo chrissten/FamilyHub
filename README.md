@@ -22,6 +22,20 @@ set, the app uses a local `familyhub.db` SQLite file.
 Once logged in as admin, go to **Family** to add the rest of the family members and assign each a
 calendar color.
 
+### Configuration (`.env`)
+
+`.env` is gitignored — copy `.env.example` to `.env` and fill in your own values. None of these
+have usable defaults baked into the app, so set them before running:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `SECRET_KEY` | Yes | Signs session cookies and JWTs. Generate with `python -c "import secrets; print(secrets.token_hex(32))"`. Use a different value per environment. |
+| `ADMIN_USERNAME` | Yes | Login for the auto-created bootstrap admin account. |
+| `ADMIN_PASSWORD` | Yes | Password for that account. Only takes effect on first startup (no existing users) — changing it later doesn't retroactively update an already-seeded row. |
+| `ADMIN_DISPLAY_NAME` | Yes | Display name shown in the UI for the admin account. |
+| `ADMIN_COLOR` | Yes | Hex calendar color for the admin account, e.g. `#4A90D9`. |
+| `DATABASE_URL` | No | Postgres connection string. Leave unset for local dev to fall back to a local `familyhub.db` SQLite file. On Railway, the Postgres plugin injects this automatically. |
+
 ## Real-time grocery sync
 
 The grocery list page connects over a WebSocket (`/ws/grocery`). Every add/check/delete is

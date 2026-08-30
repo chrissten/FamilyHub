@@ -104,7 +104,7 @@ export default function SettingsScreen() {
           style={styles.input}
           value={serverUrl}
           onChangeText={setServerUrlState}
-          placeholder="https://your-app.railway.app"
+          placeholder="https://your-server.example.com"
           autoCapitalize="none"
           keyboardType="url"
           placeholderTextColor={colors.placeholder}

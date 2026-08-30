@@ -4,7 +4,7 @@ import type {
   TodoList, TodoItem, Freezer, FreezerItem,
 } from './types';
 
-const DEFAULT_SERVER_URL = 'https://your-server.example.com';
+const DEFAULT_SERVER_URL = '';
 
 export async function getServerUrl(): Promise<string> {
   return (await SecureStore.getItemAsync('server_url')) ?? DEFAULT_SERVER_URL;

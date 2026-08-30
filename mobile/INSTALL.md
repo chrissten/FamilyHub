@@ -1,8 +1,8 @@
 # FamilyHub Mobile — Build & Install Guide
 
 Builds locally with Android Studio. No Expo account, no cloud service, no Play Store.
-The server URL is baked in (`https://your-server.example.com`) — just
-enter your username and password on first launch.
+On first launch, enter your FamilyHub server URL along with your username and password
+(the app remembers it after that).
 
 ---
 
@@ -95,5 +95,5 @@ If your phone aggressively kills background apps, go to:
 | `ANDROID_HOME` not found | Set the env var, restart your terminal |
 | `gradlew.bat` fails with SDK error | Open `android/` in Android Studio once to let it sync |
 | APK won't install | Enable "Install unknown apps" for your file manager |
-| Login fails | Check you're on a network that can reach Railway |
+| Login fails | Check you're on a network that can reach your server, and that the server URL is correct |
 | Notifications not arriving | Disable battery optimization for FamilyHub |

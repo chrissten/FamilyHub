@@ -66,7 +66,7 @@ export const Widget = () => {
   const cols = view === "week" ? days : 7;
   const weekSize = WEEK_SIZES[TEXT_SIZE as keyof typeof WEEK_SIZES] ?? WEEK_SIZES.Normal;
   const monthSize = MONTH_SIZES[TEXT_SIZE as keyof typeof MONTH_SIZES] ?? MONTH_SIZES.Normal;
-  // Strips a trailing slash so a base URL like ".../railway.app/" doesn't turn into
+  // Strips a trailing slash so a base URL like ".../example.com/" doesn't turn into
   // a double-slash path that 404s.
   const url = `${(API_BASE_URL ?? "").replace(/\/+$/, "")}/api/widget/grid?view=${view}&days=${days}`;
 

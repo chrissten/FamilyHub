@@ -57,7 +57,7 @@ export default function LoginScreen() {
       <Text style={styles.title}>FamilyHub</Text>
       <TextInput
         style={styles.input}
-        placeholder="Server URL (e.g. https://your-app.railway.app)"
+        placeholder="Server URL (e.g. https://your-server.example.com)"
         value={serverUrl}
         onChangeText={setServerUrl}
         autoCapitalize="none"
