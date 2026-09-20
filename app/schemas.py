@@ -260,6 +260,9 @@ class RecipeIngredientOut(BaseModel):
     optional: bool
     sort_order: int
     ingredient: IngredientOut | None
+    # Precomputed by RecipeIngredient.scaled_amounts so cook mode's servings scaler
+    # doesn't have to reimplement fraction formatting. Empty for unparseable amounts.
+    scaled_amounts: dict[str, str] = Field(default_factory=dict)
 
 
 class RecipeStepOut(BaseModel):

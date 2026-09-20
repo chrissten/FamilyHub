@@ -42,6 +42,36 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-20 (5)
+- **[web][mobile]** v1.7.0 — **Recipes, phase 5 of 6: cook mode.** A screen built for a
+  phone or tablet propped on a worktop: big type, large tap targets, one step at a time
+  with the full method listed underneath, an ingredient checklist you tick as you go, and
+  a **servings scaler** that rewrites every amount. Web at `/recipes/{id}/cook`, mobile
+  from a "Cook this" button on the recipe.
+
+  **Scaled amounts are computed on the server, not in the client.** Each ingredient
+  carries a precomputed string per servings multiplier
+  (`RecipeIngredient.scaled_amounts`, exposed on the API), so the fraction and
+  pluralization rules in `app/ingredients.py` stay in one place instead of being
+  reimplemented once in JavaScript and again in TypeScript — and web and mobile can't
+  disagree about what half of "1 1/2 cups" is. It's `3/4 cups`; doubling two cloves gives
+  `4 cloves`. Lines with no parseable amount ("salt to taste") keep their original
+  wording rather than being scaled into nonsense.
+
+  **The screen stays on.** Web uses the Wake Lock API, re-acquiring it when you come back
+  to the tab, since a lock is dropped whenever the tab is hidden; it fails silently where
+  the API is unsupported or the device refuses on low battery, because cook mode is
+  perfectly usable without it. Mobile uses `expo-keep-awake`, which needs no permission
+  and no re-acquiring — it was already present as a transitive dependency and is now
+  declared directly.
+
+  Cook mode deliberately sits **outside** the recipe detail page's live-updating region:
+  someone editing the recipe while you're halfway through cooking it shouldn't move the
+  step you're reading. The ingredient checklist isn't persisted either — it's one cooking
+  session, and a stale checklist from last week would be worse than an empty one.
+
+  Left arrow / right arrow move between steps on the web, for when only one hand is clean.
+
 ### 2026-09-20 (4)
 - **[web][mobile]** v1.6.0 — **Recipes, phase 4 of 6: a pantry, and "what can I cook
   tonight?"** New Pantry (cupboard + fridge) on web at `/pantry` and a screen reached from

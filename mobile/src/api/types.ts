@@ -103,6 +103,10 @@ export interface RecipeIngredient {
   sort_order: number;
   /** null when the name couldn't be resolved to a canonical ingredient. */
   ingredient?: Ingredient | null;
+  /** Display amount per servings multiplier, keyed "0.5" | "1.0" | "1.5" | "2.0" | "3.0".
+   *  Precomputed server-side so fraction formatting isn't reimplemented here. Empty for
+   *  lines with no parseable amount ("salt to taste"). */
+  scaled_amounts?: Record<string, string>;
 }
 
 export interface RecipeStep {

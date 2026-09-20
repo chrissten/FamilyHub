@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Cooking: {{ recipe.title }}{% endblock %}
+{% block main_class %}container-wide cook-mode{% endblock %}
+{% block content %}
+{#
+  Built for a phone or tablet propped on a worktop: big type, large tap targets, and no
+  navigation away by accident. Scaled amounts come precomputed from the server
+  (RecipeIngredient.scaled_amounts) so the fraction rules live in one place.
+#}
+<div x-data="cookMode()" x-init="init()" class="cook-wrap">
+
+  <header class="cook-header">
+    <a href="/recipes/{{ recipe.id }}" class="cook-exit" title="Leave cook mode">&times;</a>
+    <h1>{{ recipe.title }}</h1>
+    <span class="cook-awake" x-show="awake" x-cloak title="Screen will stay on while you cook">Screen on</span>
+  </header>
+
+  <section class="cook-scale">
+    <span class="cook-scale-label">Servings</span>
+    <div class="cook-scale-options">
+      {% for s in scales %}
+      <button type="button" @click="scale = '{{ s }}'"
+              :class="{ active: scale === '{{ s }}' }">
+        {% if recipe.servings %}{{ (recipe.servings * s) | round | int }}{% else %}{{ '%g' | format(s) }}&times;{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+    {% if not recipe.servings %}<span class="field-hint">This recipe doesn't say how many it serves.</span>{% endif %}
+  </section>
+
+  <div class="cook-columns">
+    <section class="cook-ingredients">
+      <h2>Ingredients <button type="button" class="cook-reset" @click="used = {}">reset</button></h2>
+      <ul>
+        {% for item in recipe.ingredients %}
+        <li>
+          <label :class="{ used: used[{{ item.id }}] }">
+            <input type="checkbox" @change="used[{{ item.id }}] = $event.target.checked"
+                   :checked="!!used[{{ item.id }}]">
+            <span class="cook-amount">
+              {% if item.scaled_amounts %}
+                {#- One span per scale; Alpine shows the active one. Keeps the server's
+                    formatting instead of re-deriving fractions in the browser. -#}
+                {% for key, text in item.scaled_amounts.items() %}
+                <span x-show="scale === '{{ key }}'" x-cloak>{{ text }}</span>
+                {% endfor %}
+              {% endif %}
+            </span>
+            <span class="cook-ingredient-name">
+              {{ item.name }}{% if item.prep_note %}, {{ item.prep_note }}{% endif %}
+            </span>
+            {% if not item.scaled_amounts %}<span class="cook-asis">{{ item.raw_text }}</span>{% endif %}
+            {% if item.optional %}<span class="tg-note">optional</span>{% endif %}
+          </label>
+        </li>
+        {% else %}
+        <li class="empty">No ingredients listed.</li>
+        {% endfor %}
+      </ul>
+      <p class="field-hint" x-show="scale !== '1.0'" x-cloak>
+        Amounts scaled from the original. Cooking times usually don't scale the same way.
+      </p>
+    </section>
+
+    <section class="cook-steps">
+      <h2>Method</h2>
+      {% if recipe.steps %}
+      <div class="cook-step-nav">
+        <button type="button" @click="prev()" :disabled="current === 0">&larr; Back</button>
+        <span class="cook-step-count">Step <span x-text="current + 1"></span> of {{ recipe.steps | length }}</span>
+        <button type="button" @click="next()" :disabled="current === {{ recipe.steps | length - 1 }}">Next &rarr;</button>
+      </div>
+
+      {% for step in recipe.steps %}
+      <article class="cook-step" x-show="current === {{ loop.index0 }}" x-cloak>
+        <p>{{ step.text }}</p>
+      </article>
+      {% endfor %}
+
+      <ol class="cook-step-list">
+        {% for step in recipe.steps %}
+        <li :class="{ active: current === {{ loop.index0 }}, done: current > {{ loop.index0 }} }"
+            @click="current = {{ loop.index0 }}">{{ step.text }}</li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="empty">No steps listed.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<script>
+function cookMode() {
+  return {
+    scale: '1.0',
+    current: 0,
+    // Which ingredients you've already put in. Deliberately not persisted: it's a
+    // single cooking session, and a stale checklist from last week would be worse
+    // than an empty one.
+    used: {},
+    awake: false,
+    _lock: null,
+
+    init() {
+      this.requestWakeLock();
+      // A screen wake lock is dropped whenever the tab is hidden, so re-take it when
+      // you come back to the recipe with wet hands.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') this.requestWakeLock();
+      });
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight') this.next();
+        if (e.key === 'ArrowLeft') this.prev();
+      });
+    },
+
+    async requestWakeLock() {
+      // Not supported on every browser, and refused when the device is on low battery.
+      // Cook mode still works fine without it, so failure is silent by design.
+      if (!('wakeLock' in navigator)) return;
+      try {
+        this._lock = await navigator.wakeLock.request('screen');
+        this.awake = true;
+        this._lock.addEventListener('release', () => { this.awake = false; });
+      } catch (err) {
+        this.awake = false;
+      }
+    },
+
+    next() { if (this.current < {{ (recipe.steps | length) - 1 if recipe.steps else 0 }}) this.current++; },
+    prev() { if (this.current > 0) this.current--; },
+  };
+}
+</script>
+{% endblock %}

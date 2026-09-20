@@ -13,6 +13,7 @@ from app.deps import get_current_user
 from app.ingredients import normalize, parse_ingredient_line, resolve, scaled_amount
 from app.list_access import get_visible_list, is_list_visible, visible_lists_query
 from app.models import (
+    SCALE_OPTIONS,
     GroceryCategory,
     GroceryList,
     PantryItem,
@@ -519,6 +520,26 @@ def recipe_detail_page(
         request,
         "recipe_detail.html",
         {"recipe": recipe, "current_user": current_user},
+    )
+
+
+@router.get("/recipes/{recipe_id}/cook", response_class=HTMLResponse)
+def recipe_cook_page(
+    recipe_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cook mode: one screen, big text, screen stays awake.
+
+    Deliberately not inside the live-updating detail page — someone editing the recipe
+    while you're halfway through cooking it shouldn't move the step you're reading.
+    """
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    return templates.TemplateResponse(
+        request,
+        "recipe_cook.html",
+        {"recipe": recipe, "scales": SCALE_OPTIONS, "current_user": current_user},
     )
 
 

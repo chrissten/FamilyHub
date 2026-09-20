@@ -458,3 +458,59 @@ p.empty { color: #9aa5b1; }
   .cook-grid { grid-template-columns: 1fr; }
   .pantry-restock { font-size: 0.85rem; }
 }
+
+/* Cook mode — sized for a phone or tablet propped on a worktop */
+.cook-mode { padding-top: 0.5rem; }
+.cook-wrap { max-width: 1100px; margin: 0 auto; }
+.cook-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.cook-header h1 { flex: 1; margin: 0; font-size: 1.4rem; }
+.cook-exit {
+  flex: 0 0 auto; width: 40px; height: 40px; line-height: 38px; text-align: center;
+  border-radius: 50%; background: #e4e7eb; color: #1f2933; text-decoration: none; font-size: 1.5rem;
+}
+.cook-exit:hover { background: #cbd2d9; }
+.cook-awake { font-size: 0.72rem; color: #2a9d5c; background: #e3f4ea; padding: 0.15rem 0.6rem; border-radius: 999px; }
+
+.cook-scale { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.cook-scale-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: #7b8794; font-weight: 700; }
+.cook-scale-options { display: flex; gap: 0.4rem; }
+.cook-scale-options button { background: #e4e7eb; color: #1f2933; min-width: 52px; padding: 0.5rem 0.9rem; font-size: 1rem; }
+.cook-scale-options button.active { background: #4A90D9; color: white; }
+
+.cook-columns { display: grid; grid-template-columns: minmax(260px, 1fr) 1.8fr; gap: 2rem; align-items: start; }
+.cook-ingredients h2, .cook-steps h2 { font-size: 1rem; margin: 0 0 0.6rem; display: flex; align-items: center; gap: 0.6rem; }
+.cook-reset { background: transparent; color: #7b8794; font-size: 0.72rem; padding: 0.1rem 0.4rem; text-decoration: underline; }
+.cook-ingredients ul { list-style: none; padding: 0; margin: 0; }
+.cook-ingredients li { border-bottom: 1px solid #e4e7eb; }
+.cook-ingredients li:last-child { border-bottom: none; }
+.cook-ingredients label {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin: 0;
+  padding: 0.7rem 0.3rem; cursor: pointer; font-size: 1.05rem; line-height: 1.35;
+}
+.cook-ingredients label input { width: 22px; height: 22px; flex: 0 0 auto; }
+.cook-ingredients label.used { color: #9aa5b1; text-decoration: line-through; }
+.cook-amount { font-weight: 700; color: #1f2933; }
+.cook-ingredients label.used .cook-amount { color: #9aa5b1; }
+.cook-asis { color: #52606d; }
+.cook-ingredient-name { flex: 1; }
+
+.cook-step-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.cook-step-nav button { padding: 0.6rem 1.2rem; font-size: 1rem; }
+.cook-step-nav button:disabled { background: #e4e7eb; color: #9aa5b1; cursor: default; }
+.cook-step-count { flex: 1; text-align: center; font-size: 0.85rem; color: #7b8794; }
+.cook-step {
+  background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 1.5rem; margin-bottom: 1.25rem;
+}
+.cook-step p { margin: 0; font-size: 1.3rem; line-height: 1.55; }
+.cook-step-list { margin: 0; padding-left: 1.4rem; color: #7b8794; }
+.cook-step-list li { padding: 0.35rem 0; cursor: pointer; line-height: 1.45; }
+.cook-step-list li.active { color: #1f2933; font-weight: 600; }
+.cook-step-list li.done { text-decoration: line-through; color: #cbd2d9; }
+
+@media (max-width: 820px) {
+  .cook-columns { grid-template-columns: 1fr; gap: 1.5rem; }
+  .cook-step p { font-size: 1.15rem; }
+  .cook-header h1 { font-size: 1.15rem; }
+  .cook-ingredients label { font-size: 1rem; }
+}

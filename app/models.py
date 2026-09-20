@@ -320,6 +320,27 @@ class RecipeIngredient(Base):
     recipe: Mapped["Recipe"] = relationship(back_populates="ingredients")
     ingredient: Mapped["Ingredient | None"] = relationship()
 
+    @property
+    def scaled_amounts(self) -> dict[str, str]:
+        """Display amount at each servings multiplier, keyed by the scale as a string.
+
+        Empty when the line has no parseable quantity ("salt to taste"), which the UI
+        reads as "show the original wording, scaling doesn't apply".
+        """
+        # Imported here rather than at module scope: app.ingredients imports this module.
+        from app.ingredients import scaled_amount
+
+        if self.quantity is None:
+            return {}
+        return {str(scale): scaled_amount(self.quantity, self.unit, scale) for scale in SCALE_OPTIONS}
+
+
+# Offered by cook mode's servings scaler. Rendered server-side for every option rather
+# than rescaled in the client, so the fraction and pluralization rules in
+# app/ingredients.py stay in one place instead of being reimplemented in JS and again in
+# TypeScript — and so web and mobile can never disagree about what "1 1/2 cups" is.
+SCALE_OPTIONS = (0.5, 1.0, 1.5, 2.0, 3.0)
+
 
 class RecipeStep(Base):
     __tablename__ = "recipe_steps"
