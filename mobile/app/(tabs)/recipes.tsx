@@ -97,6 +97,9 @@ export default function RecipesScreen() {
             <Ionicons name="close-circle" size={20} color={colors.textFaint} />
           </TouchableOpacity>
         )}
+        <TouchableOpacity style={styles.importButton} onPress={() => router.push('/recipe-import')}>
+          <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.addButton} onPress={openNew}>
           <Ionicons name="add" size={22} color={colors.primaryText} />
         </TouchableOpacity>
@@ -127,7 +130,9 @@ export default function RecipesScreen() {
         contentContainerStyle={recipes.length === 0 ? styles.emptyWrap : styles.listContent}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {search || activeTag ? 'No recipes match that.' : 'No recipes yet — tap + to add one.'}
+            {search || activeTag
+              ? 'No recipes match that.'
+              : 'No recipes yet — import one from a link or a photo, or tap + to type one in.'}
           </Text>
         }
       />
@@ -150,6 +155,10 @@ function createStyles(colors: Colors) {
     addButton: {
       backgroundColor: colors.primary, borderRadius: 8,
       width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
+    },
+    importButton: {
+      backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+      borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
     },
     tagRow: {
       flexDirection: 'row', flexWrap: 'wrap', gap: 6,

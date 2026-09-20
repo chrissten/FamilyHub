@@ -159,4 +159,31 @@ export interface RecipeInput {
     optional?: boolean;
   }>;
   steps?: string[];
+  /** Claims photos stashed during import so they attach to the saved recipe. */
+  scan_token?: string | null;
+}
+
+/** An extracted, not-yet-saved recipe (RecipeDraftOut in app/schemas.py). Review it,
+ *  then POST it back via createRecipe — passing scan_token so uploaded photos attach. */
+export interface RecipeDraft {
+  title: string;
+  description?: string | null;
+  servings?: number | null;
+  prep_minutes?: number | null;
+  cook_minutes?: number | null;
+  tags: string[];
+  ingredients: Array<{
+    raw_text: string;
+    quantity?: number | null;
+    unit?: string | null;
+    name: string;
+    canonical_name?: string;
+    prep_note?: string | null;
+    optional?: boolean;
+  }>;
+  steps: string[];
+  source_url?: string | null;
+  source_name?: string | null;
+  image_url?: string | null;
+  scan_token?: string | null;
 }

@@ -6,7 +6,7 @@ import { Stack, useRouter } from 'expo-router';
 import { createRecipe, updateRecipe } from '../src/api/client';
 import { useTheme, type Colors } from '../src/theme';
 import { useKeyboardHeight } from '../src/useKeyboardHeight';
-import { takePendingRecipeForm, recipeToText, splitLines } from '../src/recipes/formState';
+import { takePendingRecipeForm, recipeToText, draftToText, splitLines } from '../src/recipes/formState';
 
 export default function RecipeFormScreen() {
   const { colors } = useTheme();
@@ -17,18 +17,24 @@ export default function RecipeFormScreen() {
   // Taken once on mount — the stash is cleared on read, so a re-render can't lose it.
   const [pending] = useState(() => takePendingRecipeForm());
   const existing = pending?.recipe ?? null;
-  const initialText = useMemo(() => recipeToText(existing), [existing]);
+  // An imported draft fills the same form as a saved recipe, so correcting the model
+  // uses exactly the controls you'd use writing one by hand.
+  const draft = pending?.draft ?? null;
+  const initialText = useMemo(
+    () => (existing ? recipeToText(existing) : draftToText(draft)),
+    [existing, draft],
+  );
 
-  const [title, setTitle] = useState(existing?.title ?? '');
-  const [description, setDescription] = useState(existing?.description ?? '');
-  const [servings, setServings] = useState(existing?.servings ? String(existing.servings) : '');
-  const [prep, setPrep] = useState(existing?.prep_minutes ? String(existing.prep_minutes) : '');
-  const [cook, setCook] = useState(existing?.cook_minutes ? String(existing.cook_minutes) : '');
+  const [title, setTitle] = useState(existing?.title ?? draft?.title ?? '');
+  const [description, setDescription] = useState(existing?.description ?? draft?.description ?? '');
+  const [servings, setServings] = useState(String(existing?.servings ?? draft?.servings ?? ''));
+  const [prep, setPrep] = useState(String(existing?.prep_minutes ?? draft?.prep_minutes ?? ''));
+  const [cook, setCook] = useState(String(existing?.cook_minutes ?? draft?.cook_minutes ?? ''));
   const [ingredients, setIngredients] = useState(initialText.ingredients);
   const [steps, setSteps] = useState(initialText.steps);
-  const [tags, setTags] = useState(existing?.tag_names.join(', ') ?? '');
-  const [sourceName, setSourceName] = useState(existing?.source_name ?? '');
-  const [sourceUrl, setSourceUrl] = useState(existing?.source_url ?? '');
+  const [tags, setTags] = useState((existing?.tag_names ?? draft?.tags ?? []).join(', '));
+  const [sourceName, setSourceName] = useState(existing?.source_name ?? draft?.source_name ?? '');
+  const [sourceUrl, setSourceUrl] = useState(existing?.source_url ?? draft?.source_url ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [isPublic, setIsPublic] = useState(existing?.is_public ?? true);
   const [saving, setSaving] = useState(false);
@@ -52,9 +58,15 @@ export default function RecipeFormScreen() {
         prep_minutes: toInt(prep),
         cook_minutes: toInt(cook),
         notes: notes.trim() || null,
-        source_type: (sourceUrl.trim() ? 'url' : 'manual') as 'url' | 'manual',
+        source_type: (draft
+          ? (draft.scan_token ? 'photo' : draft.source_url ? 'url' : 'text')
+          : sourceUrl.trim() ? 'url' : 'manual') as 'url' | 'manual' | 'photo' | 'text',
         source_url: sourceUrl.trim() || null,
         source_name: sourceName.trim() || null,
+        image_url: draft?.image_url ?? null,
+        // Claims any photos stashed server-side during import. Consumed on read, so a
+        // double-tap on Save can't attach them twice.
+        scan_token: draft?.scan_token ?? null,
         is_public: isPublic,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         // Sent as raw lines; the server parses quantity, unit and the canonical
@@ -84,7 +96,7 @@ export default function RecipeFormScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: existing ? 'Edit recipe' : 'New recipe',
+          title: existing ? 'Edit recipe' : draft ? 'Check this recipe' : 'New recipe',
           headerStyle: { backgroundColor: colors.primary },
           headerTintColor: '#fff',
           headerTitleStyle: { fontWeight: '700' },
@@ -96,11 +108,18 @@ export default function RecipeFormScreen() {
         }}
       />
 
+      {!!draft && (
+        <Text style={styles.reviewBanner}>
+          Pulled this out of the source — have a read before saving. Fix anything that
+          looks off; it's easier now than after it's on a shopping list.
+        </Text>
+      )}
+
       <Text style={styles.label}>Title</Text>
       <TextInput
         style={styles.input} value={title} onChangeText={setTitle}
         placeholder="e.g. Weeknight chicken skillet"
-        placeholderTextColor={colors.placeholder} autoFocus={!existing}
+        placeholderTextColor={colors.placeholder} autoFocus={!existing && !draft}
       />
 
       <Text style={styles.label}>Short description</Text>
@@ -182,7 +201,7 @@ export default function RecipeFormScreen() {
 
       <TouchableOpacity style={styles.primaryButton} onPress={handleSave} disabled={saving}>
         <Text style={styles.primaryButtonText}>
-          {saving ? 'Saving…' : existing ? 'Save changes' : 'Create recipe'}
+          {saving ? 'Saving…' : existing ? 'Save changes' : draft ? 'Save recipe' : 'Create recipe'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -194,6 +213,10 @@ function createStyles(colors: Colors) {
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 14 },
     label: { fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 14, marginBottom: 5 },
+    reviewBanner: {
+      backgroundColor: colors.primary + '18', borderLeftWidth: 3, borderLeftColor: colors.primary,
+      borderRadius: 4, padding: 10, fontSize: 13, color: colors.text, lineHeight: 18,
+    },
     hint: { fontWeight: '400', fontSize: 12, color: colors.textFaint },
     input: {
       backgroundColor: colors.surface, borderRadius: 8, borderWidth: 1, borderColor: colors.border,

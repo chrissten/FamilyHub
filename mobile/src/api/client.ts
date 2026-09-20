@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
-  Recipe, RecipeSummary, RecipeInput,
+  Recipe, RecipeSummary, RecipeInput, RecipeDraft,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -278,3 +278,66 @@ export const updateRecipe = (id: number, data: RecipeInput) =>
 
 export const deleteRecipe = (id: number) =>
   request<Record<string, never>>(`/api/recipes/${id}`, { method: 'DELETE' });
+
+/**
+ * Multipart sibling of `request<T>()`.
+ *
+ * `request` hardcodes `Content-Type: application/json`, and multipart bodies must let
+ * fetch set the header itself so it can include the boundary — spreading `undefined`
+ * over the existing header block would send a literal "undefined" instead. Same silent
+ * re-login on 401 as `request`, since an import can easily be the first call after a
+ * token expires.
+ */
+async function requestMultipart<T>(path: string, body: FormData, _retry = false): Promise<T> {
+  const [serverUrl, token] = await Promise.all([getServerUrl(), getToken()]);
+  if (!serverUrl) throw new Error('Server URL not configured');
+
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${serverUrl}${path}`, { method: 'POST', headers, body });
+
+  if (res.status === 401 && !_retry) {
+    const creds = await getSavedCredentials();
+    if (creds) {
+      try {
+        await login(await getServerUrl(), creds.username, creds.password);
+        return requestMultipart<T>(path, body, true);
+      } catch {
+        await SecureStore.deleteItemAsync('auth_token');
+      }
+    }
+  }
+
+  if (!res.ok) {
+    // The server returns 422 with a human-readable reason for an unusable source
+    // ("that site wouldn't let us read the page..."), which is worth surfacing verbatim
+    // rather than replacing with a generic failure message.
+    let detail = '';
+    try {
+      const parsed = await res.json();
+      detail = typeof parsed?.detail === 'string' ? parsed.detail : '';
+    } catch {
+      detail = '';
+    }
+    throw new Error(detail || `Import failed (${res.status})`);
+  }
+  return res.json();
+}
+
+/** Extract a recipe from a link, photos, or pasted text. Returns a draft to review —
+ *  nothing is saved until the draft is POSTed back via createRecipe(). */
+export async function importRecipe(
+  mode: 'url' | 'photo' | 'text',
+  payload: { url?: string; text?: string; photos?: { uri: string; name: string; type: string }[] },
+): Promise<RecipeDraft> {
+  const form = new FormData();
+  form.append('mode', mode);
+  form.append('url', payload.url ?? '');
+  form.append('text', payload.text ?? '');
+  for (const photo of payload.photos ?? []) {
+    // RN's FormData takes this {uri, name, type} shape rather than a Blob.
+    form.append('photos', { uri: photo.uri, name: photo.name, type: photo.type } as unknown as Blob);
+  }
+  return requestMultipart<RecipeDraft>('/api/recipes/import', form);
+}

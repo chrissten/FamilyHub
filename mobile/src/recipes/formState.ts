@@ -1,8 +1,11 @@
-import type { Recipe } from '../api/types';
+import type { Recipe, RecipeDraft } from '../api/types';
 
 export interface PendingRecipeForm {
   /** null when creating a new recipe. */
   recipe: Recipe | null;
+  /** Set when the form is reviewing a freshly imported draft rather than editing a
+   *  saved recipe. Never both — a draft has no id yet. */
+  draft?: RecipeDraft | null;
 }
 
 let pending: PendingRecipeForm | null = null;
@@ -41,4 +44,14 @@ export function splitLines(text: string): string[] {
 export function totalMinutes(recipe: { prep_minutes?: number | null; cook_minutes?: number | null }): number | null {
   if (recipe.prep_minutes == null && recipe.cook_minutes == null) return null;
   return (recipe.prep_minutes ?? 0) + (recipe.cook_minutes ?? 0);
+}
+
+/** Same flattening for an imported draft, whose steps are plain strings rather than
+ *  RecipeStep rows. Keeps the review form and the edit form on one code path. */
+export function draftToText(draft: RecipeDraft | null | undefined): { ingredients: string; steps: string } {
+  if (!draft) return { ingredients: '', steps: '' };
+  return {
+    ingredients: draft.ingredients.map(i => i.raw_text).join('\n'),
+    steps: draft.steps.join('\n'),
+  };
 }
