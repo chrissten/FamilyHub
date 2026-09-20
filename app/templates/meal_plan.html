@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Meal plan - FamilyHub{% endblock %}
+{% block main_class %}container-wide{% endblock %}
+{% block content %}
+<div class="recipes-header">
+  <h1>Meal plan</h1>
+  <a href="/recipes" class="btn-link secondary">All recipes</a>
+  <a href="/recipes/cook-now" class="btn-link secondary">What can I cook?</a>
+</div>
+
+<div class="plan-weeknav">
+  <a href="/recipes/plan?start={{ prev_week.isoformat() }}" class="tag-chip">&larr; Previous</a>
+  {# Built from .day rather than strftime('%-d'): that directive is glibc-only and
+     raises ValueError on Windows, so it would work on the Linux container and break
+     every local run. #}
+  <span class="plan-weeklabel">
+    {{ week_start.strftime('%b') }} {{ week_start.day }}
+    – {{ days[6].date.strftime('%b') }} {{ days[6].date.day }}, {{ days[6].date.year }}
+  </span>
+  <a href="/recipes/plan?start={{ next_week.isoformat() }}" class="tag-chip">Next &rarr;</a>
+  <a href="/recipes/plan" class="tag-chip">This week</a>
+</div>
+
+{% if not recipes %}
+<p class="empty">No recipes yet — <a href="/recipes/import">import one</a> before planning.</p>
+{% else %}
+
+<div class="plan-grid" x-data="{ open: null }">
+  {% for day in days %}
+  <section class="plan-day {{ 'is-today' if day.date == today else '' }}">
+    <h2>
+      {{ day.date.strftime('%a') }}
+      <span class="plan-daynum">{{ day.date.strftime('%b') }} {{ day.date.day }}</span>
+    </h2>
+
+    {% for slot in day.slots %}
+    <div class="plan-slot">
+      <span class="plan-slot-label">{{ slot.label }}</span>
+      {% for entry in slot.entries %}
+      <div class="plan-entry">
+        <a href="/recipes/{{ entry.recipe.id }}">{{ entry.recipe.title }}</a>
+        <form method="post" action="/recipes/plan/entries/{{ entry.id }}/delete" class="plan-remove">
+          <button type="submit" title="Remove from the plan">&times;</button>
+        </form>
+      </div>
+      {% endfor %}
+
+      {#
+        One small form per day+slot. A <select> of recipes rather than a drag-and-drop
+        grid: it works the same on a phone, and this is a once-a-week task.
+      #}
+      <form method="post" action="/recipes/plan/entries" class="plan-add"
+            x-show="open === '{{ day.date }}-{{ slot.key }}'" x-cloak>
+        <input type="hidden" name="day" value="{{ day.date.isoformat() }}">
+        <input type="hidden" name="meal_slot" value="{{ slot.key }}">
+        <select name="recipe_id" required>
+          <option value="">Choose a recipe…</option>
+          {% for r in recipes %}<option value="{{ r.id }}">{{ r.title }}</option>{% endfor %}
+        </select>
+        <button type="submit">Add</button>
+      </form>
+      <button type="button" class="plan-addbtn"
+              x-show="open !== '{{ day.date }}-{{ slot.key }}'"
+              @click="open = '{{ day.date }}-{{ slot.key }}'">+</button>
+    </div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
+
+{% if entry_count %}
+<section class="plan-shopping">
+  <h2>This week needs {{ shopping | length }} ingredient{{ '' if shopping | length == 1 else 's' }}</h2>
+  <p class="field-hint">
+    Combined across {{ entry_count }} planned meal{{ '' if entry_count == 1 else 's' }} — one line per
+    ingredient, however many recipes want it. Staples and optional extras are left out.
+  </p>
+  <ul class="plan-shopping-list">
+    {% for row in shopping %}
+    <li>
+      <span class="tg-name">{{ row.name }}</span>
+      {% if row.category %}<span class="tag-chip small">{{ row.category }}</span>{% endif %}
+      <span class="tg-raw">{{ row.recipes | join(', ') }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if lists %}
+  <form method="post" action="/recipes/plan/shopping" class="cook-add-form">
+    <input type="hidden" name="start" value="{{ week_start.isoformat() }}">
+    <select name="list_id" required>
+      {% for l in lists %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+    </select>
+    <button type="submit">Add the week to this list</button>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+<p class="field-hint plan-note">
+  Planned meals also appear on the family calendar as all-day events. Removing one here
+  removes it there too; deleting it from the calendar just unlinks it, and the plan stays.
+</p>
+{% endif %}
+{% endblock %}

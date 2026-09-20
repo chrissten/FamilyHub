@@ -114,6 +114,10 @@ export default function RecipesScreen() {
           <Ionicons name="file-tray-stacked-outline" size={16} color={colors.primary} />
           <Text style={styles.kitchenText}>Pantry</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.kitchenButton} onPress={() => router.push('/meal-plan')}>
+          <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+          <Text style={styles.kitchenText}>Plan</Text>
+        </TouchableOpacity>
       </View>
 
       {tags.length > 0 && (

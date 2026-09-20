@@ -42,6 +42,46 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-20 (6)
+- **[web][mobile]** v1.8.0 — **Recipes, phase 6 of 6: meal planning on the calendar.** A
+  week planner at `/recipes/plan` (and from the Recipes tab on mobile) with three slots a
+  day, plus a combined shopping list for the whole week that pushes to a grocery list in
+  one go. Completes the feature.
+
+  **Planned meals appear on the family calendar** as all-day events titled
+  `Dinner: Chicken Parmesan`. Three deliberate choices there, all about not disturbing
+  the calendar the family actually depends on:
+  - **All new code lives in `app/meal_plan.py`, not `app/routers/calendar.py`.** That file
+    is the most load-bearing in the app — recurrence, per-event timezones, conflict
+    detection — and meal planning needs none of it, so it writes plain non-recurring rows
+    through the narrowest surface that works.
+  - **All-day, not timed.** "Dinner on Tuesday" is a date, not an instant, and treating it
+    as all-day sidesteps timezone conversion entirely, which is where calendar bugs live.
+    Matches how the calendar already stores all-day events: naive midnight-to-end-of-day,
+    tagged UTC, never converted.
+  - **No attendees.** A planned meal belongs to the household; attaching attendees would
+    colour it as one person's event.
+
+  **The link tolerates being broken.** `MealPlanEntry.calendar_event_id` may point at an
+  event someone has since deleted from the calendar. Removing a meal from the planner
+  removes its event; deleting the event from the calendar side just unlinks it and the
+  plan survives, re-creating the event on the next sync. Verified both directions,
+  including that an unrelated calendar event is untouched throughout.
+
+  The week's shopping list combines **by canonical ingredient, not by recipe**, so three
+  meals that each want an onion produce one line — and it goes through the same
+  `add_or_merge_item` as a single recipe push, so amounts still combine with whatever is
+  already on the list. Staples and optional extras are excluded.
+
+  Fixed while building it: the planner template used `strftime('%-d')`, which is a
+  glibc-only directive. It would have worked on the Linux container and raised
+  `ValueError: Invalid format string` on every local Windows run — now built from `.day`
+  instead. No other platform-specific directives remain in the project.
+
+  The smoke suite now renders all five calendar views (month, week, 3-day, day, agenda)
+  with a planned meal in range, since an all-day event with no attendees is exactly the
+  shape most likely to break one of them.
+
 ### 2026-09-20 (5)
 - **[web][mobile]** v1.7.0 — **Recipes, phase 5 of 6: cook mode.** A screen built for a
   phone or tablet propped on a worktop: big type, large tap targets, one step at a time

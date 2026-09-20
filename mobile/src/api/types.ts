@@ -230,3 +230,15 @@ export interface MatchIngredient {
   optional: boolean;
   ingredient?: Ingredient | null;
 }
+
+export interface MealPlanEntry {
+  id: number;
+  /** ISO date, e.g. "2026-09-23". */
+  date: string;
+  meal_slot: 'breakfast' | 'lunch' | 'dinner';
+  servings_override?: number | null;
+  /** May point at an event since deleted from the calendar — don't assume it resolves. */
+  calendar_event_id?: number | null;
+  recipe: RecipeSummary;
+  added_by: User;
+}

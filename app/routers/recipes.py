@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from fastapi import (
     APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile,
     WebSocket, WebSocketDisconnect, status,
@@ -16,6 +18,7 @@ from app.models import (
     SCALE_OPTIONS,
     GroceryCategory,
     GroceryList,
+    MealPlanEntry,
     PantryItem,
     Recipe,
     RecipeImage,
@@ -23,6 +26,15 @@ from app.models import (
     RecipeStep,
     RecipeTagName,
     User,
+)
+from app.meal_plan import (
+    delete_entry,
+    entries_for_week,
+    normalize_slot,
+    sync_event_for,
+    week_grid,
+    week_shopping_lines,
+    week_start,
 )
 from app.recipe_match import match_recipe, on_hand, rank_recipes
 from app.recipe_import import (
@@ -37,6 +49,8 @@ from app.recipe_import import (
 from app.schemas import (
     RecipeCreate,
     RecipeDraftOut,
+    MealPlanEntryCreate,
+    MealPlanEntryOut,
     RecipeMatchOut,
     RecipeOut,
     RecipeSummaryOut,
@@ -505,6 +519,175 @@ def api_cook_now(
         )
         for m in matches
     ]
+
+
+# ── Meal planning ───────────────────────────────────────────────────────────────
+
+
+@router.get("/recipes/plan", response_class=HTMLResponse)
+def meal_plan_page(
+    request: Request,
+    start: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    request.session["last_page"] = "/recipes/plan"
+    try:
+        anchor = date.fromisoformat(start) if start else date.today()
+    except ValueError:
+        anchor = date.today()
+    monday = week_start(anchor)
+    entries = entries_for_week(db, monday)
+    return templates.TemplateResponse(
+        request,
+        "meal_plan.html",
+        {
+            "week_start": monday,
+            "prev_week": monday - timedelta(days=7),
+            "next_week": monday + timedelta(days=7),
+            "today": date.today(),
+            "days": week_grid(entries, monday),
+            "entry_count": len(entries),
+            "recipes": visible_recipes_query(db, current_user).all(),
+            "lists": visible_lists_query(db, GroceryList, current_user).all(),
+            "shopping": week_shopping_lines(entries),
+            "current_user": current_user,
+        },
+    )
+
+
+@router.post("/recipes/plan/entries")
+def meal_plan_add(
+    recipe_id: int = Form(...),
+    day: str = Form(...),
+    meal_slot: str = Form("dinner"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = get_visible_recipe(db, recipe_id, current_user)
+    try:
+        planned = date.fromisoformat(day)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid date") from None
+
+    entry = MealPlanEntry(
+        recipe_id=recipe.id,
+        date=planned,
+        meal_slot=normalize_slot(meal_slot),
+        added_by_id=current_user.id,
+    )
+    db.add(entry)
+    db.flush()
+    sync_event_for(db, entry, recipe, current_user)
+    db.commit()
+    return RedirectResponse(
+        url=f"/recipes/plan?start={week_start(planned).isoformat()}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/recipes/plan/entries/{entry_id}/delete")
+def meal_plan_remove(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    entry = db.get(MealPlanEntry, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Planned meal not found")
+    monday = week_start(entry.date)
+    delete_entry(db, entry)
+    db.commit()
+    return RedirectResponse(
+        url=f"/recipes/plan?start={monday.isoformat()}", status_code=status.HTTP_302_FOUND
+    )
+
+
+@router.post("/recipes/plan/shopping")
+async def meal_plan_shopping(
+    list_id: int = Form(...),
+    start: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Put the whole week of ingredients onto one list.
+
+    Goes through the same add_or_merge_item as a single recipe push, so amounts combine
+    with whatever is already there and categories are still created on demand.
+    """
+    get_visible_list(db, GroceryList, list_id, current_user)
+    try:
+        monday = week_start(date.fromisoformat(start))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid week") from None
+
+    entries = entries_for_week(db, monday)
+    touched: set[int] = set()
+    for row in week_shopping_lines(entries):
+        item, _ = add_or_merge_item(
+            db, list_id,
+            name=row["name"], quantity=None, category_name=row["category"],
+            user_id=current_user.id,
+        )
+        touched.add(item.category_id)
+
+    if touched:
+        html = "".join(
+            render_grocery_category(db.get(GroceryCategory, cid), oob_mode="replace")
+            for cid in touched
+            if db.get(GroceryCategory, cid) is not None
+        ) + render_grocery_datalist(db, list_id)
+        await grocery_manager.broadcast(list_id, html)
+
+    return RedirectResponse(url=f"/grocery/lists/{list_id}", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/api/recipes/plan", response_model=list[MealPlanEntryOut])
+def api_meal_plan(
+    start: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        anchor = date.fromisoformat(start) if start else date.today()
+    except ValueError:
+        anchor = date.today()
+    return entries_for_week(db, week_start(anchor))
+
+
+@router.post("/api/recipes/plan", response_model=MealPlanEntryOut)
+def api_meal_plan_add(
+    payload: MealPlanEntryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = get_visible_recipe(db, payload.recipe_id, current_user)
+    entry = MealPlanEntry(
+        recipe_id=recipe.id,
+        date=payload.date,
+        meal_slot=normalize_slot(payload.meal_slot),
+        added_by_id=current_user.id,
+    )
+    db.add(entry)
+    db.flush()
+    sync_event_for(db, entry, recipe, current_user)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+@router.delete("/api/recipes/plan/{entry_id}", status_code=204)
+def api_meal_plan_remove(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    entry = db.get(MealPlanEntry, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Planned meal not found")
+    delete_entry(db, entry)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/recipes/{recipe_id}", response_class=HTMLResponse)

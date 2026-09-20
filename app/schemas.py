@@ -425,3 +425,23 @@ class RecipeMatchOut(BaseModel):
     shortfall: int
     can_make: bool
     bucket: Literal["ready", "one", "several"]
+
+
+class MealPlanEntryCreate(BaseModel):
+    recipe_id: int
+    date: date
+    meal_slot: Literal["breakfast", "lunch", "dinner"] = "dinner"
+
+
+class MealPlanEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    date: date
+    meal_slot: str
+    servings_override: int | None
+    # May point at an event since deleted from the calendar; clients should not assume
+    # it still resolves.
+    calendar_event_id: int | None
+    recipe: RecipeSummaryOut
+    added_by: UserOut

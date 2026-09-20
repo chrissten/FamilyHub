@@ -407,3 +407,31 @@ class PantryItem(Base):
 
     ingredient: Mapped["Ingredient"] = relationship()
     added_by: Mapped["User"] = relationship(foreign_keys=[added_by_id])
+
+
+class MealPlanEntry(Base):
+    """A recipe assigned to a day. Household-global, like the pantry and freezer.
+
+    Each entry optionally owns a CalendarEvent so planned meals show up on the family
+    calendar. That link is one-directional and deliberately loose: `calendar_event_id`
+    can point at a row someone has since deleted from the calendar, and every read
+    tolerates that rather than trying to keep two sources of truth in lockstep.
+    """
+
+    __tablename__ = "meal_plan_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipes.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    # "breakfast" | "lunch" | "dinner". Several recipes can share a slot — a main and a
+    # side is the normal case — so there's no unique constraint here.
+    meal_slot: Mapped[str] = mapped_column(String(20), default="dinner")
+    calendar_event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("calendar_events.id"), nullable=True
+    )
+    servings_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    added_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    recipe: Mapped["Recipe"] = relationship()
+    added_by: Mapped["User"] = relationship(foreign_keys=[added_by_id])

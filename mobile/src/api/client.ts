@@ -3,7 +3,7 @@ import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
   Recipe, RecipeSummary, RecipeInput, RecipeDraft, ToGroceryResult,
-  PantryItem, RecipeMatch,
+  PantryItem, RecipeMatch, MealPlanEntry,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -376,3 +376,20 @@ export const deletePantryItem = (id: number) =>
 /** Recipes ranked by how close they are to cookable, given pantry + freezer + staples. */
 export const getCookNow = (maxMissing?: number) =>
   request<RecipeMatch[]>(`/api/recipes/cook-now${maxMissing != null ? `?max_missing=${maxMissing}` : ''}`);
+
+// ── Meal plan ─────────────────────────────────────────────────────────────────
+
+/** The week containing `start` (any date in it); defaults to the current week. */
+export const getMealPlan = (start?: string) =>
+  request<MealPlanEntry[]>(`/api/recipes/plan${start ? `?start=${start}` : ''}`);
+
+export const addMealPlanEntry = (
+  recipeId: number, date: string, mealSlot: 'breakfast' | 'lunch' | 'dinner',
+) => request<MealPlanEntry>('/api/recipes/plan', {
+  method: 'POST',
+  body: JSON.stringify({ recipe_id: recipeId, date, meal_slot: mealSlot }),
+});
+
+/** Removes the planned meal and the calendar event it created. */
+export const deleteMealPlanEntry = (id: number) =>
+  request<Record<string, never>>(`/api/recipes/plan/${id}`, { method: 'DELETE' });

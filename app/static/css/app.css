@@ -514,3 +514,38 @@ p.empty { color: #9aa5b1; }
   .cook-header h1 { font-size: 1.15rem; }
   .cook-ingredients label { font-size: 1rem; }
 }
+
+/* Meal plan */
+.plan-weeknav { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.plan-weeklabel { font-weight: 600; font-size: 0.95rem; }
+.plan-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.6rem; }
+.plan-day { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 0.6rem; min-width: 0; }
+.plan-day.is-today { box-shadow: 0 0 0 2px #4A90D9; }
+.plan-day h2 { margin: 0 0 0.5rem; font-size: 0.85rem; display: flex; flex-direction: column; }
+.plan-daynum { font-weight: 400; color: #7b8794; font-size: 0.72rem; }
+.plan-slot { border-top: 1px solid #e4e7eb; padding: 0.4rem 0; }
+.plan-slot-label { display: block; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; color: #9aa5b1; font-weight: 700; }
+.plan-entry { display: flex; align-items: flex-start; gap: 0.25rem; margin-top: 0.3rem; }
+.plan-entry a { font-size: 0.8rem; color: #1f2933; text-decoration: none; line-height: 1.3; flex: 1; word-break: break-word; }
+.plan-entry a:hover { text-decoration: underline; }
+.plan-remove { margin: 0; }
+.plan-remove button { background: transparent; color: #cbd2d9; font-size: 1rem; padding: 0 0.2rem; line-height: 1; }
+.plan-remove button:hover { color: #d9534f; }
+.plan-addbtn { background: #f4f6f8; color: #7b8794; width: 100%; padding: 0.2rem; font-size: 0.85rem; margin-top: 0.3rem; }
+.plan-addbtn:hover { background: #e4e7eb; }
+.plan-add { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.3rem; }
+.plan-add select { width: 100%; padding: 0.25rem; font-size: 0.75rem; border: 1px solid #cbd2d9; border-radius: 4px; }
+.plan-add button { font-size: 0.75rem; padding: 0.25rem; }
+
+.plan-shopping { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1rem 1.25rem; margin-top: 1.75rem; }
+.plan-shopping h2 { margin: 0 0 0.3rem; font-size: 1.05rem; }
+.plan-shopping-list { list-style: none; padding: 0; margin: 0.75rem 0; column-width: 240px; column-gap: 2rem; }
+.plan-shopping-list li { display: flex; align-items: baseline; gap: 0.4rem; padding: 0.25rem 0; break-inside: avoid; font-size: 0.9rem; }
+.plan-note { margin-top: 1.25rem; max-width: 640px; }
+
+@media (max-width: 900px) {
+  .plan-grid { grid-template-columns: 1fr; }
+  .plan-day h2 { flex-direction: row; gap: 0.4rem; align-items: baseline; font-size: 0.95rem; }
+  .plan-entry a { font-size: 0.9rem; }
+  .plan-slot-label { font-size: 0.68rem; }
+}
