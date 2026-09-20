@@ -8,10 +8,20 @@ from sqlalchemy.orm import Query, Session, joinedload, selectinload
 
 from app.config import settings
 from app.database import SessionLocal, get_db
+from app.grocery_ops import DEFAULT_CATEGORY_NAME, add_or_merge_item
 from app.deps import get_current_user
-from app.ingredients import normalize, parse_ingredient_line, resolve
-from app.list_access import is_list_visible
-from app.models import Recipe, RecipeImage, RecipeIngredient, RecipeStep, RecipeTagName, User
+from app.ingredients import normalize, parse_ingredient_line, resolve, scaled_amount
+from app.list_access import get_visible_list, is_list_visible, visible_lists_query
+from app.models import (
+    GroceryCategory,
+    GroceryList,
+    Recipe,
+    RecipeImage,
+    RecipeIngredient,
+    RecipeStep,
+    RecipeTagName,
+    User,
+)
 from app.recipe_import import (
     RecipeImportError,
     draft_to_lines,
@@ -21,10 +31,20 @@ from app.recipe_import import (
     stash_scans,
     take_scans,
 )
-from app.schemas import RecipeCreate, RecipeDraftOut, RecipeOut, RecipeSummaryOut, RecipeUpdate
+from app.schemas import (
+    RecipeCreate,
+    RecipeDraftOut,
+    RecipeOut,
+    RecipeSummaryOut,
+    RecipeUpdate,
+    ToGroceryRequest,
+    ToGroceryResult,
+)
 from app.security import decode_access_token
 from app.templating import templates
-from app.ws_manager import recipe_manager
+from app.routers.grocery import render_category as render_grocery_category
+from app.routers.grocery import render_item_datalist as render_grocery_datalist
+from app.ws_manager import grocery_manager, recipe_manager
 
 router = APIRouter()
 
@@ -528,6 +548,154 @@ def _parse_int(value: str | None) -> int | None:
     except ValueError:
         return None
     return parsed if parsed > 0 else None
+
+
+# ── Recipe -> grocery list ──────────────────────────────────────────────────────
+
+
+def _ingredient_target(item: RecipeIngredient) -> tuple[str, str | None]:
+    """The name and grocery category to shop for.
+
+    Prefers the canonical ingredient ("chicken breast") over the recipe's wording
+    ("2 lbs boneless skinless chicken breasts, cubed") so two recipes calling for the
+    same thing land on one line of the list. Falls back to the parsed name when the
+    ingredient never resolved.
+    """
+    if item.ingredient is not None:
+        return item.ingredient.name, item.ingredient.category
+    return item.name, None
+
+
+@router.get("/recipes/{recipe_id}/to-grocery", response_class=HTMLResponse)
+def recipe_to_grocery_page(
+    recipe_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    lists = visible_lists_query(db, GroceryList, current_user).all()
+    # Staples are assumed to be in the house, so they start unticked rather than
+    # padding the shopping list with salt and oil every time.
+    rows = [
+        {
+            "item": item,
+            "name": name,
+            "category": category or DEFAULT_CATEGORY_NAME,
+            "preselected": not item.optional and not (item.ingredient and item.ingredient.is_staple),
+        }
+        for item, (name, category) in ((i, _ingredient_target(i)) for i in recipe.ingredients)
+    ]
+    return templates.TemplateResponse(
+        request,
+        "recipe_to_grocery.html",
+        {"recipe": recipe, "lists": lists, "rows": rows, "current_user": current_user, "error": None},
+    )
+
+
+async def _push_to_grocery(
+    db: Session,
+    recipe: Recipe,
+    list_id: int,
+    ingredient_ids: list[int],
+    scale: float,
+    user: User,
+) -> tuple[int, int, list[str]]:
+    """Shared by the form post and the JSON API. Returns (added, merged, names)."""
+    get_visible_list(db, GroceryList, list_id, user)
+    wanted = set(ingredient_ids)
+    added = merged = 0
+    names: list[str] = []
+    touched_categories: set[int] = set()
+
+    for item in recipe.ingredients:
+        if item.id not in wanted:
+            continue
+        name, category = _ingredient_target(item)
+        quantity = scaled_amount(item.quantity, item.unit, scale) if item.quantity is not None else None
+        grocery_item, created = add_or_merge_item(
+            db, list_id, name=name, quantity=quantity, category_name=category, user_id=user.id
+        )
+        touched_categories.add(grocery_item.category_id)
+        names.append(name)
+        if created:
+            added += 1
+        else:
+            merged += 1
+
+    # Push the changed categories to anyone with that grocery list open. This is the
+    # first cross-feature broadcast in the app: the recipe router writing into the
+    # grocery room so a list open on the kitchen tablet updates as you add to it.
+    if touched_categories:
+        html = "".join(
+            render_grocery_category(db.get(GroceryCategory, cid), oob_mode="replace")
+            for cid in touched_categories
+            if db.get(GroceryCategory, cid) is not None
+        ) + render_grocery_datalist(db, list_id)
+        await grocery_manager.broadcast(list_id, html)
+
+    return added, merged, names
+
+
+@router.post("/recipes/{recipe_id}/to-grocery")
+async def recipe_to_grocery(
+    recipe_id: int,
+    request: Request,
+    list_id: int = Form(...),
+    ingredient_ids: list[int] = Form(default=[]),
+    scale: str = Form("1"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    if not ingredient_ids:
+        lists = visible_lists_query(db, GroceryList, current_user).all()
+        rows = [
+            {
+                "item": item,
+                "name": name,
+                "category": category or DEFAULT_CATEGORY_NAME,
+                "preselected": not item.optional and not (item.ingredient and item.ingredient.is_staple),
+            }
+            for item, (name, category) in ((i, _ingredient_target(i)) for i in recipe.ingredients)
+        ]
+        return templates.TemplateResponse(
+            request,
+            "recipe_to_grocery.html",
+            {
+                "recipe": recipe, "lists": lists, "rows": rows, "current_user": current_user,
+                "error": "Tick at least one ingredient to add.",
+            },
+            status_code=400,
+        )
+
+    await _push_to_grocery(db, recipe, list_id, ingredient_ids, _parse_scale(scale), current_user)
+    return RedirectResponse(url=f"/grocery/lists/{list_id}", status_code=status.HTTP_302_FOUND)
+
+
+def _parse_scale(value: str) -> float:
+    try:
+        scale = float(value)
+    except (TypeError, ValueError):
+        return 1.0
+    # Guard against a hand-edited form turning one recipe into a thousand portions.
+    return min(max(scale, 0.25), 20.0)
+
+
+@router.post("/api/recipes/{recipe_id}/to-grocery", response_model=ToGroceryResult)
+async def api_recipe_to_grocery(
+    recipe_id: int,
+    payload: ToGroceryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    if not payload.ingredient_ids:
+        raise HTTPException(status_code=422, detail="Select at least one ingredient")
+    added, merged, names = await _push_to_grocery(
+        db, recipe, payload.list_id, payload.ingredient_ids, _parse_scale(str(payload.scale)), current_user
+    )
+    return ToGroceryResult(added=added, merged=merged, names=names, list_id=payload.list_id)
 
 
 # ── WebSocket ───────────────────────────────────────────────────────────────────

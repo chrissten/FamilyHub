@@ -364,11 +364,29 @@ def parse_ingredient_line(line: str) -> dict:
     }
 
 
+def pluralize_unit(unit: str | None, quantity: float | None) -> str:
+    """Units are stored canonical and singular for arithmetic, but "3 cup" reads wrong on
+    a shopping list. Pluralize only at the point of display."""
+    if not unit:
+        return ""
+    if quantity is None or abs(quantity - 1.0) < 0.01:
+        return unit
+    if unit.endswith(("s", "ch", "sh", "x", "z")):
+        return unit + "es"
+    return unit + "s"
+
+
+def format_amount(quantity: float | None, unit: str | None) -> str:
+    """An amount as it should appear to a person: "1 1/2 cups", "3 cloves", "2"."""
+    if quantity is None:
+        return unit or ""
+    amount = format_quantity(quantity)
+    plural = pluralize_unit(unit, quantity)
+    return f"{amount} {plural}".strip() if plural else amount
+
+
 def scaled_amount(quantity: float | None, unit: str | None, factor: float = 1.0) -> str:
     """The display amount for an ingredient at a given scale, e.g. "1 1/2 cups"."""
     if quantity is None:
         return unit or ""
-    amount = format_quantity(quantity * factor)
-    if not unit:
-        return amount
-    return f"{amount} {unit}".strip()
+    return format_amount(quantity * factor, unit)

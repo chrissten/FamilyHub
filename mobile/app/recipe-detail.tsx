@@ -71,6 +71,9 @@ export default function RecipeDetailScreen() {
         headerRight: () => (
           recipe ? (
             <View style={styles.headerActions}>
+              <TouchableOpacity onPress={() => router.push(`/recipe-to-grocery?id=${recipe.id}`)} hitSlop={8}>
+                <Ionicons name="cart-outline" size={22} color="#fff" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={handleEdit} hitSlop={8}>
                 <Ionicons name="create-outline" size={22} color="#fff" />
               </TouchableOpacity>
@@ -155,6 +158,14 @@ export default function RecipeDetailScreen() {
         ))}
       </View>
 
+      <TouchableOpacity
+        style={styles.toGroceryButton}
+        onPress={() => router.push(`/recipe-to-grocery?id=${recipe.id}`)}
+      >
+        <Ionicons name="cart-outline" size={17} color={colors.primary} />
+        <Text style={styles.toGroceryText}>Add ingredients to a grocery list</Text>
+      </TouchableOpacity>
+
       <Text style={styles.sectionHeader}>Method</Text>
       <View style={styles.card}>
         {recipe.steps.length === 0 ? (
@@ -185,6 +196,12 @@ function createStyles(colors: Colors) {
     content: { padding: 14, paddingBottom: 40 },
     centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
     headerActions: { flexDirection: 'row', gap: 18, paddingRight: 4 },
+    toGroceryButton: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      marginTop: 12, paddingVertical: 12, borderRadius: 10,
+      backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary,
+    },
+    toGroceryText: { color: colors.primary, fontSize: 14.5, fontWeight: '600' },
     metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' },
     metaText: { fontSize: 12, color: colors.textFaint },
     privateBadge: {

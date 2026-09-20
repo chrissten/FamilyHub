@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Add to grocery list - {{ recipe.title }}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/recipes/{{ recipe.id }}">&larr; {{ recipe.title }}</a></p>
+<h1>Add to a grocery list</h1>
+
+{% if error %}<p class="error import-error">{{ error }}</p>{% endif %}
+
+{% if not lists %}
+<p class="empty">
+  You don't have a grocery list yet — <a href="/grocery">create one</a> first.
+</p>
+{% else %}
+{#
+  A page of its own rather than a panel on the recipe, so the ingredient list is always
+  current (the recipe body re-renders live over the WebSocket) and there's room for the
+  servings scaler.
+#}
+<form method="post" action="/recipes/{{ recipe.id }}/to-grocery" class="to-grocery-form"
+      x-data="{ scale: '1' }">
+  <div class="recipe-form-row">
+    <label>List
+      <select name="list_id" required>
+        {% for l in lists %}
+        <option value="{{ l.id }}">{{ l.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Servings
+      <select name="scale" x-model="scale">
+        <option value="0.5">Half{% if recipe.servings %} ({{ (recipe.servings / 2) | round | int }}){% endif %}</option>
+        <option value="1" selected>As written{% if recipe.servings %} ({{ recipe.servings }}){% endif %}</option>
+        <option value="1.5">One and a half{% if recipe.servings %} ({{ (recipe.servings * 1.5) | round | int }}){% endif %}</option>
+        <option value="2">Double{% if recipe.servings %} ({{ recipe.servings * 2 }}){% endif %}</option>
+        <option value="3">Triple{% if recipe.servings %} ({{ recipe.servings * 3 }}){% endif %}</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="to-grocery-actions">
+    <button type="button" @click="$el.closest('form').querySelectorAll('input[name=ingredient_ids]').forEach(c => c.checked = true)">Select all</button>
+    <button type="button" @click="$el.closest('form').querySelectorAll('input[name=ingredient_ids]').forEach(c => c.checked = false)">Select none</button>
+  </div>
+
+  <ul class="to-grocery-list">
+    {% for row in rows %}
+    <li class="{{ 'is-staple' if not row.preselected else '' }}">
+      <label class="inline">
+        <input type="checkbox" name="ingredient_ids" value="{{ row.item.id }}"
+               {{ 'checked' if row.preselected else '' }}>
+        <span class="tg-name">{{ row.name }}</span>
+        <span class="tg-raw">{{ row.item.raw_text }}</span>
+        <span class="tag-chip small">{{ row.category }}</span>
+        {% if row.item.optional %}<span class="tg-note">optional</span>{% endif %}
+        {% if row.item.ingredient and row.item.ingredient.is_staple %}<span class="tg-note">staple</span>{% endif %}
+      </label>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <p class="field-hint">
+    Staples and optional extras start unticked — they're usually already in the kitchen.
+    Anything already on the list gets its amount combined rather than duplicated.
+  </p>
+
+  <button type="submit">Add to list</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
-  Recipe, RecipeSummary, RecipeInput, RecipeDraft,
+  Recipe, RecipeSummary, RecipeInput, RecipeDraft, ToGroceryResult,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -341,3 +341,12 @@ export async function importRecipe(
   }
   return requestMultipart<RecipeDraft>('/api/recipes/import', form);
 }
+
+/** Push selected ingredients from a recipe onto a grocery list. Ingredients already on
+ *  the list have their amounts combined server-side rather than duplicated. */
+export const recipeToGrocery = (
+  recipeId: number, listId: number, ingredientIds: number[], scale = 1,
+) => request<ToGroceryResult>(`/api/recipes/${recipeId}/to-grocery`, {
+  method: 'POST',
+  body: JSON.stringify({ list_id: listId, ingredient_ids: ingredientIds, scale }),
+});

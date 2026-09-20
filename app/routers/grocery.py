@@ -4,6 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db
+from app.grocery_ops import find_existing_item, sort_items_alphabetically
 from app.deps import get_current_user
 from app.list_access import get_visible_list, is_list_visible, visible_lists_query
 from app.models import GroceryCategory, GroceryItem, GroceryList, User
@@ -50,27 +51,6 @@ def item_names_for_list(db: Session, list_id: int) -> list[str]:
         .all()
     )
     return [r[0] for r in rows]
-
-
-def _sort_items_alphabetically(db: Session, category_id: int) -> None:
-    items = (
-        db.query(GroceryItem)
-        .filter(GroceryItem.category_id == category_id)
-        .order_by(func.lower(GroceryItem.name))
-        .all()
-    )
-    for i, item in enumerate(items):
-        item.sort_order = i * 10
-    db.commit()
-
-
-def find_existing_item(db: Session, list_id: int, name: str) -> GroceryItem | None:
-    return (
-        db.query(GroceryItem)
-        .join(GroceryCategory)
-        .filter(GroceryCategory.list_id == list_id, func.lower(GroceryItem.name) == name.strip().lower())
-        .first()
-    )
 
 
 @router.get("/grocery", response_class=HTMLResponse)
@@ -202,7 +182,7 @@ async def grocery_add_item(
             existing.checked = False
             existing.checked_by_id = None
         db.commit()
-        _sort_items_alphabetically(db, existing_cat_id)
+        sort_items_alphabetically(db, existing_cat_id)
         existing_cat = db.get(GroceryCategory, existing_cat_id)
         db.refresh(existing_cat)
         html = render_category(existing_cat, oob_mode="replace") + render_item_datalist(db, list_id)
@@ -214,7 +194,7 @@ async def grocery_add_item(
     )
     db.add(item)
     db.commit()
-    _sort_items_alphabetically(db, category_id)
+    sort_items_alphabetically(db, category_id)
     db.refresh(category)
     html = render_category(category, oob_mode="replace") + render_item_datalist(db, list_id)
     await grocery_manager.broadcast(list_id, html)
@@ -262,7 +242,7 @@ async def grocery_update_item(
     item.name = name
     item.quantity = quantity or None
     db.commit()
-    _sort_items_alphabetically(db, item.category_id)
+    sort_items_alphabetically(db, item.category_id)
     db.refresh(item)
 
     html = render_item(item, oob_mode="replace") + render_item_datalist(db, list_id)
@@ -399,7 +379,7 @@ async def api_create_item(
     )
     db.add(item)
     db.commit()
-    _sort_items_alphabetically(db, payload.category_id)
+    sort_items_alphabetically(db, payload.category_id)
     db.refresh(item)
 
     html = render_item(item, oob_mode="insert") + render_item_datalist(db, list_id)
@@ -419,7 +399,7 @@ async def api_update_item(
     item.name = payload.name
     item.quantity = payload.quantity
     db.commit()
-    _sort_items_alphabetically(db, item.category_id)
+    sort_items_alphabetically(db, item.category_id)
     db.refresh(item)
 
     html = render_item(item, oob_mode="replace") + render_item_datalist(db, list_id)

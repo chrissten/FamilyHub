@@ -187,3 +187,11 @@ export interface RecipeDraft {
   image_url?: string | null;
   scan_token?: string | null;
 }
+
+/** Result of pushing recipe ingredients onto a grocery list. */
+export interface ToGroceryResult {
+  added: number;
+  merged: number;
+  names: string[];
+  list_id: number;
+}

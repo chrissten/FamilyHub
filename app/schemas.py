@@ -354,3 +354,19 @@ class RecipeDraftOut(BaseModel):
     source_name: str | None = None
     image_url: str | None = None
     scan_token: str | None = None
+
+
+class ToGroceryRequest(BaseModel):
+    """Push selected ingredients from a recipe onto a grocery list."""
+
+    list_id: int
+    ingredient_ids: list[int]
+    # Servings multiplier applied to each ingredient's quantity. Clamped server-side.
+    scale: float = 1.0
+
+
+class ToGroceryResult(BaseModel):
+    added: int
+    merged: int
+    names: list[str]
+    list_id: int

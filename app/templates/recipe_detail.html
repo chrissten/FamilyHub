@@ -6,7 +6,8 @@
 {# Per-viewer controls. Kept out of the broadcast fragment because whether Delete
    appears depends on who is looking. A delete clears this via its own OOB swap. #}
 <div class="recipe-toolbar" id="recipe-toolbar">
-  <a href="/recipes/{{ recipe.id }}/edit" class="btn-link">Edit</a>
+  <a href="/recipes/{{ recipe.id }}/to-grocery" class="btn-link">Add to grocery list</a>
+  <a href="/recipes/{{ recipe.id }}/edit" class="btn-link secondary">Edit</a>
   {% if recipe.owner_id == current_user.id %}
   <button type="button" class="danger"
           hx-post="/recipes/{{ recipe.id }}/delete"

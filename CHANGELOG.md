@@ -42,6 +42,47 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-20 (3)
+- **[web][mobile]** v1.5.0 — **Recipes, phase 3 of 6: push a recipe's ingredients onto a
+  grocery list.** From a recipe, pick a list, tick what you need, optionally scale the
+  servings (half through triple), and add. Web gets a dedicated
+  `/recipes/{id}/to-grocery` page; mobile gets the same screen from a cart button in the
+  recipe header and a full-width button under the ingredients.
+
+  **It shops for the canonical ingredient, not the recipe's wording.** A recipe calling
+  for "2 lbs boneless skinless chicken breasts, cubed" adds `chicken breast` to the list,
+  so two different recipes wanting chicken land on one line instead of two that look
+  unrelated. This is the first thing the canonical ingredient table from phase 1 actually
+  does.
+
+  **Amounts combine instead of overwriting.** Pushing the same recipe twice, or two
+  recipes that both want butter, adds the quantities up: `2 cups` + `1 cup` becomes
+  `3 cups`. When the units don't agree they're kept side by side (`2 cups + 1 lb`) rather
+  than one silently winning — a wrong amount on a shopping list is worse than an ugly
+  one. An item that was already ticked off gets un-ticked, since if you're buying it
+  again it isn't done.
+
+  **Categories are created on demand** from `Ingredient.category`, so ingredients file
+  themselves under Produce, Meat & Seafood, Dairy & Eggs and so on. That quietly closes
+  an existing gap: mobile couldn't create grocery categories at all (`"Add one on the web
+  app first"`), and a recipe push now works from the phone regardless.
+
+  Staples (salt, oil, flour) and anything marked optional start **unticked** — they're
+  usually already in the kitchen, and padding the list with them every time makes it
+  useless.
+
+  Under the hood, `find_existing_item` and the alphabetical re-sort moved out of
+  `app/routers/grocery.py` into a new `app/grocery_ops.py` alongside `add_or_merge_item`
+  and `get_or_create_category`, so there's one definition of "what happens when you add
+  something already on the list" rather than two that drift. The push broadcasts the
+  changed categories on `grocery_manager` — the **first cross-feature broadcast in the
+  app** — so a grocery list open on another tab or the kitchen tablet updates as the
+  ingredients arrive.
+
+  Also fixed: units are stored canonical and singular for arithmetic, which made merged
+  amounts read "3 cup". Pluralization now happens only at display time, so scaling and
+  merging both produce "3 cups", "2 cloves", "3 pinches".
+
 ### 2026-09-20 (2)
 - **[web][mobile]** v1.4.0 — **Recipes, phase 2 of 6: import from a link, a photo, or
   pasted text.** Point it at a recipe URL, photograph a cookbook page or recipe card, or
