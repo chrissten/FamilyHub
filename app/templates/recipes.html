@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Recipes - FamilyHub{% endblock %}
+{% block content %}
+<div class="recipes-header">
+  <h1>Recipes</h1>
+  <a href="/recipes/new" class="btn-link">New recipe</a>
+</div>
+
+<form method="get" action="/recipes" class="recipe-search">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search by name or ingredient…" autocomplete="off">
+  {% if active_tag %}<input type="hidden" name="tag" value="{{ active_tag }}">{% endif %}
+  <button type="submit">Search</button>
+  {% if q or active_tag %}<a href="/recipes" class="clear-search">Clear</a>{% endif %}
+</form>
+
+{% if all_tags %}
+<div class="tag-filters">
+  {% for t in all_tags %}
+  <a href="/recipes?tag={{ t.name | urlencode }}{% if q %}&q={{ q | urlencode }}{% endif %}"
+     class="tag-chip {{ 'active' if active_tag and active_tag|lower == t.name|lower else '' }}">{{ t.name }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="recipe-grid">
+  {% for recipe in recipes %}
+  <a class="recipe-card" href="/recipes/{{ recipe.id }}">
+    {% if recipe.image_url %}
+    <div class="recipe-card-image" style="background-image: url('{{ recipe.image_url }}')"></div>
+    {% endif %}
+    <div class="recipe-card-body">
+      <h2>{{ recipe.title }}</h2>
+      {% if recipe.description %}<p class="recipe-card-desc">{{ recipe.description }}</p>{% endif %}
+      <p class="recipe-card-meta">
+        {% if recipe.total_minutes %}<span>{{ recipe.total_minutes }} min</span>{% endif %}
+        {% if recipe.servings %}<span>Serves {{ recipe.servings }}</span>{% endif %}
+        {% if not recipe.is_public %}<span class="visibility-badge private">Private</span>{% endif %}
+      </p>
+      {% if recipe.tag_names %}
+      <p class="recipe-card-tags">{% for name in recipe.tag_names %}<span class="tag-chip small">{{ name }}</span>{% endfor %}</p>
+      {% endif %}
+    </div>
+  </a>
+  {% else %}
+  <p class="empty">
+    {% if q or active_tag %}No recipes match that.{% else %}No recipes yet — add your first one.{% endif %}
+  </p>
+  {% endfor %}
+</div>
+{% endblock %}

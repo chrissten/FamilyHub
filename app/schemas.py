@@ -228,3 +228,94 @@ class FreezerItemOut(BaseModel):
     expiration_date: date | None
     freezer_id: int
     added_by: UserOut
+
+
+class IngredientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    category: str | None
+    is_staple: bool
+
+
+class RecipeIngredientIn(BaseModel):
+    raw_text: str
+    quantity: float | None = None
+    unit: str | None = None
+    name: str
+    prep_note: str | None = None
+    optional: bool = False
+
+
+class RecipeIngredientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    raw_text: str
+    quantity: float | None
+    unit: str | None
+    name: str
+    prep_note: str | None
+    optional: bool
+    sort_order: int
+    ingredient: IngredientOut | None
+
+
+class RecipeStepOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    step_number: int
+    text: str
+
+
+class RecipeCreate(BaseModel):
+    title: str
+    description: str | None = None
+    servings: int | None = None
+    prep_minutes: int | None = None
+    cook_minutes: int | None = None
+    notes: str | None = None
+    source_type: Literal["manual", "url", "photo", "text"] = "manual"
+    source_url: str | None = None
+    source_name: str | None = None
+    image_url: str | None = None
+    is_public: bool = True
+    tags: list[str] = Field(default_factory=list)
+    ingredients: list[RecipeIngredientIn] = Field(default_factory=list)
+    steps: list[str] = Field(default_factory=list)
+
+
+class RecipeUpdate(RecipeCreate):
+    """Same shape as create — a save replaces the ingredient and step lists wholesale
+    rather than diffing them, which is what the edit form posts anyway."""
+
+
+class RecipeSummaryOut(BaseModel):
+    """List/card view. Deliberately omits ingredients and steps so the index page
+    doesn't load every line of every recipe."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    description: str | None
+    servings: int | None
+    prep_minutes: int | None
+    cook_minutes: int | None
+    source_type: str
+    source_url: str | None
+    source_name: str | None
+    image_url: str | None
+    is_public: bool
+    owner: UserOut
+    # Flattened by Recipe.tag_names / Recipe.image_ids so from_attributes can read them.
+    tag_names: list[str] = Field(default_factory=list)
+
+
+class RecipeOut(RecipeSummaryOut):
+    notes: str | None
+    ingredients: list[RecipeIngredientOut]
+    steps: list[RecipeStepOut]
+    image_ids: list[int] = Field(default_factory=list)

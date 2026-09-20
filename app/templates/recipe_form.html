@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{% if recipe %}Edit {{ recipe.title }}{% else %}New recipe{% endif %} - FamilyHub{% endblock %}
+{% block content %}
+<p class="breadcrumb">
+  <a href="{% if recipe %}/recipes/{{ recipe.id }}{% else %}/recipes{% endif %}">&larr; Back</a>
+</p>
+
+<h1>{% if recipe %}Edit recipe{% else %}New recipe{% endif %}</h1>
+
+<form method="post" action="{% if recipe %}/recipes/{{ recipe.id }}/edit{% else %}/recipes{% endif %}" class="recipe-form">
+  <label>Title
+    <input type="text" name="title" value="{{ recipe.title if recipe else '' }}" required autofocus>
+  </label>
+
+  <label>Short description
+    <input type="text" name="description" value="{{ recipe.description or '' if recipe else '' }}"
+           placeholder="One line — what is it?">
+  </label>
+
+  <div class="recipe-form-row">
+    <label>Serves
+      <input type="number" name="servings" min="1" value="{{ recipe.servings or '' if recipe else '' }}">
+    </label>
+    <label>Prep (min)
+      <input type="number" name="prep_minutes" min="1" value="{{ recipe.prep_minutes or '' if recipe else '' }}">
+    </label>
+    <label>Cook (min)
+      <input type="number" name="cook_minutes" min="1" value="{{ recipe.cook_minutes or '' if recipe else '' }}">
+    </label>
+  </div>
+
+  {#
+    Line-per-ingredient rather than a grid of quantity/unit/name inputs: it's how people
+    actually copy a recipe out of a book, and the server parses each line into quantity,
+    unit and a canonical ingredient (app/ingredients.py) so matching still works.
+  #}
+  <label>Ingredients <span class="field-hint">one per line, e.g. "2 cups all-purpose flour, sifted"</span>
+    <textarea name="ingredients" rows="10" placeholder="2 cups all-purpose flour&#10;1 tsp salt&#10;3 large eggs">{{ ingredient_text }}</textarea>
+  </label>
+
+  <label>Method <span class="field-hint">one step per line</span>
+    <textarea name="steps" rows="10" placeholder="Preheat the oven to 350°F.&#10;Whisk the dry ingredients together.">{{ step_text }}</textarea>
+  </label>
+
+  <label>Tags <span class="field-hint">comma separated</span>
+    <input type="text" name="tags" value="{{ tag_text }}" placeholder="weeknight, instant pot">
+  </label>
+
+  <div class="recipe-form-row">
+    <label>Source name
+      <input type="text" name="source_name" value="{{ recipe.source_name or '' if recipe else '' }}"
+             placeholder="e.g. Grandma's card">
+    </label>
+    <label>Source link
+      <input type="url" name="source_url" value="{{ recipe.source_url or '' if recipe else '' }}"
+             placeholder="https://…">
+    </label>
+  </div>
+
+  <label>Notes
+    <textarea name="notes" rows="3" placeholder="What you'd do differently next time">{{ recipe.notes or '' if recipe else '' }}</textarea>
+  </label>
+
+  <label class="inline">
+    <input type="checkbox" name="is_public" value="true" {{ 'checked' if not recipe or recipe.is_public else '' }}>
+    Shared with the whole family
+  </label>
+
+  <button type="submit">{% if recipe %}Save changes{% else %}Create recipe{% endif %}</button>
+</form>
+{% endblock %}

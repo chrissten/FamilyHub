@@ -8,9 +8,10 @@ from app.config import settings
 from sqlalchemy import inspect, text
 
 from app.database import Base, SessionLocal, engine
+from app.ingredient_seed import seed_ingredients
 from app.models import CalendarEvent
 from app.recurrence import top_up_recurring_series
-from app.routers import auth, calendar, devices, freezer, grocery, todo, users, widget
+from app.routers import auth, calendar, devices, freezer, grocery, recipes, todo, users, widget
 from app.seed import seed_admin
 from app.timezones import to_utc
 
@@ -32,6 +33,7 @@ app.include_router(calendar.router)
 app.include_router(grocery.router)
 app.include_router(todo.router)
 app.include_router(freezer.router)
+app.include_router(recipes.router)
 app.include_router(devices.router)
 app.include_router(widget.router)
 
@@ -98,6 +100,7 @@ def on_startup():
     db = SessionLocal()
     try:
         seed_admin(db)
+        seed_ingredients(db)
         top_up_recurring_series(db)
     finally:
         db.close()

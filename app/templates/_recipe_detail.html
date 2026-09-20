@@ -1,0 +1,84 @@
+{#
+  The recipe body as one fragment. An edit re-renders and OOB-replaces this over the
+  recipes WebSocket, so a second person reading the recipe sees the change immediately —
+  the same pattern the grocery category fragment uses, just at a coarser grain because a
+  recipe is read as a whole rather than ticked item by item.
+
+  Nothing in here may depend on `current_user`: this exact HTML is broadcast to every
+  connected viewer at once, so per-viewer chrome (the owner-only Delete button) lives in
+  the toolbar on recipe_detail.html instead.
+#}
+<article id="recipe-body"{% if oob_mode == "replace" %} hx-swap-oob="outerHTML"{% endif %}>
+  <div class="recipe-detail-header">
+    <div>
+      <h1>{{ recipe.title }}</h1>
+      <p class="recipe-card-meta">
+        {% if recipe.prep_minutes %}<span>{{ recipe.prep_minutes }} min prep</span>{% endif %}
+        {% if recipe.cook_minutes %}<span>{{ recipe.cook_minutes }} min cook</span>{% endif %}
+        {% if recipe.servings %}<span>Serves {{ recipe.servings }}</span>{% endif %}
+        <span class="item-meta">by {{ recipe.owner.display_name }}</span>
+        {% if not recipe.is_public %}<span class="visibility-badge private">Private</span>{% endif %}
+      </p>
+      {% if recipe.tag_names %}
+      <p class="recipe-card-tags">{% for name in recipe.tag_names %}<span class="tag-chip small">{{ name }}</span>{% endfor %}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if recipe.description %}<p class="recipe-description">{{ recipe.description }}</p>{% endif %}
+
+  {% if recipe.source_url %}
+  <p class="recipe-source">Source:
+    <a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_name or recipe.source_url }}</a>
+  </p>
+  {% elif recipe.source_name %}
+  <p class="recipe-source">Source: {{ recipe.source_name }}</p>
+  {% endif %}
+
+  <div class="recipe-columns">
+    <section class="recipe-ingredients">
+      <h2>Ingredients</h2>
+      <ul>
+        {% for item in recipe.ingredients %}
+        <li class="{{ 'optional' if item.optional else '' }}">
+          {{ item.raw_text }}
+          {% if not item.ingredient %}<span class="unmatched" title="Not matched to a known ingredient, so it won't count toward what you can cook">?</span>{% endif %}
+        </li>
+        {% else %}
+        <li class="empty">No ingredients listed.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="recipe-steps">
+      <h2>Method</h2>
+      <ol>
+        {% for step in recipe.steps %}
+        <li>{{ step.text }}</li>
+        {% else %}
+        <li class="empty">No steps listed.</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </div>
+
+  {% if recipe.images %}
+  <section class="recipe-scans">
+    <h2>Scans</h2>
+    <div class="recipe-scan-list">
+      {% for image in recipe.images %}
+      <a href="/recipes/{{ recipe.id }}/images/{{ image.id }}" target="_blank" rel="noopener noreferrer">
+        <img src="/recipes/{{ recipe.id }}/images/{{ image.id }}" alt="Scanned page {{ loop.index }}">
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if recipe.notes %}
+  <section class="recipe-notes">
+    <h2>Notes</h2>
+    <p>{{ recipe.notes }}</p>
+  </section>
+  {% endif %}
+</article>

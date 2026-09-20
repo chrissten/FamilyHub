@@ -69,7 +69,7 @@ export function useDisplayTimezone(): string | null {
 }
 
 const LAST_TAB_KEY = 'pref_last_tab';
-const TABS = ['index', 'grocery', 'todo', 'freezer', 'settings'] as const;
+const TABS = ['index', 'grocery', 'todo', 'freezer', 'recipes', 'settings'] as const;
 export type TabName = typeof TABS[number];
 
 /** Which bottom tab the user last had open, so relaunching the app returns them to it. */

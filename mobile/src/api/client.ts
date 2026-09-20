@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
+  Recipe, RecipeSummary, RecipeInput,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -255,3 +256,25 @@ export const incrementFreezerItem = (itemId: number) =>
 
 export const decrementFreezerItem = (itemId: number) =>
   request<{ ok: boolean; deleted?: boolean } & Partial<FreezerItem>>(`/api/freezer/items/${itemId}/decrement`, { method: 'POST' });
+
+// ── Recipes ───────────────────────────────────────────────────────────────────
+
+export const getRecipes = (q?: string, tag?: string) => {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (tag) params.set('tag', tag);
+  const query = params.toString();
+  return request<RecipeSummary[]>(`/api/recipes${query ? `?${query}` : ''}`);
+};
+
+export const getRecipe = (id: number) =>
+  request<Recipe>(`/api/recipes/${id}`);
+
+export const createRecipe = (data: RecipeInput) =>
+  request<Recipe>('/api/recipes', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateRecipe = (id: number, data: RecipeInput) =>
+  request<Recipe>(`/api/recipes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteRecipe = (id: number) =>
+  request<Record<string, never>>(`/api/recipes/${id}`, { method: 'DELETE' });

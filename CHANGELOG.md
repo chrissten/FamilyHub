@@ -42,6 +42,54 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-20
+- **[web][mobile]** v1.3.0 — **Recipes, phase 1 of 6: the recipe box.** New `Recipes` nav
+  item on web (`/recipes`) and a sixth mobile tab, with search by name *or* ingredient,
+  free-form tags, and full create/edit/delete on both platforms. Eight new tables in
+  `app/models.py` (`recipes`, `recipe_ingredients`, `recipe_steps`, `recipe_tag_names` +
+  the `recipe_tags` join, `recipe_images`, `ingredients`, `ingredient_aliases`,
+  `pantry_items`); all new, so `Base.metadata.create_all()` covers them and no
+  `ALTER TABLE` block was needed in `app/main.py`. Recipes carry `owner_id` + `is_public`
+  and reuse `list_access.is_list_visible`, so private recipes 404 for everyone else
+  exactly like private lists.
+
+  The load-bearing piece is **canonical ingredients** (`app/ingredients.py` +
+  `app/ingredient_seed.py`, 227 seeded ingredients / 45 aliases / 37 staples, seeded
+  idempotently next to `seed_admin`). Every ingredient line is reduced to a `norm_key`
+  so "2 lbs boneless skinless chicken breasts, cubed", a freezer package called "Chicken
+  Breasts", and a pantry entry called "chicken breast" all resolve to one row. The
+  normalizer strips *preparation* words (chopped, fresh, boneless, large) but never
+  *variety* words (ground, green, heavy, dried) — "ground beef" is not "beef". Nothing
+  consumes this yet; it exists now because retrofitting it after recipes had accumulated
+  would mean re-parsing every stored ingredient.
+
+  Ingredients and steps are entered as one-per-line textareas on both platforms rather
+  than a grid of quantity/unit/name fields — it's how you actually copy a recipe out of a
+  book, and the server parses each line into quantity, unit, canonical ingredient and an
+  optional flag ("salt and pepper to taste" is detected as optional). The raw line is
+  always stored and always displayed, so a line the parser can't make sense of still
+  survives intact.
+
+  Web gets live sync on the detail page (`recipe_manager` in `ws_manager.py`,
+  `/ws/recipes/{id}`): an edit from another tab — or from the phone, since the JSON
+  routes broadcast too — re-renders the recipe in place, and a delete replaces it with a
+  tombstone rather than leaving a stale page. Mobile has no WebSocket client (unchanged
+  from every other tab) and refreshes on focus and pull-to-refresh.
+
+  Also in this release, incidental to the above:
+  - `mobile/app.json` `versionCode` had drifted to 34 while `android/app/build.gradle`
+    said 35; both are now 36 and agree.
+  - `icon()` in `mobile/app/(tabs)/_layout.tsx` typed its `color` parameter as `string`
+    where the tab bar passes a `ColorValue`, which made every `Tabs.Screen` a TypeScript
+    error (6 of the 7 errors in the project). Annotation-only fix, no runtime change;
+    `npx tsc --noEmit` is now down to a single pre-existing `expo-notifications` error.
+
+  Not in this phase, and deliberately so: AI import from URL/photo/Facebook (phase 2),
+  pushing ingredients to a grocery list (phase 3), the pantry and "what can I cook
+  tonight" (phase 4), cook mode (phase 5), and meal planning on the calendar (phase 6).
+  The `pantry_items` and `recipe_images` tables ship empty now to avoid a second schema
+  change later.
+
 ### 2026-08-29 (2)
 - **[mobile]** v1.2.26 — Long-press on a freezer item now opens an edit sheet (name,
   quantity/unit, purchased/expiration dates) instead of immediately prompting to delete it,

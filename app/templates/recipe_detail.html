@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title }} - FamilyHub{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/recipes">&larr; Recipes</a></p>
+
+{# Per-viewer controls. Kept out of the broadcast fragment because whether Delete
+   appears depends on who is looking. A delete clears this via its own OOB swap. #}
+<div class="recipe-toolbar" id="recipe-toolbar">
+  <a href="/recipes/{{ recipe.id }}/edit" class="btn-link">Edit</a>
+  {% if recipe.owner_id == current_user.id %}
+  <button type="button" class="danger"
+          hx-post="/recipes/{{ recipe.id }}/delete"
+          hx-confirm="Delete '{{ recipe.title }}'? This cannot be undone."
+          hx-on::after-request="if(event.detail.successful) window.location.href='/recipes'">Delete</button>
+  {% endif %}
+</div>
+
+{# Same htmx 1.x-style attribute the grocery, to-do and freezer pages use with
+   htmx-ext-ws 2.x. Kept identical on purpose rather than diverging here. #}
+<div id="recipe-live" hx-ext="ws" hx-ws="connect:/ws/recipes/{{ recipe.id }}">
+  {% include "_recipe_detail.html" %}
+</div>
+{% endblock %}

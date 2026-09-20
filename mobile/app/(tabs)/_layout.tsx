@@ -1,16 +1,17 @@
 import { ComponentProps, useEffect } from 'react';
 import { Tabs, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import type { ColorValue } from 'react-native';
 import { useTheme } from '../../src/theme';
 import { setLastTab, type TabName } from '../../src/preferences';
 import NotificationBell from '../../src/NotificationBell';
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
-const TAB_NAMES: readonly TabName[] = ['index', 'grocery', 'todo', 'freezer', 'settings'];
+const TAB_NAMES: readonly TabName[] = ['index', 'grocery', 'todo', 'freezer', 'recipes', 'settings'];
 
 function icon(name: IoniconsName) {
-  return ({ color, size }: { color: string; size: number }) => (
+  return ({ color, size }: { color: ColorValue; size: number }) => (
     <Ionicons name={name} size={size} color={color} />
   );
 }
@@ -53,6 +54,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="freezer"
         options={{ title: 'Freezer', tabBarIcon: icon('snow-outline') }}
+      />
+      <Tabs.Screen
+        name="recipes"
+        options={{ title: 'Recipes', tabBarIcon: icon('restaurant-outline') }}
       />
       <Tabs.Screen
         name="settings"
