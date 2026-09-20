@@ -290,6 +290,13 @@ _UNIT_CANONICAL = {
     "stalk": "stalk", "stalks": "stalk", "piece": "piece", "pieces": "piece",
 }
 
+# Recipe sites prefix ingredient lines with bullets or checkboxes, and those come along
+# when you paste. Left in place they hide the quantity from _LEADING_AMOUNT below, so
+# "2 cups flour" parses but "▢ 2 cups flour" silently loses both quantity and unit.
+# A numbered marker only counts when the digits are followed by "." or ")" AND a space,
+# so "1. 2 tbsp oil" drops the list number while "1.5 cups" keeps its amount.
+_LIST_MARKER = re.compile(r"^\s*(?:[-–—*·•‣⁃▪▫◦●○▢▣☐☑✓✔]+|\d{1,2}[.)](?=\s))\s*")
+
 _LEADING_AMOUNT = re.compile(
     r"^\s*(?:"
     r"\d+\s*(?:-|–|to)\s*\d+(?:\.\d+)?"   # 1-2
@@ -309,6 +316,7 @@ def parse_ingredient_line(line: str) -> dict:
     line this can't make sense of still survives intact with a null quantity.
     """
     raw = " ".join(line.split())
+    raw = _LIST_MARKER.sub("", raw)
     working = expand_fractions(raw)
     # "1 (14.5 oz) can diced tomatoes" — the parenthetical is packaging trivia that would
     # otherwise end up in the displayed name and hide the unit behind it.
