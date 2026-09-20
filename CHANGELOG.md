@@ -42,6 +42,73 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-20 (2)
+- **[web][mobile]** v1.4.0 — **Recipes, phase 2 of 6: import from a link, a photo, or
+  pasted text.** Point it at a recipe URL, photograph a cookbook page or recipe card, or
+  paste a block of text, and get a structured recipe back. Extraction runs through the
+  Anthropic API (`claude-sonnet-5`, overridable with `RECIPE_MODEL`); with no
+  `ANTHROPIC_API_KEY` the import UI hides itself and the endpoints return a clear
+  message, so a half-configured deploy doesn't take the site down over a feature nobody
+  is using yet.
+
+  **URL import is a hybrid, and that's the main design decision.** Most recipe sites
+  publish `schema.org/Recipe` as JSON-LD, so when it's there the title, steps, servings,
+  times and hero image are taken from the page verbatim and only the ingredient *lines*
+  go to the model to be split into quantity/unit/canonical name — cheaper, faster and
+  more accurate than asking a model to read a page that already states the answer. The
+  page's own steps win over the model's, so a paraphrase can't quietly rewrite the
+  method. Pages without JSON-LD fall back to stripped page text.
+
+  **Facebook and Instagram block server-side fetching.** That's expected, not a failure
+  case: those raise a message telling you to paste the post's text or a screenshot, and
+  keep whatever you'd already typed. On Android, "Share → FamilyHub" handles this
+  properly — Chrome shares a URL (Link tab), Facebook usually shares text with a link
+  buried in it (Paste tab, which works where fetching the link wouldn't), and a
+  screenshot arrives as a photo (Photo tab), each pre-filled.
+
+  **Nothing is written to the database before you've seen it.** Extraction returns a
+  draft rendered into the ordinary edit form on both platforms, so correcting the model
+  uses the same controls as writing a recipe by hand. No job queue, no status column, no
+  polling — one request, one response. Photos are downscaled to a 1568px JPEG and wait in
+  a 30-minute in-process stash under a token carried through the review step; the token
+  is consumed on read, so a double-submit can't attach the same scans twice.
+
+  Verified against real sources rather than fixtures alone — AllRecipes, BBC Good Food
+  and Budget Bytes (all three take the JSON-LD path), a pasted recipe wrapped in the
+  author's story and "LIKE AND SUBSCRIBE" (no narrative leaked into the steps), a
+  photographed recipe card (7/7 ingredients resolved), and a Facebook URL (blocked with
+  the right message). That run found two bugs invisible to synthetic tests:
+
+  - **Accents broke ingredient matching.** NFKD splits `é` into `e` + a combining mark,
+    and the punctuation pass turned that mark into a *space* — `tomato purée` normalized
+    to `tomato pure e`, `crème fraîche` to `cre me frai che`. Every accented ingredient
+    made a junk row that could never match. Combining marks are now stripped instead, so
+    `jalapeño` also matches the seeded `jalapeno`.
+  - **HTML entities weren't decoded from JSON-LD.** Those strings come from `json.loads`
+    on raw `<script>` content, which BeautifulSoup never touches, so `Chef John&#39;s`
+    went through literally.
+
+  Seed tuning from the same run took the match rate on the 42 canonical names those
+  recipes produced from 86% to 100%: provolone, crème fraîche, ricotta, cottage cheese
+  and tomato purée added; aliases for British spellings (`lasagne sheet`, `beef mince`,
+  `streaky bacon`), for `bread crumb` vs `breadcrumb`, and for `salt and pepper` — which
+  the model returns as one canonical name, so it's folded onto salt to keep it out of
+  "missing ingredients" rather than making a junk row per recipe.
+
+  Notes for the next native build:
+  - `expo-share-intent` is pinned to **7.0.0**; 8.x requires Expo ^57 and this is SDK 56.
+  - It is deliberately **not** listed in `app.json`'s plugins. Its config plugin runs the
+    iOS branch during config evaluation and crashes on `config.ios.bundleIdentifier`,
+    which this Android-only app doesn't define — that breaks `expo config` and every JS
+    bundle, not just prebuild. The Android half is only the `SEND`/`SEND_MULTIPLE` intent
+    filters plus `launchMode="singleTask"` (already set), applied to `AndroidManifest.xml`
+    by hand with a comment explaining why.
+  - `expo-image-picker` was added without `expo prebuild` for the same reason: it
+    autolinks via `useExpoModules()`, so only the `CAMERA` and `READ_MEDIA_IMAGES`
+    permissions were genuinely missing.
+
+  New backend dependencies: `anthropic`, `httpx`, `beautifulsoup4`, `pillow`.
+
 ### 2026-09-20
 - **[web][mobile]** v1.3.0 — **Recipes, phase 1 of 6: the recipe box.** New `Recipes` nav
   item on web (`/recipes`) and a sixth mobile tab, with search by name *or* ingredient,
