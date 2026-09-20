@@ -1,3 +1,12 @@
+<!--
+  Share-sheet intent filters below are applied by hand, and expo-share-intent is
+  deliberately NOT listed in app.json's plugins. Its config plugin runs its iOS branch
+  during config evaluation and crashes on config.ios.bundleIdentifier, which this
+  Android-only app doesn't define - that breaks `expo config` and every JS bundle, not
+  just prebuild. The Android half of the plugin is only these filters plus
+  launchMode="singleTask" on MainActivity, which is already set, and the native module
+  autolinks via useExpoModules() in settings.gradle.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.INTERNET"/>
@@ -33,6 +42,21 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="familyhub"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="text/*"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="image/*"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND_MULTIPLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="image/*"/>
       </intent-filter>
     </activity>
   </application>

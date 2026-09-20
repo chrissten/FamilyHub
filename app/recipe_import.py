@@ -23,6 +23,7 @@ social post.
 from __future__ import annotations
 
 import base64
+import html as html_module
 import io
 import json
 import logging
@@ -220,7 +221,10 @@ def _iso8601_minutes(value) -> int | None:
 
 def _json_ld_text(value) -> str | None:
     if isinstance(value, str):
-        return value.strip() or None
+        # JSON-LD strings come out of json.loads on raw <script> content, so HTML
+        # entities in them are still literal — "Chef John&#39;s" rather than "Chef
+        # John's". BeautifulSoup decodes entities in page text but never sees these.
+        return html_module.unescape(value).strip() or None
     if isinstance(value, dict):
         return _json_ld_text(value.get("name") or value.get("text") or value.get("url"))
     if isinstance(value, list) and value:
@@ -232,8 +236,9 @@ def _json_ld_steps(value) -> list[str]:
     steps: list[str] = []
     if isinstance(value, str):
         # Some sites cram the whole method into one string.
-        parts = [p.strip() for p in re.split(r"(?:\r?\n)+", value) if p.strip()]
-        return parts or [value.strip()]
+        text = html_module.unescape(value)
+        parts = [p.strip() for p in re.split(r"(?:\r?\n)+", text) if p.strip()]
+        return parts or [text.strip()]
     if isinstance(value, list):
         for item in value:
             if isinstance(item, dict) and item.get("@type") == "HowToSection":

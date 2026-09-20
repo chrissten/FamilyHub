@@ -10,6 +10,7 @@ import { importRecipe } from '../src/api/client';
 import { useTheme, type Colors } from '../src/theme';
 import { useKeyboardHeight } from '../src/useKeyboardHeight';
 import { setPendingRecipeForm } from '../src/recipes/formState';
+import { takePendingShare } from '../src/recipes/shareIntake';
 
 type Mode = 'url' | 'photo' | 'text';
 
@@ -27,10 +28,14 @@ export default function RecipeImportScreen() {
   const keyboardHeight = useKeyboardHeight();
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>('url');
-  const [url, setUrl] = useState('');
-  const [text, setText] = useState('');
-  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  // Anything handed over by the Android share sheet, claimed once on mount. The tab and
+  // fields land pre-filled, so a share from Chrome or Facebook is one tap from imported.
+  const [shared] = useState(() => takePendingShare());
+
+  const [mode, setMode] = useState<Mode>(shared?.mode ?? 'url');
+  const [url, setUrl] = useState(shared?.url ?? '');
+  const [text, setText] = useState(shared?.text ?? '');
+  const [photos, setPhotos] = useState<PickedPhoto[]>(shared?.photos ?? []);
   const [busy, setBusy] = useState(false);
 
   function toPicked(asset: ImagePicker.ImagePickerAsset): PickedPhoto {
@@ -113,6 +118,12 @@ export default function RecipeImportScreen() {
           headerTitleStyle: { fontWeight: '700' },
         }}
       />
+
+      {!!shared && (
+        <Text style={styles.sharedBanner}>
+          Shared from another app — check it below, then Import.
+        </Text>
+      )}
 
       <View style={styles.tabs}>
         {(['url', 'photo', 'text'] as Mode[]).map(m => (
@@ -214,6 +225,10 @@ function createStyles(colors: Colors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 14 },
+    sharedBanner: {
+      backgroundColor: colors.primary + '18', borderLeftWidth: 3, borderLeftColor: colors.primary,
+      borderRadius: 4, padding: 10, marginBottom: 14, fontSize: 13, color: colors.text,
+    },
     tabs: { flexDirection: 'row', gap: 8, marginBottom: 16 },
     tab: { flex: 1, backgroundColor: colors.chip, borderRadius: 999, paddingVertical: 8, alignItems: 'center' },
     tabActive: { backgroundColor: colors.primary },

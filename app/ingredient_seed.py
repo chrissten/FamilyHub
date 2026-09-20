@@ -38,7 +38,8 @@ INGREDIENTS_BY_CATEGORY: dict[str, list[str]] = {
         "milk", "whole milk", "buttermilk", "heavy cream", "half and half", "sour cream",
         "yogurt", "greek yogurt", "butter", "unsalted butter", "cream cheese",
         "cheddar cheese", "mozzarella cheese", "parmesan cheese", "feta cheese",
-        "monterey jack cheese", "swiss cheese", "egg",
+        "monterey jack cheese", "swiss cheese", "egg", "provolone cheese",
+        "creme fraiche", "ricotta cheese", "cottage cheese",
     ],
     "Bakery": [
         "bread", "white bread", "wheat bread", "sourdough bread", "bagel", "tortilla",
@@ -55,7 +56,7 @@ INGREDIENTS_BY_CATEGORY: dict[str, list[str]] = {
         "mustard", "dijon mustard", "mayonnaise", "salsa", "vinegar", "balsamic vinegar",
         "apple cider vinegar", "olive oil", "vegetable oil", "canola oil", "sesame oil",
         "cooking spray", "breadcrumb", "panko breadcrumb", "cornstarch",
-        "chicken stock", "barbecue sauce", "ranch dressing",
+        "chicken stock", "barbecue sauce", "ranch dressing", "tomato puree",
     ],
     "Baking": [
         "all purpose flour", "bread flour", "sugar", "brown sugar", "powdered sugar",
@@ -134,6 +135,26 @@ ALIASES: dict[str, str] = {
     "noodle": "pasta",
     "greek style yogurt": "greek yogurt",
     "bicarbonate of soda": "baking soda",
+    # British and American spellings of the same thing, plus compound names the model
+    # returns verbatim from a recipe.
+    "lasagne sheet": "lasagna noodle",
+    "lasagna sheet": "lasagna noodle",
+    "lasagne noodle": "lasagna noodle",
+    "bread crumb": "breadcrumb",
+    "panko bread crumb": "panko breadcrumb",
+    "dried breadcrumb": "breadcrumb",
+    "beef mince": "ground beef",
+    "pork mince": "ground pork",
+    "chicken mince": "ground chicken",
+    "streaky bacon": "bacon",
+    "smoked streaky bacon": "bacon",
+    "natural yogurt": "yogurt",
+    "spring greens": "kale",
+    "tomato pure": "tomato puree",
+    # "salt and pepper to taste" comes back as one canonical name. It's always a staple
+    # and always optional, so folding it onto salt keeps it out of "missing ingredients"
+    # instead of creating a junk row per recipe.
+    "salt and pepper": "salt",
     "semi sweet chocolate chip": "chocolate chip",
     "semisweet chocolate chip": "chocolate chip",
     "dark chocolate chip": "chocolate chip",

@@ -138,7 +138,12 @@ def normalize(name: str) -> str:
     """
     if not name:
         return ""
-    text = unicodedata.normalize("NFKD", expand_fractions(name)).lower()
+    # Strip combining accents rather than letting the punctuation pass below turn them
+    # into spaces: NFKD splits "é" into "e" + U+0301, and replacing that mark with a
+    # space would make "purée" into "pure e" and "crème fraîche" into "cre me frai che".
+    # Folding to plain ASCII also means "jalapeño" and "jalapeno" agree.
+    decomposed = unicodedata.normalize("NFKD", expand_fractions(name))
+    text = "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
     # Drop parentheticals wholesale — they're almost always asides like
     # "(about 2 medium)" or "(plus more for greasing)".
     text = re.sub(r"\([^)]*\)", " ", text)
