@@ -10,3 +10,7 @@ python-jose[cryptography]==3.3.0
 pydantic-settings==2.7.1
 itsdangerous==2.2.0
 tzdata==2026.2
+anthropic==1.7.0
+httpx==0.28.1
+beautifulsoup4==4.15.0
+pillow==12.3.0

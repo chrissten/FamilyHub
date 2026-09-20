@@ -1,14 +1,27 @@
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, status
+from fastapi import (
+    APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile,
+    WebSocket, WebSocketDisconnect, status,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Query, Session, joinedload, selectinload
 
+from app.config import settings
 from app.database import SessionLocal, get_db
 from app.deps import get_current_user
 from app.ingredients import normalize, parse_ingredient_line, resolve
 from app.list_access import is_list_visible
 from app.models import Recipe, RecipeImage, RecipeIngredient, RecipeStep, RecipeTagName, User
-from app.schemas import RecipeCreate, RecipeOut, RecipeSummaryOut, RecipeUpdate
+from app.recipe_import import (
+    RecipeImportError,
+    draft_to_lines,
+    extract_from_images,
+    extract_from_text,
+    extract_from_url,
+    stash_scans,
+    take_scans,
+)
+from app.schemas import RecipeCreate, RecipeDraftOut, RecipeOut, RecipeSummaryOut, RecipeUpdate
 from app.security import decode_access_token
 from app.templating import templates
 from app.ws_manager import recipe_manager
@@ -134,6 +147,19 @@ def apply_step_lines(recipe: Recipe, lines: list[str]) -> None:
         recipe.steps.append(RecipeStep(step_number=index, text=text))
 
 
+def attach_scans(recipe: Recipe, scan_token: str | None) -> None:
+    """Move photos held from the import step onto the saved recipe.
+
+    take_scans consumes the token, so re-submitting the review form can't attach the
+    same photos twice, and an expired or already-used token is simply a no-op — the
+    recipe still saves, just without its scans.
+    """
+    for index, (data, content_type) in enumerate(take_scans(scan_token)):
+        recipe.images.append(
+            RecipeImage(data=data, content_type=content_type, sort_order=index * 10)
+        )
+
+
 def apply_tags(db: Session, recipe: Recipe, names: list[str]) -> None:
     recipe.tags = [get_or_create_tag(db, name) for name in names]
 
@@ -198,7 +224,18 @@ def recipe_new_page(
     return templates.TemplateResponse(
         request,
         "recipe_form.html",
-        {"recipe": None, "ingredient_text": "", "step_text": "", "tag_text": "", "current_user": current_user},
+        {
+            "recipe": None,
+            "draft": None,
+            "ingredient_text": "",
+            "step_text": "",
+            "tag_text": "",
+            "draft_source_url": "",
+            "draft_source_name": "",
+            "draft_image_url": "",
+            "scan_token": "",
+            "current_user": current_user,
+        },
     )
 
 
@@ -215,6 +252,9 @@ def recipe_create(
     notes: str = Form(""),
     source_url: str = Form(""),
     source_name: str = Form(""),
+    image_url: str = Form(""),
+    scan_token: str = Form(""),
+    source_type: str = Form(""),
     is_public: bool = Form(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -226,9 +266,10 @@ def recipe_create(
         prep_minutes=_parse_int(prep_minutes),
         cook_minutes=_parse_int(cook_minutes),
         notes=notes.strip() or None,
-        source_type="url" if source_url.strip() else "manual",
+        source_type=(source_type.strip() or ("url" if source_url.strip() else "manual"))[:20],
         source_url=source_url.strip()[:1000] or None,
         source_name=source_name.strip()[:200] or None,
+        image_url=image_url.strip()[:1000] or None,
         owner_id=current_user.id,
         is_public=is_public,
     )
@@ -237,8 +278,133 @@ def recipe_create(
     apply_ingredient_lines(db, recipe, split_lines(ingredients))
     apply_step_lines(recipe, split_lines(steps))
     apply_tags(db, recipe, parse_tag_names(tags))
+    attach_scans(recipe, scan_token.strip() or None)
     db.commit()
     return RedirectResponse(url=f"/recipes/{recipe.id}", status_code=status.HTTP_302_FOUND)
+
+
+# ── Import (Link / Photo / Paste) ───────────────────────────────────────────────
+
+
+def _render_review(request: Request, current_user: User, draft, *, source_url="", source_name="", image_url="", scan_token=""):
+    """Show an extracted draft in the ordinary edit form.
+
+    The review step reuses recipe_form.html rather than having its own screen: what you
+    get back is a normal recipe form with the fields filled in, so correcting the model
+    uses exactly the same controls as writing a recipe by hand.
+    """
+    ingredient_text, step_text, tag_text = draft_to_lines(draft)
+    return templates.TemplateResponse(
+        request,
+        "recipe_form.html",
+        {
+            "recipe": None,
+            "draft": draft,
+            "ingredient_text": ingredient_text,
+            "step_text": step_text,
+            "tag_text": tag_text,
+            "draft_source_url": source_url or "",
+            "draft_source_name": source_name or "",
+            "draft_image_url": image_url or "",
+            "scan_token": scan_token or "",
+            "current_user": current_user,
+        },
+    )
+
+
+@router.get("/recipes/import", response_class=HTMLResponse)
+def recipe_import_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    return templates.TemplateResponse(
+        request,
+        "recipe_import.html",
+        {"current_user": current_user, "import_enabled": settings.recipe_import_enabled, "error": None},
+    )
+
+
+@router.post("/recipes/import", response_class=HTMLResponse)
+async def recipe_import(
+    request: Request,
+    mode: str = Form("url"),
+    url: str = Form(""),
+    text: str = Form(""),
+    photos: list[UploadFile] = File(default=[]),
+    current_user: User = Depends(get_current_user),
+):
+    """Extract a draft and hand back the review form. Nothing is saved here."""
+    try:
+        if mode == "url":
+            if not url.strip():
+                raise RecipeImportError("Paste a link first.")
+            draft, site_name, image_url = await extract_from_url(url.strip())
+            return _render_review(
+                request, current_user, draft,
+                source_url=url.strip(), source_name=site_name, image_url=image_url,
+            )
+
+        if mode == "photo":
+            blobs = []
+            for upload in photos:
+                if not upload or not upload.filename:
+                    continue
+                blobs.append(await upload.read())
+            if not blobs:
+                raise RecipeImportError("Choose at least one photo.")
+            draft, prepared = await extract_from_images(blobs)
+            return _render_review(request, current_user, draft, scan_token=stash_scans(prepared) or "")
+
+        draft = await extract_from_text(text)
+        return _render_review(request, current_user, draft, source_name="Pasted")
+
+    except RecipeImportError as exc:
+        # Re-render the import page with the message and whatever they typed, so a
+        # blocked Facebook link doesn't cost them the URL they pasted.
+        return templates.TemplateResponse(
+            request,
+            "recipe_import.html",
+            {
+                "current_user": current_user,
+                "import_enabled": settings.recipe_import_enabled,
+                "error": str(exc),
+                "mode": mode,
+                "url": url,
+                "text": text,
+            },
+            status_code=400,
+        )
+
+
+@router.post("/api/recipes/import", response_model=RecipeDraftOut)
+async def api_recipe_import(
+    mode: str = Form("url"),
+    url: str = Form(""),
+    text: str = Form(""),
+    photos: list[UploadFile] = File(default=[]),
+    current_user: User = Depends(get_current_user),
+):
+    """Mobile's import. Returns the draft plus a scan_token to pass to POST /api/recipes."""
+    try:
+        if mode == "url":
+            if not url.strip():
+                raise RecipeImportError("Paste a link first.")
+            draft, site_name, image_url = await extract_from_url(url.strip())
+            return RecipeDraftOut(
+                **draft.model_dump(), source_url=url.strip(), source_name=site_name,
+                image_url=image_url, scan_token=None,
+            )
+        if mode == "photo":
+            blobs = [await upload.read() for upload in photos if upload and upload.filename]
+            if not blobs:
+                raise RecipeImportError("Choose at least one photo.")
+            draft, prepared = await extract_from_images(blobs)
+            return RecipeDraftOut(**draft.model_dump(), scan_token=stash_scans(prepared))
+        draft = await extract_from_text(text)
+        return RecipeDraftOut(**draft.model_dump(), source_name="Pasted")
+    except RecipeImportError as exc:
+        # 422 rather than 500: the request was understood, the source just wasn't usable.
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @router.get("/recipes/{recipe_id}", response_class=HTMLResponse)
@@ -270,6 +436,7 @@ def recipe_edit_page(
         "recipe_form.html",
         {
             "recipe": recipe,
+            "draft": None,
             "ingredient_text": "\n".join(i.raw_text for i in recipe.ingredients),
             "step_text": "\n".join(s.text for s in recipe.steps),
             "tag_text": ", ".join(recipe.tag_names),
@@ -473,6 +640,7 @@ def api_create_recipe(
     db.add(recipe)
     db.flush()
     _apply_payload(db, recipe, payload)
+    attach_scans(recipe, payload.scan_token)
     db.commit()
     return load_recipe_full(db, recipe.id, current_user)
 

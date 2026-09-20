@@ -1,31 +1,38 @@
 {% extends "base.html" %}
-{% block title %}{% if recipe %}Edit {{ recipe.title }}{% else %}New recipe{% endif %} - FamilyHub{% endblock %}
+{% block title %}{% if recipe %}Edit {{ recipe.title }}{% elif draft %}Check this recipe{% else %}New recipe{% endif %} - FamilyHub{% endblock %}
 {% block content %}
 <p class="breadcrumb">
   <a href="{% if recipe %}/recipes/{{ recipe.id }}{% else %}/recipes{% endif %}">&larr; Back</a>
 </p>
 
-<h1>{% if recipe %}Edit recipe{% else %}New recipe{% endif %}</h1>
+<h1>{% if recipe %}Edit recipe{% elif draft %}Check this recipe{% else %}New recipe{% endif %}</h1>
+
+{% if draft %}
+<p class="review-banner">
+  Pulled this out of the source — have a read before saving. Fix anything that looks off;
+  it's easier now than after it's on a shopping list.
+</p>
+{% endif %}
 
 <form method="post" action="{% if recipe %}/recipes/{{ recipe.id }}/edit{% else %}/recipes{% endif %}" class="recipe-form">
   <label>Title
-    <input type="text" name="title" value="{{ recipe.title if recipe else '' }}" required autofocus>
+    <input type="text" name="title" value="{{ recipe.title if recipe else (draft.title if draft else '') }}" required {% if not draft %}autofocus{% endif %}>
   </label>
 
   <label>Short description
-    <input type="text" name="description" value="{{ recipe.description or '' if recipe else '' }}"
+    <input type="text" name="description" value="{{ (recipe.description or '') if recipe else ((draft.description or '') if draft else '') }}"
            placeholder="One line — what is it?">
   </label>
 
   <div class="recipe-form-row">
     <label>Serves
-      <input type="number" name="servings" min="1" value="{{ recipe.servings or '' if recipe else '' }}">
+      <input type="number" name="servings" min="1" value="{{ (recipe.servings or '') if recipe else ((draft.servings or '') if draft else '') }}">
     </label>
     <label>Prep (min)
-      <input type="number" name="prep_minutes" min="1" value="{{ recipe.prep_minutes or '' if recipe else '' }}">
+      <input type="number" name="prep_minutes" min="1" value="{{ (recipe.prep_minutes or '') if recipe else ((draft.prep_minutes or '') if draft else '') }}">
     </label>
     <label>Cook (min)
-      <input type="number" name="cook_minutes" min="1" value="{{ recipe.cook_minutes or '' if recipe else '' }}">
+      <input type="number" name="cook_minutes" min="1" value="{{ (recipe.cook_minutes or '') if recipe else ((draft.cook_minutes or '') if draft else '') }}">
     </label>
   </div>
 
@@ -48,17 +55,17 @@
 
   <div class="recipe-form-row">
     <label>Source name
-      <input type="text" name="source_name" value="{{ recipe.source_name or '' if recipe else '' }}"
+      <input type="text" name="source_name" value="{{ (recipe.source_name or '') if recipe else (draft_source_name or '') }}"
              placeholder="e.g. Grandma's card">
     </label>
     <label>Source link
-      <input type="url" name="source_url" value="{{ recipe.source_url or '' if recipe else '' }}"
+      <input type="url" name="source_url" value="{{ (recipe.source_url or '') if recipe else (draft_source_url or '') }}"
              placeholder="https://…">
     </label>
   </div>
 
   <label>Notes
-    <textarea name="notes" rows="3" placeholder="What you'd do differently next time">{{ recipe.notes or '' if recipe else '' }}</textarea>
+    <textarea name="notes" rows="3" placeholder="What you'd do differently next time">{{ (recipe.notes or '') if recipe else '' }}</textarea>
   </label>
 
   <label class="inline">
@@ -66,6 +73,13 @@
     Shared with the whole family
   </label>
 
-  <button type="submit">{% if recipe %}Save changes{% else %}Create recipe{% endif %}</button>
+  {# Carried through the review step so the saved recipe keeps its scans and hero image. #}
+  {% if not recipe %}
+  <input type="hidden" name="scan_token" value="{{ scan_token or '' }}">
+  <input type="hidden" name="image_url" value="{{ draft_image_url or '' }}">
+  <input type="hidden" name="source_type" value="{% if draft %}{% if scan_token %}photo{% elif draft_source_url %}url{% else %}text{% endif %}{% else %}manual{% endif %}">
+  {% endif %}
+
+  <button type="submit">{% if recipe %}Save changes{% elif draft %}Save recipe{% else %}Create recipe{% endif %}</button>
 </form>
 {% endblock %}

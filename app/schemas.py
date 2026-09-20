@@ -282,6 +282,9 @@ class RecipeCreate(BaseModel):
     source_name: str | None = None
     image_url: str | None = None
     is_public: bool = True
+    # Set when the recipe came from a photo import: claims the scans stashed at
+    # extraction time (see app/recipe_import.stash_scans).
+    scan_token: str | None = None
     tags: list[str] = Field(default_factory=list)
     ingredients: list[RecipeIngredientIn] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
@@ -319,3 +322,35 @@ class RecipeOut(RecipeSummaryOut):
     ingredients: list[RecipeIngredientOut]
     steps: list[RecipeStepOut]
     image_ids: list[int] = Field(default_factory=list)
+
+
+class DraftIngredientOut(BaseModel):
+    """One parsed ingredient in an extracted draft. Mirrors DraftIngredient in
+    app/recipe_import.py, kept separate so the schema layer doesn't drag in the
+    Anthropic SDK."""
+
+    raw_text: str
+    quantity: float | None = None
+    unit: str | None = None
+    name: str
+    canonical_name: str = ""
+    prep_note: str | None = None
+    optional: bool = False
+
+
+class RecipeDraftOut(BaseModel):
+    """An extracted, not-yet-saved recipe. The client reviews this, edits it, then POSTs
+    it to /api/recipes — passing `scan_token` back so any uploaded photos get attached."""
+
+    title: str
+    description: str | None = None
+    servings: int | None = None
+    prep_minutes: int | None = None
+    cook_minutes: int | None = None
+    tags: list[str] = Field(default_factory=list)
+    ingredients: list[DraftIngredientOut] = Field(default_factory=list)
+    steps: list[str] = Field(default_factory=list)
+    source_url: str | None = None
+    source_name: str | None = None
+    image_url: str | None = None
+    scan_token: str | None = None

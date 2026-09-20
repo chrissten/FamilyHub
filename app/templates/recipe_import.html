@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Import a recipe - FamilyHub{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="/recipes">&larr; Recipes</a></p>
+<h1>Import a recipe</h1>
+
+{% if not import_enabled %}
+<p class="import-disabled">
+  Recipe import isn't switched on yet — the server needs an <code>ANTHROPIC_API_KEY</code>.
+  You can still <a href="/recipes/new">add a recipe by hand</a>.
+</p>
+{% else %}
+
+{% if error %}<p class="error import-error">{{ error }}</p>{% endif %}
+
+{#
+  Three ways in, one at a time. The whole form posts normally (no HTMX): extraction takes
+  5-20 seconds and the result is a full page — the review form — rather than a fragment,
+  so there's nothing to swap. The spinner is just a disabled button with changed text.
+#}
+<div x-data="{ mode: '{{ mode or 'url' }}', busy: false }">
+  <div class="import-tabs">
+    <button type="button" :class="{ active: mode === 'url' }" @click="mode = 'url'">Link</button>
+    <button type="button" :class="{ active: mode === 'photo' }" @click="mode = 'photo'">Photo</button>
+    <button type="button" :class="{ active: mode === 'text' }" @click="mode = 'text'">Paste</button>
+  </div>
+
+  <form method="post" action="/recipes/import" enctype="multipart/form-data"
+        class="import-form" @submit="busy = true">
+    <input type="hidden" name="mode" :value="mode">
+
+    <div x-show="mode === 'url'" x-cloak>
+      <label>Recipe link
+        <input type="url" name="url" value="{{ url or '' }}" placeholder="https://…"
+               autocomplete="off" :required="mode === 'url'">
+      </label>
+      <p class="field-hint">
+        Most recipe sites work. Facebook and Instagram block this kind of request — for
+        those, copy the post's text into <strong>Paste</strong>, or screenshot it and use
+        <strong>Photo</strong>.
+      </p>
+    </div>
+
+    <div x-show="mode === 'photo'" x-cloak>
+      <label>Photos
+        <input type="file" name="photos" accept="image/*" multiple>
+      </label>
+      <p class="field-hint">
+        A cookbook page, a recipe card, or a handwritten note. Up to 5 images — use several
+        if the recipe runs over a page. They're stored with the recipe so you keep the original.
+      </p>
+    </div>
+
+    <div x-show="mode === 'text'" x-cloak>
+      <label>Recipe text
+        <textarea name="text" rows="14" placeholder="Paste the whole recipe here — ingredients, method, and any surrounding waffle. We'll sort it out.">{{ text or '' }}</textarea>
+      </label>
+    </div>
+
+    <button type="submit" :disabled="busy">
+      <span x-show="!busy">Import recipe</span>
+      <span x-show="busy" x-cloak>Reading the recipe…</span>
+    </button>
+    <p class="field-hint" x-show="busy" x-cloak>This usually takes a few seconds.</p>
+  </form>
+</div>
+
+<p class="import-note">
+  Nothing is saved yet — you'll get a chance to check and fix everything before it's added.
+</p>
+{% endif %}
+{% endblock %}

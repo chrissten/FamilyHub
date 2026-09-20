@@ -366,3 +366,28 @@ p.empty { color: #9aa5b1; }
   .recipe-form-row { flex-direction: column; gap: 0; }
   .recipes-header { flex-wrap: wrap; }
 }
+
+/* Recipe import */
+.btn-link.secondary { background: #e4e7eb; color: #1f2933; }
+.btn-link.secondary:hover { background: #cbd2d9; }
+
+.import-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.import-tabs button {
+  background: #e4e7eb; color: #1f2933; padding: 0.4rem 1.1rem;
+  border-radius: 999px; font-size: 0.9rem;
+}
+.import-tabs button.active { background: #1f2933; color: white; }
+
+.import-form { max-width: 620px; background: white; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.import-form textarea { font-family: inherit; line-height: 1.45; resize: vertical; }
+.import-form button[type="submit"] { margin-top: 0.5rem; }
+.import-form button[disabled] { background: #9aa5b1; cursor: progress; }
+.import-error { background: #fdecec; border-radius: 6px; padding: 0.6rem 0.8rem; max-width: 620px; }
+.import-disabled { background: #fff3cd; color: #8a6d1d; border-radius: 6px; padding: 0.75rem 0.9rem; max-width: 620px; }
+.import-disabled code { background: rgba(0,0,0,0.06); padding: 0.05rem 0.3rem; border-radius: 3px; }
+.import-note { margin-top: 1rem; font-size: 0.85rem; color: #7b8794; }
+
+.review-banner {
+  background: #e8f1fb; border-left: 3px solid #4A90D9; border-radius: 4px;
+  padding: 0.65rem 0.9rem; font-size: 0.9rem; color: #3e4c59; max-width: 720px;
+}
