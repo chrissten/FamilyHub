@@ -195,3 +195,34 @@ export interface ToGroceryResult {
   names: string[];
   list_id: number;
 }
+
+export interface PantryItem {
+  id: number;
+  location: 'pantry' | 'fridge';
+  quantity?: string | null;
+  low: boolean;
+  ingredient: Ingredient;
+  added_by: User;
+}
+
+/** One recipe ranked against what's in the kitchen (RecipeMatchOut in app/schemas.py). */
+export interface RecipeMatch {
+  recipe: RecipeSummary;
+  have: MatchIngredient[];
+  missing: MatchIngredient[];
+  /** Never resolved to a canonical ingredient, so we can't say either way — these hold
+   *  a recipe back rather than being silently assumed present. */
+  unknown: MatchIngredient[];
+  optional_missing: MatchIngredient[];
+  shortfall: number;
+  can_make: boolean;
+  bucket: 'ready' | 'one' | 'several';
+}
+
+export interface MatchIngredient {
+  id: number;
+  raw_text: string;
+  name: string;
+  optional: boolean;
+  ingredient?: Ingredient | null;
+}

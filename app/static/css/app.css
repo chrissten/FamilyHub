@@ -410,3 +410,51 @@ p.empty { color: #9aa5b1; }
   .to-grocery-list label { font-size: 0.88rem; }
   .tg-raw { flex: 1 0 100%; }
 }
+
+/* Pantry */
+.pantry-intro { max-width: 620px; margin-bottom: 1rem; }
+.pantry-restock {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  background: #fff3cd; color: #8a6d1d; border-radius: 6px; padding: 0.6rem 0.9rem; margin-bottom: 1.25rem;
+}
+.pantry-restock select { padding: 0.3rem 0.5rem; border-radius: 4px; border: 1px solid #cbd2d9; }
+.pantry-restock button { padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+.pantry-section { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 1rem; margin-bottom: 1.25rem; }
+.pantry-section h2 { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.pantry-items { list-style: none; padding: 0; margin: 0 0 0.75rem; }
+.pantry-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid #e4e7eb; font-size: 0.93rem; }
+.pantry-item:last-child { border-bottom: none; }
+.pantry-item .spacer { flex: 1; }
+.pantry-item.is-low .pantry-name { color: #8a6d1d; }
+.pantry-name { font-weight: 500; }
+.pantry-qty { color: #7b8794; font-size: 0.85rem; }
+.pantry-low-btn { background: #e4e7eb; color: #52606d; font-size: 0.72rem; padding: 0.15rem 0.55rem; }
+.pantry-low-btn.active { background: #8a6d1d; color: white; }
+
+/* What can I cook */
+.cook-filters { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0 1.5rem; }
+.cook-heading { display: flex; align-items: center; gap: 0.6rem; font-size: 1.05rem; margin: 1.5rem 0 0.75rem; }
+.cook-count { background: #e4e7eb; color: #52606d; border-radius: 999px; font-size: 0.78rem; padding: 0.1rem 0.6rem; font-weight: 400; }
+.cook-grid { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.cook-card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 0.85rem 1rem; border-left: 4px solid #cbd2d9; }
+.cook-card.cook-ready { border-left-color: #2a9d5c; }
+.cook-card.cook-one { border-left-color: #d9a441; }
+.cook-card.cook-several { border-left-color: #cbd2d9; }
+.cook-card-head { display: flex; align-items: baseline; gap: 0.6rem; }
+.cook-title { font-weight: 600; font-size: 1rem; color: #1f2933; text-decoration: none; flex: 1; }
+.cook-title:hover { text-decoration: underline; }
+.cook-badge { font-size: 0.72rem; color: #52606d; background: #f4f6f8; padding: 0.1rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+.cook-ready .cook-badge { background: #e3f4ea; color: #2a9d5c; }
+.cook-one .cook-badge { background: #fdf3e0; color: #8a6d1d; }
+.cook-meta { margin: 0.3rem 0 0.5rem; font-size: 0.78rem; color: #7b8794; }
+.cook-missing, .cook-unknown { margin: 0.35rem 0; font-size: 0.85rem; }
+.cook-unknown { color: #7b8794; }
+.cook-need { display: inline-block; background: #f4f6f8; border-radius: 4px; padding: 0.05rem 0.4rem; margin: 0.1rem 0.2rem 0.1rem 0; font-size: 0.82rem; }
+.cook-add-form { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+.cook-add-form select { flex: 1; padding: 0.3rem; border: 1px solid #cbd2d9; border-radius: 4px; font-size: 0.82rem; }
+.cook-add-form button { font-size: 0.8rem; padding: 0.3rem 0.7rem; }
+
+@media (max-width: 640px) {
+  .cook-grid { grid-template-columns: 1fr; }
+  .pantry-restock { font-size: 0.85rem; }
+}

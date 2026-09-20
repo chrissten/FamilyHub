@@ -1,0 +1,20 @@
+{#
+  One pantry row. Broadcast to every viewer over /ws/pantry, so nothing in here may
+  depend on current_user — same rule as the recipe detail fragment.
+#}
+<li class="pantry-item {{ 'is-low' if item.low else '' }}" id="pantry-item-{{ item.id }}"
+  {% if oob_mode == "insert" %}hx-swap-oob="beforeend:#pantry-{{ item.location }}-items"
+  {% elif oob_mode == "replace" %}hx-swap-oob="outerHTML"{% endif %}>
+  <span class="pantry-name">{{ item.ingredient.name }}</span>
+  {% if item.quantity %}<span class="pantry-qty">{{ item.quantity }}</span>{% endif %}
+  {% if item.ingredient.category %}<span class="tag-chip small">{{ item.ingredient.category }}</span>{% endif %}
+  <span class="spacer"></span>
+  <button type="button" class="pantry-low-btn {{ 'active' if item.low else '' }}"
+          title="{{ 'Marked as running low' if item.low else 'Mark as running low' }}"
+          hx-post="/pantry/items/{{ item.id }}/low" hx-target="this" hx-swap="none">
+    {{ 'Low' if item.low else 'Low?' }}
+  </button>
+  <a href="#" class="list-delete" title="Remove from pantry"
+     hx-post="/pantry/items/{{ item.id }}/delete" hx-target="this" hx-swap="none"
+     hx-confirm="Remove {{ item.ingredient.name }} from the pantry?">&times;</a>
+</li>

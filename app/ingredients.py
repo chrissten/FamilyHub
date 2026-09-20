@@ -51,7 +51,9 @@ _UNIT_WORDS = {
     "gallon", "gallons", "pinch", "pinches", "dash", "dashes", "can", "cans", "jar",
     "jars", "package", "packages", "pkg", "bag", "bags", "box", "boxes", "clove",
     "cloves", "slice", "slices", "stick", "sticks", "bunch", "bunches", "head", "heads",
-    "sprig", "sprigs", "stalk", "stalks", "piece", "pieces",
+    "sprig", "sprigs", "stalk", "stalks", "piece", "pieces", "sachet", "sachets",
+    "packet", "packets", "tin", "tins", "bottle", "bottles", "container", "containers",
+    "handful", "handfuls", "knob", "rasher", "rashers",
 }
 
 _IRREGULAR_PLURALS = {
@@ -348,11 +350,18 @@ def parse_ingredient_line(line: str) -> dict:
     name, _, prep_note = working.partition(",")
     # "basil for garnish" / "butter for greasing the pan" — a serving instruction, not
     # part of what the ingredient is.
-    name = re.sub(r"\s+for\s+.*$", "", name, flags=re.IGNORECASE).strip(" .")
+    name = re.sub(r"\s+for\s+.*$", "", name, flags=re.IGNORECASE)
+    # "salt and pepper to taste" has to lose the trailing "to taste" too, or it becomes
+    # its own ingredient ("salt pepper to taste") instead of resolving to salt.
+    name = re.sub(r"\s+(?:to\s+taste|as\s+needed|if\s+desired|or\s+more.*)$", "", name, flags=re.IGNORECASE)
+    name = name.strip(" .")
     prep_note = prep_note.strip(" .") or None
 
     lowered = raw.lower()
-    optional = "optional" in lowered or "to taste" in lowered
+    optional = any(
+        phrase in lowered
+        for phrase in ("optional", "to taste", "for garnish", "to garnish", "for serving", "if desired")
+    )
 
     return {
         "raw_text": raw[:300],

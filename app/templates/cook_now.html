@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}What can I cook? - FamilyHub{% endblock %}
+{% block content %}
+<div class="recipes-header">
+  <h1>What can I cook?</h1>
+  <a href="/pantry" class="btn-link secondary">Pantry</a>
+  <a href="/recipes" class="btn-link secondary">All recipes</a>
+</div>
+
+{% if pantry_count == 0 %}
+<p class="import-disabled">
+  Your pantry is empty, so this is only counting the freezer and the everyday staples.
+  <a href="/pantry">Add what's in the cupboard</a> to make this useful.
+</p>
+{% endif %}
+
+<p class="field-hint">
+  Checking {{ on_hand_count }} ingredient{{ '' if on_hand_count == 1 else 's' }} on hand —
+  pantry, freezer and staples combined.
+</p>
+
+<div class="cook-filters">
+  <a href="/recipes/cook-now" class="tag-chip {{ 'active' if max_missing is none else '' }}">Everything</a>
+  <a href="/recipes/cook-now?max_missing=0" class="tag-chip {{ 'active' if max_missing == 0 else '' }}">Ready now</a>
+  <a href="/recipes/cook-now?max_missing=1" class="tag-chip {{ 'active' if max_missing == 1 else '' }}">Missing 1</a>
+  <a href="/recipes/cook-now?max_missing=3" class="tag-chip {{ 'active' if max_missing == 3 else '' }}">Missing 3 or fewer</a>
+</div>
+
+{% macro match_card(m) %}
+<article class="cook-card cook-{{ m.bucket }}">
+  <div class="cook-card-head">
+    <a href="/recipes/{{ m.recipe.id }}" class="cook-title">{{ m.recipe.title }}</a>
+    <span class="cook-badge">
+      {% if m.can_make %}Ready{% else %}Missing {{ m.shortfall }}{% endif %}
+    </span>
+  </div>
+  <p class="cook-meta">
+    have {{ m.have | length }} of {{ m.considered }}
+    {% if m.recipe.total_minutes %} · {{ m.recipe.total_minutes }} min{% endif %}
+    {% if m.recipe.servings %} · serves {{ m.recipe.servings }}{% endif %}
+  </p>
+
+  {% if m.missing %}
+  <p class="cook-missing"><strong>Need:</strong>
+    {% for item in m.missing %}<span class="cook-need">{{ item.ingredient.name }}</span>{% endfor %}
+  </p>
+  {% endif %}
+
+  {% if m.unknown %}
+  {# Not "missing" exactly — we couldn't match these to a known ingredient, so we can't
+     say whether they're in the kitchen. Shown so it's clear why a recipe isn't ready. #}
+  <p class="cook-unknown"><strong>Not recognised:</strong>
+    {% for item in m.unknown %}<span class="cook-need">{{ item.name }}</span>{% endfor %}
+    <span class="tg-note">add these to the pantry to track them</span>
+  </p>
+  {% endif %}
+
+  {% if not m.can_make and lists %}
+  <form method="post" action="/recipes/{{ m.recipe.id }}/missing-to-grocery" class="cook-add-form">
+    <select name="list_id" required>
+      {% for l in lists %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+    </select>
+    <button type="submit">Add what's missing</button>
+  </form>
+  {% endif %}
+</article>
+{% endmacro %}
+
+{% if total == 0 %}
+<p class="empty">No recipes match. {% if max_missing is not none %}<a href="/recipes/cook-now">Show everything</a>.{% endif %}</p>
+{% endif %}
+
+{% if buckets.ready %}
+<h2 class="cook-heading">Ready to cook <span class="cook-count">{{ buckets.ready | length }}</span></h2>
+<div class="cook-grid">{% for m in buckets.ready %}{{ match_card(m) }}{% endfor %}</div>
+{% endif %}
+
+{% if buckets.one %}
+<h2 class="cook-heading">One ingredient away <span class="cook-count">{{ buckets.one | length }}</span></h2>
+<div class="cook-grid">{% for m in buckets.one %}{{ match_card(m) }}{% endfor %}</div>
+{% endif %}
+
+{% if buckets.several %}
+<h2 class="cook-heading">Needs a shop <span class="cook-count">{{ buckets.several | length }}</span></h2>
+<div class="cook-grid">{% for m in buckets.several %}{{ match_card(m) }}{% endfor %}</div>
+{% endif %}
+{% endblock %}

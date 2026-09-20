@@ -370,3 +370,55 @@ class ToGroceryResult(BaseModel):
     merged: int
     names: list[str]
     list_id: int
+
+
+class PantryItemCreate(BaseModel):
+    """`name` is free text resolved to a canonical Ingredient, creating one if it's new —
+    adding "harissa" to the pantry is also how recipes calling for harissa start
+    matching."""
+
+    name: str
+    location: Literal["pantry", "fridge"] = "pantry"
+    quantity: str | None = None
+
+
+class PantryItemUpdate(BaseModel):
+    quantity: str | None = None
+    low: bool | None = None
+    location: Literal["pantry", "fridge"] | None = None
+
+
+class PantryItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    location: str
+    quantity: str | None
+    low: bool
+    ingredient: IngredientOut
+    added_by: UserOut
+
+
+class MatchIngredientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    raw_text: str
+    name: str
+    optional: bool
+    ingredient: IngredientOut | None
+
+
+class RecipeMatchOut(BaseModel):
+    """One recipe ranked against what's in the kitchen."""
+
+    recipe: RecipeSummaryOut
+    have: list[MatchIngredientOut]
+    missing: list[MatchIngredientOut]
+    # Ingredients that never resolved to a canonical one — we can't say either way, so
+    # they hold a recipe back rather than being silently assumed present.
+    unknown: list[MatchIngredientOut]
+    optional_missing: list[MatchIngredientOut]
+    shortfall: int
+    can_make: bool
+    bucket: Literal["ready", "one", "several"]

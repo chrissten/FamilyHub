@@ -3,6 +3,7 @@ import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
   Recipe, RecipeSummary, RecipeInput, RecipeDraft, ToGroceryResult,
+  PantryItem, RecipeMatch,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -350,3 +351,28 @@ export const recipeToGrocery = (
   method: 'POST',
   body: JSON.stringify({ list_id: listId, ingredient_ids: ingredientIds, scale }),
 });
+
+// ── Pantry & matching ─────────────────────────────────────────────────────────
+
+export const getPantryItems = () =>
+  request<PantryItem[]>('/api/pantry/items');
+
+export const getKnownIngredients = (q?: string) =>
+  request<string[]>(`/api/pantry/known${q ? `?q=${encodeURIComponent(q)}` : ''}`);
+
+export const addPantryItem = (name: string, location: 'pantry' | 'fridge', quantity?: string) =>
+  request<PantryItem>('/api/pantry/items', {
+    method: 'POST',
+    body: JSON.stringify({ name, location, quantity: quantity || null }),
+  });
+
+export const updatePantryItem = (
+  id: number, data: { quantity?: string | null; low?: boolean; location?: 'pantry' | 'fridge' },
+) => request<PantryItem>(`/api/pantry/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const deletePantryItem = (id: number) =>
+  request<Record<string, never>>(`/api/pantry/items/${id}`, { method: 'DELETE' });
+
+/** Recipes ranked by how close they are to cookable, given pantry + freezer + staples. */
+export const getCookNow = (maxMissing?: number) =>
+  request<RecipeMatch[]>(`/api/recipes/cook-now${maxMissing != null ? `?max_missing=${maxMissing}` : ''}`);

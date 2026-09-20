@@ -15,6 +15,7 @@ from app.list_access import get_visible_list, is_list_visible, visible_lists_que
 from app.models import (
     GroceryCategory,
     GroceryList,
+    PantryItem,
     Recipe,
     RecipeImage,
     RecipeIngredient,
@@ -22,6 +23,7 @@ from app.models import (
     RecipeTagName,
     User,
 )
+from app.recipe_match import match_recipe, on_hand, rank_recipes
 from app.recipe_import import (
     RecipeImportError,
     draft_to_lines,
@@ -34,6 +36,7 @@ from app.recipe_import import (
 from app.schemas import (
     RecipeCreate,
     RecipeDraftOut,
+    RecipeMatchOut,
     RecipeOut,
     RecipeSummaryOut,
     RecipeUpdate,
@@ -425,6 +428,82 @@ async def api_recipe_import(
     except RecipeImportError as exc:
         # 422 rather than 500: the request was understood, the source just wasn't usable.
         raise HTTPException(status_code=422, detail=str(exc)) from None
+
+
+# ── What can I cook tonight? ────────────────────────────────────────────────────
+
+
+@router.get("/recipes/cook-now", response_class=HTMLResponse)
+def cook_now_page(
+    request: Request,
+    max_missing: int | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    request.session["last_page"] = "/recipes/cook-now"
+    matches, available = rank_recipes(db, current_user, max_missing=max_missing)
+    buckets = {
+        "ready": [m for m in matches if m.bucket == "ready"],
+        "one": [m for m in matches if m.bucket == "one"],
+        "several": [m for m in matches if m.bucket == "several"],
+    }
+    pantry_count = db.query(PantryItem).count()
+    return templates.TemplateResponse(
+        request,
+        "cook_now.html",
+        {
+            "buckets": buckets,
+            "total": len(matches),
+            "on_hand_count": len(available.ids),
+            "pantry_count": pantry_count,
+            "max_missing": max_missing,
+            "lists": visible_lists_query(db, GroceryList, current_user).all(),
+            "current_user": current_user,
+        },
+    )
+
+
+@router.post("/recipes/{recipe_id}/missing-to-grocery")
+async def recipe_missing_to_grocery(
+    recipe_id: int,
+    list_id: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """One-tap: put just the ingredients you're short of onto a list.
+
+    Shares the same push path as the full recipe, so amounts still combine with anything
+    already there and categories are still created on demand.
+    """
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    match = match_recipe(recipe, on_hand(db))
+    shortfall_ids = [item.id for item in match.missing + match.unknown]
+    if shortfall_ids:
+        await _push_to_grocery(db, recipe, list_id, shortfall_ids, 1.0, current_user)
+    return RedirectResponse(url=f"/grocery/lists/{list_id}", status_code=status.HTTP_302_FOUND)
+
+
+@router.get("/api/recipes/cook-now", response_model=list[RecipeMatchOut])
+def api_cook_now(
+    max_missing: int | None = None,
+    q: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    matches, _ = rank_recipes(db, current_user, max_missing=max_missing, q=q)
+    return [
+        RecipeMatchOut(
+            recipe=m.recipe,
+            have=m.have,
+            missing=m.missing,
+            unknown=m.unknown,
+            optional_missing=m.optional_missing,
+            shortfall=m.shortfall,
+            can_make=m.can_make,
+            bucket=m.bucket,
+        )
+        for m in matches
+    ]
 
 
 @router.get("/recipes/{recipe_id}", response_class=HTMLResponse)

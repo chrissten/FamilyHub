@@ -105,6 +105,17 @@ export default function RecipesScreen() {
         </TouchableOpacity>
       </View>
 
+      <View style={styles.kitchenRow}>
+        <TouchableOpacity style={styles.kitchenButton} onPress={() => router.push('/cook-now')}>
+          <Ionicons name="restaurant-outline" size={16} color={colors.primary} />
+          <Text style={styles.kitchenText}>What can I cook?</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.kitchenButton} onPress={() => router.push('/pantry')}>
+          <Ionicons name="file-tray-stacked-outline" size={16} color={colors.primary} />
+          <Text style={styles.kitchenText}>Pantry</Text>
+        </TouchableOpacity>
+      </View>
+
       {tags.length > 0 && (
         <View style={styles.tagRow}>
           {tags.map(name => {
@@ -160,6 +171,15 @@ function createStyles(colors: Colors) {
       backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
       borderRadius: 8, width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
     },
+    kitchenRow: {
+      flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 9,
+      backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    kitchenButton: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+      backgroundColor: colors.surfaceAlt, borderRadius: 8, paddingVertical: 9,
+    },
+    kitchenText: { fontSize: 13, fontWeight: '600', color: colors.primary },
     tagRow: {
       flexDirection: 'row', flexWrap: 'wrap', gap: 6,
       paddingHorizontal: 12, paddingVertical: 8,

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Pantry - FamilyHub{% endblock %}
+{% block content %}
+<div class="recipes-header">
+  <h1>Pantry</h1>
+  <a href="/recipes/cook-now" class="btn-link">What can I cook?</a>
+</div>
+
+<p class="field-hint pantry-intro">
+  What's in the cupboard and the fridge. This is what "what can I cook tonight" checks
+  against, alongside the freezer and the everyday staples.
+</p>
+
+{% if low_count and lists %}
+<form method="post" action="/pantry/restock" class="pantry-restock">
+  <span>{{ low_count }} item{{ '' if low_count == 1 else 's' }} marked as running low.</span>
+  <select name="list_id" required>
+    {% for l in lists %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+  </select>
+  <button type="submit">Add them to a list</button>
+</form>
+{% endif %}
+
+<datalist id="known-ingredients">
+  {% for name in known_names %}<option value="{{ name }}">{% endfor %}
+</datalist>
+
+{# Same htmx 1.x attribute spelling the other live pages use. #}
+<div id="pantry-live" hx-ext="ws" hx-ws="connect:/ws/pantry">
+  {% for location in locations %}
+  <section class="pantry-section">
+    <h2>{{ 'Cupboard' if location == 'pantry' else 'Fridge' }}</h2>
+    <ul id="pantry-{{ location }}-items" class="pantry-items">
+      {% for item in grouped[location] %}
+        {% include "_pantry_item_row.html" %}
+      {% else %}
+        <li class="empty">Nothing here yet.</li>
+      {% endfor %}
+    </ul>
+    <form class="add-item-form" hx-post="/pantry/items" hx-target="this" hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+      <input type="hidden" name="location" value="{{ location }}">
+      <input type="text" name="name" placeholder="Add an ingredient" list="known-ingredients"
+             autocomplete="off" required>
+      <input type="text" name="quantity" placeholder="Amount (optional)" class="qty">
+      <button type="submit">Add</button>
+    </form>
+  </section>
+  {% endfor %}
+</div>
+
+<p class="field-hint">
+  Typing a name that already exists keeps it on the same entry the recipes use, which is
+  what makes matching work. A name we've not seen before is added to the ingredient list
+  automatically.
+</p>
+{% endblock %}

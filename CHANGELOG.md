@@ -42,6 +42,52 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-20 (4)
+- **[web][mobile]** v1.6.0 — **Recipes, phase 4 of 6: a pantry, and "what can I cook
+  tonight?"** New Pantry (cupboard + fridge) on web at `/pantry` and a screen reached from
+  the Recipes tab on mobile, plus a ranked view at `/recipes/cook-now` that buckets every
+  recipe into *Ready to cook* / *One ingredient away* / *Needs a shop*, with the missing
+  ingredients named and a one-tap push of just those onto a grocery list.
+
+  **On-hand is the union of three sources**: the pantry, the freezer (its free-text item
+  names resolved through the same canonical ingredient table at match time — no migration
+  of `freezer_items` needed), and staples, which are assumed present so a recipe isn't
+  reported unmakeable over a pinch of salt. Verified with the case the plan called for:
+  freezer says "chicken breasts", pantry says "Chicken Breast", recipe says "2 lbs
+  boneless skinless chicken breasts, cubed" — all three resolve to one ingredient, counted
+  **once**.
+
+  Two deliberate choices about honesty. An ingredient that never resolved to a canonical
+  one **holds a recipe back** rather than being assumed present, and shows in its own
+  "not recognised" row so it's clear *why* a recipe isn't ready — claiming you can cook
+  something you can't is the failure worth avoiding. And **optional ingredients never
+  count as missing**: a garnish shouldn't stand between you and dinner.
+
+  Adding something to the pantry creates the canonical ingredient when it's new, so
+  putting "harissa" in the cupboard is also how a recipe calling for harissa starts
+  matching. Items can be flagged **running low**, and the web pantry can push everything
+  low onto a grocery list in one go, through the same merge path as a recipe push.
+
+  Two parser bugs found by building the matching test, both of which quietly degraded
+  results:
+  - `Salt and pepper to taste` was becoming its **own ingredient** (`salt pepper to
+    taste`) instead of resolving to the `salt` alias, because "to taste" stayed in the
+    name. Trailing "to taste", "as needed", "if desired" and "or more…" are now stripped.
+  - `Fresh basil for garnish` counted as **missing**. The deterministic parser only
+    treated "optional" and "to taste" as optional; it now also recognises "for garnish",
+    "to garnish", "for serving" and "if desired". (The AI import path already got both
+    right — this only affected hand-typed and pasted recipes.)
+
+  **Known limitation:** `1 can diced tomatoes` normalizes to `tomato`, not `canned
+  tomato`, because "can" is a unit word and "diced" is a prep word and both get stripped.
+  So hand-entered canned goods conflate with fresh. AI import gets this right (its prompt
+  produces `canned tomato` explicitly); teaching the deterministic parser to guess would
+  break more than it fixes — `1 can chickpeas` would become `canned chickpea`, which isn't
+  a thing anyone stocks.
+
+  Also: units are pluralized only at display time now, so merged and scaled amounts read
+  "3 cups" and "2 cloves" rather than "3 cup".
+
 ### 2026-09-20 (3)
 - **[web][mobile]** v1.5.0 — **Recipes, phase 3 of 6: push a recipe's ingredients onto a
   grocery list.** From a recipe, pick a list, tick what you need, optionally scale the
