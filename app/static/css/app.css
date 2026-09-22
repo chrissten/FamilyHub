@@ -561,3 +561,66 @@ p.empty { color: #9aa5b1; }
   .plan-entry a { font-size: 0.9rem; }
   .plan-slot-label { font-size: 0.68rem; }
 }
+
+/* Recipe print view — the on-screen half is a preview of the paper, so the sheet is
+   sized and styled like the page that comes out rather than like the rest of the app. */
+.recipe-print { max-width: 8.5in; }
+.print-controls { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.print-controls .spacer { flex: 1; }
+.print-scale-label { font-size: 0.8rem; color: #7b8794; }
+.print-scale { display: inline-flex; gap: 0.25rem; }
+.print-scale a {
+  text-decoration: none; font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+  background: #e4e7eb; color: #1f2933;
+}
+.print-scale a.active { background: #1f2933; color: white; }
+
+.print-sheet {
+  background: white; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  padding: 0.75in; color: #1f2933; line-height: 1.45;
+}
+.print-header h1 { margin: 0 0 0.3rem; font-size: 1.6rem; }
+.print-meta { margin: 0; color: #52606d; font-size: 0.9rem; }
+.print-meta span:not(:last-child)::after { content: " · "; color: #9aa5b1; }
+.print-description { margin: 0.6rem 0 0; color: #3e4c59; }
+.print-scaled-note {
+  margin: 0.9rem 0 0; padding: 0.4rem 0.7rem; border-left: 3px solid #cbd2d9;
+  font-size: 0.85rem; color: #52606d;
+}
+.print-sheet h2 {
+  font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #7b8794;
+  border-bottom: 1px solid #cbd2d9; padding-bottom: 0.25rem; margin: 1.5rem 0 0.6rem;
+}
+.print-ingredients ul { list-style: none; padding: 0; margin: 0; column-width: 250px; column-gap: 2rem; }
+.print-ingredients li { display: flex; gap: 0.4rem; padding: 0.18rem 0; break-inside: avoid; }
+/* An empty box to tick off at the worktop, the way a written-out recipe card gets used. */
+.print-ingredients li::before {
+  content: ""; flex: 0 0 auto; width: 0.62rem; height: 0.62rem; margin-top: 0.34rem;
+  border: 1px solid #9aa5b1; border-radius: 2px;
+}
+.print-ingredients li.empty::before { border: none; }
+.print-ingredients li.empty, .print-steps li.empty { color: #9aa5b1; }
+.print-amount { font-weight: 600; white-space: nowrap; }
+.print-ingredient-name { flex: 0 1 auto; }
+.print-ingredients li.optional { color: #52606d; }
+.print-note { font-size: 0.72rem; color: #7b8794; }
+.print-steps ol { padding-left: 1.3rem; margin: 0; }
+.print-steps li { padding: 0.3rem 0; break-inside: avoid; }
+.print-notes p { margin: 0; white-space: pre-line; }
+.print-scans img { max-width: 100%; margin-bottom: 0.5rem; }
+.print-footer { margin-top: 1.75rem; border-top: 1px solid #cbd2d9; padding-top: 0.5rem; }
+.print-footer p { margin: 0.15rem 0; font-size: 0.75rem; color: #7b8794; word-break: break-word; }
+
+@media print {
+  /* Scoped to the print view's own body class: every other page's Ctrl+P is left
+     exactly as it was. */
+  body.print-page { background: white; }
+  body.print-page .topnav, body.print-page .noprint { display: none !important; }
+  body.print-page .recipe-print { max-width: none; padding: 0; }
+  body.print-page .print-sheet { box-shadow: none; border-radius: 0; padding: 0; }
+  body.print-page .print-header h1 { font-size: 20pt; }
+  body.print-page { font-size: 11pt; }
+  /* Keep a heading with the list it introduces. */
+  body.print-page .print-sheet h2 { break-after: avoid; }
+  @page { margin: 0.6in; }
+}

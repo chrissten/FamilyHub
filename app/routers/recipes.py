@@ -726,6 +726,48 @@ def recipe_cook_page(
     )
 
 
+@router.get("/recipes/{recipe_id}/print", response_class=HTMLResponse)
+def recipe_print_page(
+    recipe_id: int,
+    request: Request,
+    scale: str = "1.0",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """A paper version: no navigation, no live updates, no controls on the page itself.
+
+    Scaling is a query parameter rather than cook mode's client-side toggle, because what
+    comes out of the printer has to be what the server rendered — a sheet of paper can't
+    re-scale itself, and "print what you see" is the only rule that survives contact with
+    a browser's print preview. Anything unrecognised falls back to 1x rather than
+    erroring: this is a page you reach mid-cook, not an API.
+    """
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    # Taken as text and parsed here rather than declared `float`, so a hand-edited URL
+    # lands on the 1x page instead of a 422.
+    try:
+        chosen = float(scale)
+    except ValueError:
+        chosen = 1.0
+    if chosen not in SCALE_OPTIONS:
+        chosen = 1.0
+    # Deliberately no `request.session["last_page"]`: being returned to a print view on
+    # your next login would be strange.
+    return templates.TemplateResponse(
+        request,
+        "recipe_print.html",
+        {
+            "recipe": recipe,
+            "scale": chosen,
+            # The RecipeIngredient.scaled_amounts dict is keyed by str(scale).
+            "scale_key": str(chosen),
+            "scales": SCALE_OPTIONS,
+            "printed_on": date.today(),
+            "current_user": current_user,
+        },
+    )
+
+
 @router.get("/recipes/{recipe_id}/edit", response_class=HTMLResponse)
 def recipe_edit_page(
     recipe_id: int,

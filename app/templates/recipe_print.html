@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title }} - FamilyHub{% endblock %}
+{% block body_class %}print-page{% endblock %}
+{% block main_class %}container recipe-print{% endblock %}
+{% block content %}
+{#
+  Everything in `.noprint` is for the person standing at the screen deciding what to
+  print; `@media print` in app.css drops all of it, along with the nav bar, so the paper
+  carries the recipe and nothing else. The sheet below is sized to a page on screen too,
+  so what you see is what comes out.
+#}
+<div class="print-controls noprint">
+  <a href="/recipes/{{ recipe.id }}" class="btn-link secondary">&larr; Back to recipe</a>
+  <span class="print-scale-label">Amounts</span>
+  <span class="print-scale">
+    {% for s in scales %}
+    <a href="/recipes/{{ recipe.id }}/print?scale={{ s }}"
+       class="{{ 'active' if s == scale else '' }}">{{ '%g' | format(s) }}&times;</a>
+    {% endfor %}
+  </span>
+  <span class="spacer"></span>
+  <button type="button" onclick="window.print()">Print</button>
+</div>
+
+<article class="print-sheet">
+  <header class="print-header">
+    <h1>{{ recipe.title }}</h1>
+    <p class="print-meta">
+      {% if recipe.servings %}<span>Serves {{ (recipe.servings * scale) | round | int }}</span>{% endif %}
+      {% if recipe.prep_minutes %}<span>{{ recipe.prep_minutes }} min prep</span>{% endif %}
+      {% if recipe.cook_minutes %}<span>{{ recipe.cook_minutes }} min cook</span>{% endif %}
+      {% if recipe.tag_names %}<span>{{ recipe.tag_names | join(', ') }}</span>{% endif %}
+    </p>
+    {% if recipe.description %}<p class="print-description">{{ recipe.description }}</p>{% endif %}
+  </header>
+
+  {% if scale != 1.0 %}
+  <p class="print-scaled-note">
+    Amounts scaled {{ '%g' | format(scale) }}&times; from the original{% if recipe.servings %},
+    which serves {{ recipe.servings }}{% endif %}. Cooking times usually don't scale the same way.
+  </p>
+  {% endif %}
+
+  <section class="print-ingredients">
+    <h2>Ingredients</h2>
+    <ul>
+      {% for item in recipe.ingredients %}
+      {#- Only a line whose quantity actually parsed can be scaled; anything else prints
+          as it was written, which is also what cook mode does. -#}
+      {% set amounts = item.scaled_amounts %}
+      {% set amount = amounts.get(scale_key) if amounts else None %}
+      <li class="{{ 'optional' if item.optional else '' }}">
+        {% if amount %}
+        <span class="print-amount">{{ amount }}</span><span class="print-ingredient-name">{{ item.name }}{% if item.prep_note %}, {{ item.prep_note }}{% endif %}</span>
+        {% else %}
+        <span class="print-ingredient-name">{{ item.raw_text }}</span>
+        {% endif %}
+        {% if item.optional %}<span class="print-note">optional</span>{% endif %}
+      </li>
+      {% else %}
+      <li class="empty">No ingredients listed.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {#- A scan-only recipe skips this entirely: "Method / No steps listed." over a
+      photograph of the method is just noise. -#}
+  {% if recipe.steps or not recipe.images %}
+  <section class="print-steps">
+    <h2>Method</h2>
+    <ol>
+      {% for step in recipe.steps %}
+      <li>{{ step.text }}</li>
+      {% else %}
+      <li class="empty">No steps listed.</li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  {% if recipe.notes %}
+  <section class="print-notes">
+    <h2>Notes</h2>
+    <p>{{ recipe.notes }}</p>
+  </section>
+  {% endif %}
+
+  {#
+    Scans are printed only when there's no written method — then the scan *is* the
+    recipe and a page without it is blank. When the steps are typed out, a full-bleed
+    photograph of the original is a lot of ink for something you already have in words.
+  #}
+  {% if recipe.images and not recipe.steps %}
+  <section class="print-scans">
+    <h2>Scans</h2>
+    {% for image in recipe.images %}
+    <img src="/recipes/{{ recipe.id }}/images/{{ image.id }}" alt="Scanned page {{ loop.index }}">
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <footer class="print-footer">
+    {#- The full URL in text, since a printed link can't be clicked. -#}
+    {% if recipe.source_url %}
+    <p class="print-source">Source: {% if recipe.source_name %}{{ recipe.source_name }} &middot; {% endif %}{{ recipe.source_url }}</p>
+    {% elif recipe.source_name %}
+    <p class="print-source">Source: {{ recipe.source_name }}</p>
+    {% endif %}
+    <p class="print-credit">
+      {{ recipe.owner.display_name }}'s recipe &middot; FamilyHub &middot;
+      printed {{ printed_on.strftime('%B') }} {{ printed_on.day }}, {{ printed_on.year }}
+    </p>
+  </footer>
+</article>
+{% endblock %}

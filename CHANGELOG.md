@@ -14,6 +14,10 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
+- **The printable recipe view is web-only (2026-09-22).** `/recipes/{id}/print` has no
+  mobile equivalent and isn't getting one: printing is a browser capability, and Android's
+  share-to-print would need the page anyway. A phone can open the same URL in Chrome if
+  someone really wants a printout from it.
 - **Editing the staples list is web-only (2026-09-22).** The Pantry page has a Staples
   section that adds and removes the always-assumed ingredients; mobile's `pantry.tsx`
   still only names staples in its footer hint and has no way to change them. Deliberate —
@@ -46,6 +50,32 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-09-22 (2)
+- **[web]** **Printable recipe view.** A Print button on the recipe page opens
+  `/recipes/{id}/print`: the recipe on a white sheet with no navigation, no toolbar and
+  no live updates, plus a tick box beside each ingredient for use at the worktop. The
+  on-screen page is the preview — `@media print` only drops the controls, so what you see
+  is what comes out.
+
+  **Amounts scale from the query string** (`?scale=2.0`), through the same
+  `RecipeIngredient.scaled_amounts` cook mode uses, so fractions and pluralization stay
+  in `app/ingredients.py` rather than being re-derived. Deliberately a server round-trip
+  rather than cook mode's client-side toggle: paper can't re-scale itself, and the print
+  preview has to show exactly what was rendered. A scaled printout says so, repeats the
+  original serving count, and keeps cook mode's warning that times don't scale with
+  amounts. An unrecognised or non-numeric `scale` falls back to 1x instead of erroring —
+  it's a page you reach mid-cook, not an API.
+
+  Smaller decisions: the source URL prints as **text**, since a printed link can't be
+  clicked; scans print **only when the recipe has no written steps** (then the scan is the
+  method — otherwise it's a page of ink you already have in words), and that case drops
+  the empty "Method" heading rather than printing a placeholder over the photo; the footer
+  carries whose recipe it is and the date, so a sheet found in a drawer can be traced back.
+
+  The print rules are scoped to a `print-page` body class, added as a `body_class` block
+  in `base.html`. Every other page's Ctrl+P behaves exactly as it did before — this change
+  can't have altered how the grocery list or calendar print.
 
 ### 2026-09-22
 - **[web]** **The staples list is editable from the Pantry page.** Staples — the things

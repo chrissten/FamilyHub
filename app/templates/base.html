@@ -20,7 +20,7 @@
       + ";path=/;max-age=31536000;samesite=lax";
   </script>
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   {% if current_user %}
   <nav class="topnav">
     <div class="brand">FamilyHub</div>
