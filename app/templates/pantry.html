@@ -8,7 +8,7 @@
 
 <p class="field-hint pantry-intro">
   What's in the cupboard and the fridge. This is what "what can I cook tonight" checks
-  against, alongside the freezer and the everyday staples.
+  against, alongside the freezer and the everyday staples listed at the bottom.
 </p>
 
 {% if low_count and lists %}
@@ -47,6 +47,22 @@
     </form>
   </section>
   {% endfor %}
+
+  <section class="pantry-section">
+    <h2>Staples</h2>
+    <p class="field-hint staples-hint">
+      Assumed to be in the house at all times, so a recipe is never reported as missing
+      one of these, and they start unticked when you push a recipe to a grocery list.
+      Keep it to the things you'd never actually run out of.
+    </p>
+    {% include "_pantry_staples.html" %}
+    <form class="add-item-form" hx-post="/pantry/staples" hx-target="this" hx-swap="none"
+          hx-on::after-request="if(event.detail.successful) this.reset()">
+      <input type="text" name="name" placeholder="Add a staple" list="known-ingredients"
+             autocomplete="off" required>
+      <button type="submit">Add</button>
+    </form>
+  </section>
 </div>
 
 <p class="field-hint">

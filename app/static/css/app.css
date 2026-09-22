@@ -430,6 +430,18 @@ p.empty { color: #9aa5b1; }
 .pantry-qty { color: #7b8794; font-size: 0.85rem; }
 .pantry-low-btn { background: #e4e7eb; color: #52606d; font-size: 0.72rem; padding: 0.15rem 0.55rem; }
 .pantry-low-btn.active { background: #8a6d1d; color: white; }
+.staples-hint { max-width: 620px; margin: -0.3rem 0 0.7rem; }
+.staple-chips { list-style: none; padding: 0; margin: 0 0 0.85rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.staple-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem; background: #f4f6f8; color: #3e4c59;
+  border-radius: 999px; padding: 0.2rem 0.4rem 0.2rem 0.7rem; font-size: 0.85rem;
+}
+.staple-chip .staple-remove {
+  color: #9aa5b1; text-decoration: none; font-size: 1rem; line-height: 1;
+  padding: 0 0.25rem; border-radius: 50%;
+}
+.staple-chip .staple-remove:hover { color: #d9534f; background: #e4e7eb; }
+.staple-chips li.empty { color: #9aa5b1; font-size: 0.88rem; }
 
 /* What can I cook */
 .cook-filters { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0 1.5rem; }

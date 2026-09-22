@@ -28,6 +28,21 @@ def render_pantry_item(item: PantryItem, oob_mode: str = "none") -> str:
     return template.render(item=item, oob_mode=oob_mode)
 
 
+def staple_ingredients(db: Session) -> list[Ingredient]:
+    """Everything currently assumed to be in the house."""
+    return (
+        db.query(Ingredient)
+        .filter(Ingredient.is_staple.is_(True))
+        .order_by(func.lower(Ingredient.name))
+        .all()
+    )
+
+
+def render_staples(db: Session, oob: bool = False) -> str:
+    template = templates.get_template("_pantry_staples.html")
+    return template.render(staples=staple_ingredients(db), oob=oob)
+
+
 def _normalize_location(value: str | None) -> str:
     location = (value or "pantry").strip().lower()
     return location if location in LOCATIONS else "pantry"
@@ -111,6 +126,7 @@ def pantry_page(
             "locations": LOCATIONS,
             "known_names": known,
             "lists": lists,
+            "staples": staple_ingredients(db),
             "low_count": sum(1 for i in items if i.low),
             "current_user": current_user,
         },
@@ -158,6 +174,47 @@ async def pantry_delete(
     db.delete(item)
     db.commit()
     html = f'<li id="pantry-item-{item_id}" hx-swap-oob="delete"></li>'
+    await pantry_manager.broadcast(PANTRY_ROOM, html)
+    return HTMLResponse(html)
+
+
+@router.post("/pantry/staples", response_class=HTMLResponse)
+async def pantry_add_staple(
+    name: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Mark an ingredient as always on hand.
+
+    Creating an unknown name is deliberate, same as the pantry quick-add: "we always have
+    fish sauce" should work whether or not a recipe has mentioned fish sauce yet.
+    """
+    if not name.strip():
+        raise HTTPException(status_code=422, detail="Name is required")
+    ingredient = resolve(db, name, create=True)
+    if ingredient is None:
+        raise HTTPException(status_code=422, detail="That doesn't look like an ingredient name")
+    ingredient.is_staple = True
+    db.commit()
+    html = render_staples(db, oob=True)
+    await pantry_manager.broadcast(PANTRY_ROOM, html)
+    return HTMLResponse(html)
+
+
+@router.post("/pantry/staples/{ingredient_id}/remove", response_class=HTMLResponse)
+async def pantry_remove_staple(
+    ingredient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Clear the flag only. The ingredient itself stays — recipes, pantry rows and
+    grocery items point at it, so deleting it would take them with it."""
+    ingredient = db.get(Ingredient, ingredient_id)
+    if ingredient is None:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    ingredient.is_staple = False
+    db.commit()
+    html = render_staples(db, oob=True)
     await pantry_manager.broadcast(PANTRY_ROOM, html)
     return HTMLResponse(html)
 

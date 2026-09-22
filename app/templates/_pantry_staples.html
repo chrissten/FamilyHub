@@ -1,0 +1,17 @@
+{#
+  The staples list. Broadcast whole to every viewer over /ws/pantry rather than row by
+  row — there are only a few dozen of these and they change rarely, so a full re-render
+  is simpler than tracking inserts and deletes. Nothing in here may depend on
+  current_user, same rule as _pantry_item_row.html.
+#}
+<ul class="staple-chips" id="pantry-staples"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
+  {% for ingredient in staples %}
+  <li class="staple-chip">
+    {{ ingredient.name }}
+    <a href="#" class="staple-remove" title="Stop assuming {{ ingredient.name }}"
+       hx-post="/pantry/staples/{{ ingredient.id }}/remove" hx-target="this" hx-swap="none">&times;</a>
+  </li>
+  {% else %}
+  <li class="empty">Nothing is assumed — every ingredient has to be in the cupboard, fridge or freezer to count.</li>
+  {% endfor %}
+</ul>

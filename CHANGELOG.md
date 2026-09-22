@@ -14,6 +14,11 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
+- **Editing the staples list is web-only (2026-09-22).** The Pantry page has a Staples
+  section that adds and removes the always-assumed ingredients; mobile's `pantry.tsx`
+  still only names staples in its footer hint and has no way to change them. Deliberate —
+  it's a set-and-forget list, edited once in a while from a real keyboard, so it wasn't
+  worth a second screen. Nothing mobile-side breaks: the flag it reads is the same one.
 - **Grocery item drag-to-reorder is web-only (2026-08-06).** Web has a `/reorder` endpoint
   driven by JS drag-and-drop in `grocery_list.html`; mobile's `grocery.tsx` has no
   equivalent gesture or API call, so items can only be reordered by renaming (which
@@ -41,6 +46,27 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-09-22
+- **[web]** **The staples list is editable from the Pantry page.** Staples — the things
+  assumed to be in the house at all times, so a recipe is never reported as missing them
+  and they start unticked on a grocery push — were only ever set by `STAPLES` in
+  `app/ingredient_seed.py`. That set is applied when an ingredient row is first created
+  and never again (`seed_ingredients` only ever inserts), so on any database that had
+  already booted, editing it did nothing: the real list was only reachable by hand in
+  Postgres. A **Staples** section on `/pantry` now shows them as chips with a remove
+  button and an add box, over `POST /pantry/staples` and `/pantry/staples/{id}/remove`.
+
+  Three things it deliberately does:
+  - **Adds through `ingredients.resolve(create=True)`**, same as the pantry quick-add, so
+    "we always have fish sauce" works whether or not a recipe has ever mentioned fish
+    sauce — and so "sea salt" lands on the existing `salt` row via the alias table instead
+    of creating a second staple that means the same thing.
+  - **Removing clears the flag only.** Recipe lines, pantry rows and grocery items point
+    at the `Ingredient`, so deleting the row would take them with it.
+  - **Broadcasts the whole list** over the existing `/ws/pantry` room rather than one chip
+    at a time. A few dozen entries that change rarely aren't worth insert/delete tracking,
+    and the fragment stays free of `current_user` like the pantry row it sits beside.
 
 ### 2026-09-20 (6)
 - **[web][mobile]** v1.8.0 — **Recipes, phase 6 of 6: meal planning on the calendar.** A

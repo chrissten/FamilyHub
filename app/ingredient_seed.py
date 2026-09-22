@@ -84,6 +84,9 @@ INGREDIENTS_BY_CATEGORY: dict[str, list[str]] = {
 
 # Assumed to be in the house. These never count as "missing" when ranking recipes,
 # which is what keeps "salt and pepper to taste" from making dinner look impossible.
+# A starting point only: this is applied when an ingredient row is first created and
+# never again, so editing it won't change a database that has already booted. The live
+# list is the Staples section on /pantry.
 STAPLES = {
     "salt", "kosher salt", "black pepper", "water", "olive oil", "vegetable oil",
     "canola oil", "cooking spray", "sugar", "all purpose flour", "butter",
