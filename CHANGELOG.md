@@ -51,6 +51,14 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-24 (2)
+- **[web]** **Fix: recipe links from ordinary blogs were reported as "blocked".** Bot
+  protection (Cloudflare and similar) fingerprints the TLS handshake and HTTP/2 settings,
+  not just the User-Agent, so httpx got 403s from sites like Food Network, Budget Bytes
+  and Sally's Baking Addiction. The fetcher now uses `curl_cffi` impersonating Chrome, and
+  all of those import. A 403 from a non-social site no longer blames social media in its
+  message. No mobile change: the app calls the same `/api/recipes/import`.
+
 ### 2026-09-24
 - **[web]** **Fix: newly added freezer, to-do and pantry items didn't appear until a
   refresh.** Their rows were inserted with an out-of-band `beforeend` swap, and htmx 2

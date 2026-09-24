@@ -14,8 +14,14 @@ ingredient silently poisons grocery lists and pantry matching later, so a human 
 first. That also means no job queue, no status column and no polling — one request, one
 response.
 
-**Blocked pages are expected, not exceptional.** Facebook and Instagram will refuse to
-be fetched. That path raises RecipeImportError with a message telling the user to paste
+**Fetch like a browser, not like Python.** Bot protection (Cloudflare, Akamai) on
+ordinary recipe blogs doesn't just check the User-Agent — it fingerprints the TLS
+handshake and HTTP/2 settings, and httpx's look nothing like Chrome's. curl_cffi
+impersonates Chrome at that level, which gets past the 403s without running a real
+headless browser.
+
+**Blocked pages are expected, not exceptional.** Facebook and Instagram will still refuse
+to be fetched. That path raises RecipeImportError with a message telling the user to paste
 the text or a screenshot instead, which is the realistic way to get a recipe out of a
 social post.
 """
@@ -32,7 +38,8 @@ import secrets
 import time
 
 import anthropic
-import httpx
+from curl_cffi.requests import AsyncSession
+from curl_cffi.requests import exceptions as curl_errors
 from bs4 import BeautifulSoup
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -41,12 +48,9 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# A real browser UA. Recipe sites routinely 403 anything that looks automated, and this
-# is a person importing a page they're already reading, not a crawler.
-_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-)
+# Which browser curl_cffi mimics — its UA, headers, TLS and HTTP/2 fingerprint all at
+# once. This is a person importing a page they're already reading, not a crawler.
+_IMPERSONATE = "chrome"
 _FETCH_TIMEOUT = 15.0
 _MAX_PAGE_BYTES = 2 * 1024 * 1024
 
@@ -151,21 +155,23 @@ async def _fetch(url: str) -> str:
     if not url.lower().startswith(("http://", "https://")):
         url = "https://" + url
     try:
-        async with httpx.AsyncClient(
-            follow_redirects=True,
-            timeout=_FETCH_TIMEOUT,
-            headers={"User-Agent": _USER_AGENT, "Accept": "text/html,application/xhtml+xml"},
-        ) as client:
-            response = await client.get(url)
-    except httpx.TimeoutException:
+        # No custom headers: overriding any of them would break the Chrome fingerprint.
+        async with AsyncSession(impersonate=_IMPERSONATE, timeout=_FETCH_TIMEOUT) as client:
+            response = await client.get(url, allow_redirects=True)
+    except curl_errors.Timeout:
         raise RecipeImportError("That page took too long to load. Try pasting the recipe text instead.") from None
-    except httpx.HTTPError:
+    except curl_errors.RequestException:
         raise RecipeImportError("Couldn't open that link. Check it, or paste the recipe text instead.") from None
 
-    if response.status_code in (401, 403, 429) or (_is_social(url) and response.status_code >= 400):
+    if _is_social(url) and response.status_code >= 400:
         raise RecipeImportError(
             "That site wouldn't let us read the page — social posts usually block this. "
             "Paste the post's text, or take a screenshot and use Photo instead."
+        )
+    if response.status_code in (401, 403, 429):
+        raise RecipeImportError(
+            "That site blocked the request. Paste the recipe text, "
+            "or take a screenshot and use Photo instead."
         )
     if response.status_code >= 400:
         raise RecipeImportError(f"That page returned an error ({response.status_code}). Try pasting the text instead.")
