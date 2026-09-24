@@ -1,5 +1,8 @@
+{# htmx 2 inserts only the children of a non-outerHTML OOB element, so an insert
+   wraps the row in a throwaway <ul> that carries the swap and keeps the <li> whole. #}
+{% if oob_mode == "insert" %}<ul hx-swap-oob="beforeend:#todo-items">{% endif %}
 <li id="todo-item-{{ item.id }}" class="grocery-item {% if item.checked %}checked{% endif %}"
-  {% if oob_mode == "replace" %}hx-swap-oob="true"{% elif oob_mode == "insert" %}hx-swap-oob="beforeend:#todo-items"{% endif %}>
+  {% if oob_mode == "replace" %}hx-swap-oob="true"{% endif %}>
   <div class="item-row">
     <span class="drag-handle">⠿</span>
     <label class="item-label">
@@ -11,3 +14,4 @@
     <a href="#" class="item-delete" hx-post="/todo/items/{{ item.id }}/delete" hx-target="this" hx-swap="none">&times;</a>
   </div>
 </li>
+{% if oob_mode == "insert" %}</ul>{% endif %}

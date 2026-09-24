@@ -2,9 +2,11 @@
   One pantry row. Broadcast to every viewer over /ws/pantry, so nothing in here may
   depend on current_user — same rule as the recipe detail fragment.
 #}
+{# htmx 2 inserts only the children of a non-outerHTML OOB element, so an insert
+   wraps the row in a throwaway <ul> that carries the swap and keeps the <li> whole. #}
+{% if oob_mode == "insert" %}<ul hx-swap-oob="beforeend:#pantry-{{ item.location }}-items">{% endif %}
 <li class="pantry-item {{ 'is-low' if item.low else '' }}" id="pantry-item-{{ item.id }}"
-  {% if oob_mode == "insert" %}hx-swap-oob="beforeend:#pantry-{{ item.location }}-items"
-  {% elif oob_mode == "replace" %}hx-swap-oob="outerHTML"{% endif %}>
+  {% if oob_mode == "replace" %}hx-swap-oob="outerHTML"{% endif %}>
   <span class="pantry-name">{{ item.ingredient.name }}</span>
   {% if item.quantity %}<span class="pantry-qty">{{ item.quantity }}</span>{% endif %}
   {% if item.ingredient.category %}<span class="tag-chip small">{{ item.ingredient.category }}</span>{% endif %}
@@ -18,3 +20,4 @@
      hx-post="/pantry/items/{{ item.id }}/delete" hx-target="this" hx-swap="none"
      hx-confirm="Remove {{ item.ingredient.name }} from the pantry?">&times;</a>
 </li>
+{% if oob_mode == "insert" %}</ul>{% endif %}

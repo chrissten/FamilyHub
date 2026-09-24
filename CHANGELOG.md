@@ -51,6 +51,16 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-24
+- **[web]** **Fix: newly added freezer, to-do and pantry items didn't appear until a
+  refresh.** Their rows were inserted with an out-of-band `beforeend` swap, and htmx 2
+  inserts only the *children* of a non-`outerHTML` OOB element. So the `<li>` (its id,
+  classes and Alpine `x-data`) was dropped and the row never showed up as a list item.
+  Inserts now wrap the row in a throwaway `<ul>` that carries the swap. The grocery row
+  got the same fix; the web grocery form was fine because it re-renders the whole category,
+  but items added from the phone are pushed to web viewers through that insert path. No
+  mobile change: the app reads the JSON API, not these fragments.
+
 ### 2026-09-22 (2)
 - **[web]** **Printable recipe view.** A Print button on the recipe page opens
   `/recipes/{id}/print`: the recipe on a white sheet with no navigation, no toolbar and
