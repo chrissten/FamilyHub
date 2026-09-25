@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { File } from 'expo-file-system';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
@@ -337,8 +338,11 @@ export async function importRecipe(
   form.append('url', payload.url ?? '');
   form.append('text', payload.text ?? '');
   for (const photo of payload.photos ?? []) {
-    // RN's FormData takes this {uri, name, type} shape rather than a Blob.
-    form.append('photos', { uri: photo.uri, name: photo.name, type: photo.type } as unknown as Blob);
+    // Expo replaces the global fetch with expo/fetch, which rejects RN's {uri, name, type}
+    // file parts ("Unsupported FormDataPart implementation"). It does accept any part with
+    // a bytes() method, so read the file through expo-file-system instead.
+    const part = { name: photo.name, type: photo.type, bytes: () => new File(photo.uri).bytes() };
+    form.append('photos', part as unknown as Blob);
   }
   return requestMultipart<RecipeDraft>('/api/recipes/import', form);
 }

@@ -51,6 +51,13 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-25
+- **[mobile]** **Fix: importing a recipe from photos failed with "Unsupported FormDataPart
+  implementation".** Expo SDK 56 replaces the global `fetch` with `expo/fetch`, which
+  can't upload React Native's `{uri, name, type}` file parts. Each photo is now sent as a
+  part whose `bytes()` reads the file through `expo-file-system`, which `expo/fetch`
+  accepts. (v1.8.1) No web change: the server endpoint was fine.
+
 ### 2026-09-24 (2)
 - **[web]** **Fix: recipe links from ordinary blogs were reported as "blocked".** Bot
   protection (Cloudflare and similar) fingerprints the TLS handshake and HTTP/2 settings,
