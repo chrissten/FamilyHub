@@ -57,6 +57,9 @@ by accident (as happened with multi-day events on 2026-07-09).
   can't upload React Native's `{uri, name, type}` file parts. Each photo is now sent as a
   part whose `bytes()` reads the file through `expo-file-system`, which `expo/fetch`
   accepts. (v1.8.1) No web change: the server endpoint was fine.
+- **[mobile]** The notification handler now sets `shouldShowBanner` and `shouldShowList`
+  instead of the deprecated `shouldShowAlert`, which cleared the app's last type error.
+  Notifications should look the same. (v1.8.2)
 
 ### 2026-09-24 (2)
 - **[web]** **Fix: recipe links from ordinary blogs were reported as "blocked".** Bot
