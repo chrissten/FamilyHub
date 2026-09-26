@@ -98,6 +98,11 @@ def on_startup():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE freezer_items ADD COLUMN count INTEGER DEFAULT 1"))
             conn.commit()
+    ingredient_cols = [c["name"] for c in inspect(engine).get_columns("ingredients")]
+    if "reviewed" not in ingredient_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE ingredients ADD COLUMN reviewed BOOLEAN DEFAULT FALSE"))
+            conn.commit()
     db = SessionLocal()
     try:
         seed_admin(db)

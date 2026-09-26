@@ -6,10 +6,17 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import SessionLocal, get_db
 from app.deps import get_current_user
 from app.grocery_ops import add_or_merge_item
+from app.ingredient_review import keep_separate, merge_ingredient
 from app.ingredients import resolve
 from app.list_access import get_visible_list, visible_lists_query
 from app.models import GroceryList, Ingredient, PantryItem, User
-from app.schemas import PantryItemCreate, PantryItemOut, PantryItemUpdate
+from app.schemas import (
+    IngredientMergeRequest,
+    IngredientOut,
+    PantryItemCreate,
+    PantryItemOut,
+    PantryItemUpdate,
+)
 from app.security import decode_access_token
 from app.templating import templates
 from app.ws_manager import pantry_manager
@@ -358,3 +365,74 @@ async def api_pantry_delete(
         PANTRY_ROOM, f'<li id="pantry-item-{item_id}" hx-swap-oob="delete"></li>'
     )
     return HTMLResponse("", status_code=204)
+
+
+# ── Ingredient review ("gran. sugar" is just sugar) ─────────────────────────────
+
+
+def _get_ingredient_or_404(db: Session, ingredient_id: int) -> Ingredient:
+    ingredient = db.get(Ingredient, ingredient_id)
+    if ingredient is None:
+        raise HTTPException(status_code=404, detail="Ingredient not found")
+    return ingredient
+
+
+def _merge(db: Session, ingredient_id: int, into_id: int) -> Ingredient:
+    if ingredient_id == into_id:
+        raise HTTPException(status_code=422, detail="Can't merge an ingredient into itself")
+    source = _get_ingredient_or_404(db, ingredient_id)
+    target = _get_ingredient_or_404(db, into_id)
+    merge_ingredient(db, source, target)
+    return target
+
+
+def _safe_next(next_url: str | None) -> str:
+    # Only same-site paths, so the form can't be used to bounce someone off-site.
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    return "/recipes"
+
+
+@router.post("/ingredients/{ingredient_id}/merge")
+def ingredient_merge(
+    ingredient_id: int,
+    into_id: int = Form(...),
+    next: str = Form("/recipes"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _merge(db, ingredient_id, into_id)
+    return RedirectResponse(url=_safe_next(next), status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/ingredients/{ingredient_id}/keep")
+def ingredient_keep(
+    ingredient_id: int,
+    next: str = Form("/recipes"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    keep_separate(db, _get_ingredient_or_404(db, ingredient_id))
+    return RedirectResponse(url=_safe_next(next), status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/api/ingredients/{ingredient_id}/merge", response_model=IngredientOut)
+def api_ingredient_merge(
+    ingredient_id: int,
+    payload: IngredientMergeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Returns the ingredient that survived."""
+    return _merge(db, ingredient_id, payload.into_id)
+
+
+@router.post("/api/ingredients/{ingredient_id}/keep", response_model=IngredientOut)
+def api_ingredient_keep(
+    ingredient_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    ingredient = _get_ingredient_or_404(db, ingredient_id)
+    keep_separate(db, ingredient)
+    return ingredient

@@ -18,7 +18,7 @@ from app.models import Ingredient, IngredientAlias
 # Category names double as grocery-list category names, so they read like store aisles.
 INGREDIENTS_BY_CATEGORY: dict[str, list[str]] = {
     "Produce": [
-        "onion", "red onion", "green onion", "shallot", "garlic", "ginger", "carrot",
+        "onion", "red onion", "yellow onion", "white onion", "sweet onion", "green onion", "shallot", "garlic", "ginger", "carrot",
         "celery", "potato", "sweet potato", "tomato", "cherry tomato", "lettuce",
         "romaine lettuce", "spinach", "kale", "cabbage", "broccoli", "cauliflower",
         "green bean", "pea", "corn", "bell pepper", "red bell pepper", "green bell pepper",
@@ -164,6 +164,33 @@ ALIASES: dict[str, str] = {
     "milk chocolate chip": "chocolate chip",
     "whole peeled tomato": "canned tomato",
     "petite diced tomato": "canned tomato",
+    # Recipe-card shorthand and everyday variants that turned up as stray ingredients.
+    "gran sugar": "sugar",
+    "white sugar": "sugar",
+    "granulated white sugar": "sugar",
+    "light brown sugar": "brown sugar",
+    "dark brown sugar": "brown sugar",
+    "ap flour": "all purpose flour",
+    # Onion colours are different things (and deliberately separate ingredients), but
+    # Vidalia is a brand of sweet onion.
+    "vidalia onion": "sweet onion",
+    "ground black pepper": "black pepper",
+    "ground pepper": "black pepper",
+    "black peppercorn": "black pepper",
+    "fine sea salt": "salt",
+    "green pepper": "green bell pepper",
+    # Not "red pepper" -> red bell pepper: "crushed red pepper" normalizes to "red
+    # pepper" too, and that's chili flakes.
+    "olive oil extra virgin": "olive oil",
+    "oil": "vegetable oil",
+    "dry yeast": "yeast",
+    "active dry yeast": "yeast",
+    "instant yeast": "yeast",
+    "cider vinegar": "apple cider vinegar",
+    "low sodium chicken broth": "chicken broth",
+    "sharp cheddar cheese": "cheddar cheese",
+    "sharp cheddar": "cheddar cheese",
+    "tumeric": "turmeric",
 }
 
 

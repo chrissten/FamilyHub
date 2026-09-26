@@ -36,7 +36,8 @@ from app.meal_plan import (
     week_shopping_lines,
     week_start,
 )
-from app.recipe_match import match_recipe, on_hand, rank_recipes
+from app.ingredient_review import list_items_by_ingredient, needs_review, suggest_match
+from app.recipe_match import ingredient_key_map, match_recipe, on_hand, rank_recipes
 from app.recipe_import import (
     RecipeImportError,
     draft_to_lines,
@@ -57,6 +58,7 @@ from app.schemas import (
     RecipeUpdate,
     ToGroceryRequest,
     ToGroceryResult,
+    ToGroceryRowOut,
 )
 from app.security import decode_access_token
 from app.templating import templates
@@ -623,11 +625,12 @@ async def meal_plan_shopping(
 
     entries = entries_for_week(db, monday)
     touched: set[int] = set()
+    key_map = ingredient_key_map(db)
     for row in week_shopping_lines(entries):
         item, _ = add_or_merge_item(
             db, list_id,
             name=row["name"], quantity=None, category_name=row["category"],
-            user_id=current_user.id,
+            user_id=current_user.id, ingredient_id=row["ingredient_id"], key_map=key_map,
         )
         touched.add(item.category_id)
 
@@ -891,6 +894,63 @@ def _ingredient_target(item: RecipeIngredient) -> tuple[str, str | None]:
     return item.name, None
 
 
+def _grocery_rows(db: Session, recipe: Recipe, list_ids: list[int]) -> list[dict]:
+    """Each ingredient with what we know about it: already on a list, already in the
+    kitchen, or an auto-created name that looks like one we know.
+
+    Staples, optional extras and anything in the pantry or freezer start unticked —
+    they're usually already in the kitchen, and a list padded with salt goes unread. A
+    pantry entry marked "low" doesn't count as having it.
+    """
+    key_map = ingredient_key_map(db)
+    on_lists = list_items_by_ingredient(db, list_ids, key_map)
+    in_pantry = {
+        ingredient_id
+        for (ingredient_id,) in db.query(PantryItem.ingredient_id).filter(PantryItem.low.is_(False))
+    }
+    kitchen = on_hand(db)
+
+    rows = []
+    for item in recipe.ingredients:
+        name, category = _ingredient_target(item)
+        ingredient = item.ingredient
+        have = None
+        if ingredient is not None:
+            if ingredient.id in in_pantry:
+                have = "pantry"
+            elif kitchen.sources.get(ingredient.id) == "freezer":
+                have = "freezer"
+        staple = bool(ingredient and ingredient.is_staple)
+        rows.append({
+            "item": item,
+            "name": name,
+            "category": category or DEFAULT_CATEGORY_NAME,
+            "staple": staple,
+            "have": have,
+            "on_lists": {
+                list_id: found[ingredient.id].name
+                for list_id, found in on_lists.items()
+                if ingredient is not None and ingredient.id in found
+            },
+            "suggestion": suggest_match(db, ingredient, key_map) if needs_review(ingredient) else None,
+            "preselected": not item.optional and not staple and have is None,
+        })
+    return rows
+
+
+def _render_to_grocery(request: Request, db: Session, recipe: Recipe, user: User, error: str | None = None):
+    lists = visible_lists_query(db, GroceryList, user).all()
+    return templates.TemplateResponse(
+        request,
+        "recipe_to_grocery.html",
+        {
+            "recipe": recipe, "lists": lists, "current_user": user, "error": error,
+            "rows": _grocery_rows(db, recipe, [l.id for l in lists]),
+        },
+        status_code=400 if error else 200,
+    )
+
+
 @router.get("/recipes/{recipe_id}/to-grocery", response_class=HTMLResponse)
 def recipe_to_grocery_page(
     recipe_id: int,
@@ -899,23 +959,7 @@ def recipe_to_grocery_page(
     current_user: User = Depends(get_current_user),
 ):
     recipe = load_recipe_full(db, recipe_id, current_user)
-    lists = visible_lists_query(db, GroceryList, current_user).all()
-    # Staples are assumed to be in the house, so they start unticked rather than
-    # padding the shopping list with salt and oil every time.
-    rows = [
-        {
-            "item": item,
-            "name": name,
-            "category": category or DEFAULT_CATEGORY_NAME,
-            "preselected": not item.optional and not (item.ingredient and item.ingredient.is_staple),
-        }
-        for item, (name, category) in ((i, _ingredient_target(i)) for i in recipe.ingredients)
-    ]
-    return templates.TemplateResponse(
-        request,
-        "recipe_to_grocery.html",
-        {"recipe": recipe, "lists": lists, "rows": rows, "current_user": current_user, "error": None},
-    )
+    return _render_to_grocery(request, db, recipe, current_user)
 
 
 async def _push_to_grocery(
@@ -932,6 +976,7 @@ async def _push_to_grocery(
     added = merged = 0
     names: list[str] = []
     touched_categories: set[int] = set()
+    key_map = ingredient_key_map(db)
 
     for item in recipe.ingredients:
         if item.id not in wanted:
@@ -939,7 +984,8 @@ async def _push_to_grocery(
         name, category = _ingredient_target(item)
         quantity = scaled_amount(item.quantity, item.unit, scale) if item.quantity is not None else None
         grocery_item, created = add_or_merge_item(
-            db, list_id, name=name, quantity=quantity, category_name=category, user_id=user.id
+            db, list_id, name=name, quantity=quantity, category_name=category, user_id=user.id,
+            ingredient_id=item.ingredient_id, key_map=key_map,
         )
         touched_categories.add(grocery_item.category_id)
         names.append(name)
@@ -974,25 +1020,7 @@ async def recipe_to_grocery(
 ):
     recipe = load_recipe_full(db, recipe_id, current_user)
     if not ingredient_ids:
-        lists = visible_lists_query(db, GroceryList, current_user).all()
-        rows = [
-            {
-                "item": item,
-                "name": name,
-                "category": category or DEFAULT_CATEGORY_NAME,
-                "preselected": not item.optional and not (item.ingredient and item.ingredient.is_staple),
-            }
-            for item, (name, category) in ((i, _ingredient_target(i)) for i in recipe.ingredients)
-        ]
-        return templates.TemplateResponse(
-            request,
-            "recipe_to_grocery.html",
-            {
-                "recipe": recipe, "lists": lists, "rows": rows, "current_user": current_user,
-                "error": "Tick at least one ingredient to add.",
-            },
-            status_code=400,
-        )
+        return _render_to_grocery(request, db, recipe, current_user, "Tick at least one ingredient to add.")
 
     await _push_to_grocery(db, recipe, list_id, ingredient_ids, _parse_scale(scale), current_user)
     return RedirectResponse(url=f"/grocery/lists/{list_id}", status_code=status.HTTP_302_FOUND)
@@ -1005,6 +1033,32 @@ def _parse_scale(value: str) -> float:
         return 1.0
     # Guard against a hand-edited form turning one recipe into a thousand portions.
     return min(max(scale, 0.25), 20.0)
+
+
+@router.get("/api/recipes/{recipe_id}/to-grocery/preview", response_model=list[ToGroceryRowOut])
+def api_recipe_to_grocery_preview(
+    recipe_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    list_ids = [l.id for l in visible_lists_query(db, GroceryList, current_user)]
+    return [
+        ToGroceryRowOut(
+            recipe_ingredient_id=row["item"].id,
+            ingredient_id=row["item"].ingredient_id,
+            name=row["name"],
+            raw_text=row["item"].raw_text,
+            category=row["category"],
+            optional=row["item"].optional,
+            staple=row["staple"],
+            have=row["have"],
+            on_lists=row["on_lists"],
+            suggestion=row["suggestion"],
+            preselected=row["preselected"],
+        )
+        for row in _grocery_rows(db, recipe, list_ids)
+    ]
 
 
 @router.post("/api/recipes/{recipe_id}/to-grocery", response_model=ToGroceryResult)

@@ -3,8 +3,8 @@ import { File } from 'expo-file-system';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
-  Recipe, RecipeSummary, RecipeInput, RecipeDraft, ToGroceryResult,
-  PantryItem, RecipeMatch, MealPlanEntry,
+  Recipe, RecipeSummary, RecipeInput, RecipeDraft, ToGroceryResult, ToGroceryRow,
+  PantryItem, RecipeMatch, MealPlanEntry, Ingredient,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -349,6 +349,20 @@ export async function importRecipe(
 
 /** Push selected ingredients from a recipe onto a grocery list. Ingredients already on
  *  the list have their amounts combined server-side rather than duplicated. */
+export const getToGroceryPreview = (recipeId: number) =>
+  request<ToGroceryRow[]>(`/api/recipes/${recipeId}/to-grocery/preview`);
+
+/** "Yes, same thing": fold an auto-created ingredient into a known one for good. */
+export const mergeIngredient = (ingredientId: number, intoId: number) =>
+  request<Ingredient>(`/api/ingredients/${ingredientId}/merge`, {
+    method: 'POST',
+    body: JSON.stringify({ into_id: intoId }),
+  });
+
+/** "No, it's different": stop suggesting a match for it. */
+export const keepIngredientSeparate = (ingredientId: number) =>
+  request<Ingredient>(`/api/ingredients/${ingredientId}/keep`, { method: 'POST' });
+
 export const recipeToGrocery = (
   recipeId: number, listId: number, ingredientIds: number[], scale = 1,
 ) => request<ToGroceryResult>(`/api/recipes/${recipeId}/to-grocery`, {

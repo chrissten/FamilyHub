@@ -229,6 +229,9 @@ class Ingredient(Base):
     # Salt, pepper, water, cooking oil: assumed to be in the house, so they never count
     # as "missing" when ranking what you can cook tonight.
     is_staple: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Someone looked at this auto-created ingredient's "same as ...?" suggestion and said
+    # it's its own thing. Stops the question being asked again (app/ingredient_review.py).
+    reviewed: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     aliases: Mapped[list["IngredientAlias"]] = relationship(

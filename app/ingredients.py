@@ -33,6 +33,8 @@ _PREP_WORDS = {
     "thinly", "finely", "coarsely", "roughly", "freshly", "fresh", "large", "small",
     "medium", "jumbo", "ripe", "organic", "boneless", "skinless", "uncooked", "raw",
     "optional", "cold", "warm", "lukewarm", "approximately", "about", "good", "quality",
+    # Size abbreviations recipe cards use to save space ("2 lrg. eggs", "1 med. onion").
+    "lg", "lrg", "med", "sm", "sml", "xl",
 }
 
 # Deliberately NOT stripped, for the reasons in the module docstring:
@@ -53,7 +55,8 @@ _UNIT_WORDS = {
     "cloves", "slice", "slices", "stick", "sticks", "bunch", "bunches", "head", "heads",
     "sprig", "sprigs", "stalk", "stalks", "piece", "pieces", "sachet", "sachets",
     "packet", "packets", "tin", "tins", "bottle", "bottles", "container", "containers",
-    "handful", "handfuls", "knob", "rasher", "rashers",
+    "handful", "handfuls", "knob", "rasher", "rashers", "qt", "qts", "gal", "gals",
+    "bulb", "bulbs",
 }
 
 _IRREGULAR_PLURALS = {
@@ -286,7 +289,8 @@ _UNIT_CANONICAL = {
     "ml": "milliliter", "milliliter": "milliliter", "milliliters": "milliliter",
     "l": "liter", "liter": "liter", "liters": "liter",
     "pint": "pint", "pints": "pint", "quart": "quart", "quarts": "quart",
-    "gallon": "gallon", "gallons": "gallon",
+    "qt": "quart", "qts": "quart",
+    "gallon": "gallon", "gallons": "gallon", "gal": "gallon", "gals": "gallon",
     "pinch": "pinch", "pinches": "pinch", "dash": "dash", "dashes": "dash",
     "can": "can", "cans": "can", "jar": "jar", "jars": "jar",
     "package": "package", "packages": "package", "pkg": "package",

@@ -4,8 +4,11 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getRecipe, getGroceryLists, recipeToGrocery } from '../src/api/client';
-import type { Recipe, RecipeIngredient, GroceryList } from '../src/api/types';
+import {
+  getRecipe, getGroceryLists, recipeToGrocery, getToGroceryPreview, mergeIngredient,
+  keepIngredientSeparate,
+} from '../src/api/client';
+import type { Recipe, GroceryList, ToGroceryRow } from '../src/api/types';
 import { useTheme, type Colors } from '../src/theme';
 
 const SCALES = [
@@ -16,15 +19,6 @@ const SCALES = [
   { label: 'Triple', value: 3 },
 ];
 
-/** Canonical name and category are what actually go on the list, so two recipes wanting
- *  the same thing land on one line. Mirrors _ingredient_target in app/routers/recipes.py. */
-function target(item: RecipeIngredient): { name: string; category: string } {
-  if (item.ingredient) {
-    return { name: item.ingredient.name, category: item.ingredient.category || 'Other' };
-  }
-  return { name: item.name, category: 'Other' };
-}
-
 export default function RecipeToGroceryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -33,6 +27,10 @@ export default function RecipeToGroceryScreen() {
   const recipeId = Number(id);
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  // Rows come from the server (see _grocery_rows in app/routers/recipes.py): canonical
+  // name, whether it's already on a list or in the kitchen, and any "same as...?" hint.
+  const [rows, setRows] = useState<ToGroceryRow[]>([]);
+  const [reviewing, setReviewing] = useState<number | null>(null);
   const [lists, setLists] = useState<GroceryList[]>([]);
   const [listId, setListId] = useState<number | null>(null);
   const [scale, setScale] = useState(1);
@@ -43,16 +41,17 @@ export default function RecipeToGroceryScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [r, gl] = await Promise.all([getRecipe(recipeId), getGroceryLists()]);
+        const [r, gl, preview] = await Promise.all([
+          getRecipe(recipeId), getGroceryLists(), getToGroceryPreview(recipeId),
+        ]);
         setRecipe(r);
         setLists(gl);
         setListId(gl[0]?.id ?? null);
-        // Staples and optional extras start off: they're usually already in the kitchen,
-        // and padding the list with salt every time makes it useless.
+        setRows(preview);
+        // Staples, optional extras and things already in the pantry start off: padding
+        // the list with salt every time makes it useless.
         const initial: Record<number, boolean> = {};
-        for (const item of r.ingredients) {
-          initial[item.id] = !item.optional && !item.ingredient?.is_staple;
-        }
+        for (const row of preview) initial[row.recipe_ingredient_id] = row.preselected;
         setSelected(initial);
       } catch {
         Alert.alert('Error', 'Could not load this recipe');
@@ -65,15 +64,36 @@ export default function RecipeToGroceryScreen() {
   const chosenCount = Object.values(selected).filter(Boolean).length;
 
   function setAll(value: boolean) {
-    if (!recipe) return;
     const next: Record<number, boolean> = {};
-    for (const item of recipe.ingredients) next[item.id] = value;
+    for (const row of rows) next[row.recipe_ingredient_id] = value;
     setSelected(next);
+  }
+
+  /** Answer a "same thing as ...?" suggestion, then refresh the rows. A merge can change
+   *  what a row is (gran. sugar becomes sugar, a staple), so its tick follows the new
+   *  default; every other row keeps whatever the user already chose. */
+  async function answerSuggestion(row: ToGroceryRow, same: boolean) {
+    if (row.ingredient_id == null || !row.suggestion) return;
+    setReviewing(row.recipe_ingredient_id);
+    try {
+      if (same) await mergeIngredient(row.ingredient_id, row.suggestion.id);
+      else await keepIngredientSeparate(row.ingredient_id);
+      const preview = await getToGroceryPreview(recipeId);
+      setRows(preview);
+      if (same) {
+        const changed = preview.find(p => p.recipe_ingredient_id === row.recipe_ingredient_id);
+        if (changed) setSelected(prev => ({ ...prev, [changed.recipe_ingredient_id]: changed.preselected }));
+      }
+    } catch {
+      Alert.alert('Error', 'Could not save that');
+    } finally {
+      setReviewing(null);
+    }
   }
 
   async function handleAdd() {
     if (!recipe || listId == null) return;
-    const ids = recipe.ingredients.filter(i => selected[i.id]).map(i => i.id);
+    const ids = rows.filter(r => selected[r.recipe_ingredient_id]).map(r => r.recipe_ingredient_id);
     if (ids.length === 0) {
       Alert.alert('Nothing selected', 'Tick at least one ingredient to add.');
       return;
@@ -161,38 +181,62 @@ export default function RecipeToGroceryScreen() {
         </View>
 
         <View style={styles.card}>
-          {recipe.ingredients.map(item => {
-            const { name, category } = target(item);
-            const isStaple = !!item.ingredient?.is_staple;
+          {rows.map(row => {
+            const id = row.recipe_ingredient_id;
+            const onList = listId != null ? row.on_lists[String(listId)] : undefined;
             return (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.row}
-                onPress={() => setSelected(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
-              >
-                <Ionicons
-                  name={selected[item.id] ? 'checkbox' : 'square-outline'}
-                  size={21}
-                  color={selected[item.id] ? colors.primary : colors.textFaint}
-                />
-                <View style={styles.rowMain}>
-                  <Text style={[styles.rowName, !selected[item.id] && styles.rowDim]}>{name}</Text>
-                  <Text style={styles.rowRaw} numberOfLines={1}>{item.raw_text}</Text>
-                </View>
-                <View style={styles.rowTags}>
-                  <Text style={styles.categoryChip}>{category}</Text>
-                  {(isStaple || item.optional) && (
-                    <Text style={styles.noteChip}>{isStaple ? 'staple' : 'optional'}</Text>
-                  )}
-                </View>
-              </TouchableOpacity>
+              <View key={id} style={styles.rowWrap}>
+                <TouchableOpacity
+                  style={styles.row}
+                  onPress={() => setSelected(prev => ({ ...prev, [id]: !prev[id] }))}
+                >
+                  <Ionicons
+                    name={selected[id] ? 'checkbox' : 'square-outline'}
+                    size={21}
+                    color={selected[id] ? colors.primary : colors.textFaint}
+                  />
+                  <View style={styles.rowMain}>
+                    <Text style={[styles.rowName, !selected[id] && styles.rowDim]}>{row.name}</Text>
+                    <Text style={styles.rowRaw} numberOfLines={1}>{row.raw_text}</Text>
+                    {onList && <Text style={styles.onListNote} numberOfLines={1}>On list as “{onList}”</Text>}
+                  </View>
+                  <View style={styles.rowTags}>
+                    <Text style={styles.categoryChip}>{row.category}</Text>
+                    {row.have ? (
+                      <Text style={styles.haveChip}>in {row.have}</Text>
+                    ) : (row.staple || row.optional) && (
+                      <Text style={styles.noteChip}>{row.staple ? 'staple' : 'optional'}</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                {row.suggestion && (
+                  <View style={styles.suggest}>
+                    <Text style={styles.suggestText}>
+                      Same thing as <Text style={styles.suggestName}>{row.suggestion.name}</Text>?
+                    </Text>
+                    {reviewing === id ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <View style={styles.suggestButtons}>
+                        <TouchableOpacity style={styles.suggestYes} onPress={() => answerSuggestion(row, true)}>
+                          <Text style={styles.suggestYesText}>Yes</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.suggestNo} onPress={() => answerSuggestion(row, false)}>
+                          <Text style={styles.suggestNoText}>No</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
 
         <Text style={styles.hint}>
-          Staples and optional extras start unticked. Anything already on the list has its
-          amount combined rather than duplicated.
+          Staples, optional extras and anything in the pantry or freezer start unticked.
+          Anything already on the list, however it's spelled there, has its amount combined
+          rather than duplicated.
         </Text>
       </ScrollView>
 
@@ -225,9 +269,9 @@ function createStyles(colors: Colors) {
     selectButtons: { flexDirection: 'row', gap: 14, marginTop: 7 },
     selectLink: { fontSize: 13, color: colors.primary, fontWeight: '600' },
     card: { backgroundColor: colors.surface, borderRadius: 10, overflow: 'hidden' },
+    rowWrap: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
     row: {
       flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 11,
-      borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border,
     },
     rowMain: { flex: 1 },
     rowName: { fontSize: 14.5, fontWeight: '600', color: colors.text },
@@ -239,6 +283,20 @@ function createStyles(colors: Colors) {
       paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, overflow: 'hidden',
     },
     noteChip: { fontSize: 10, color: colors.textFaint },
+    haveChip: { fontSize: 10, color: colors.primary, fontWeight: '600' },
+    onListNote: { fontSize: 11.5, color: colors.warning, marginTop: 2 },
+    suggest: {
+      flexDirection: 'row', alignItems: 'center', gap: 10, marginLeft: 43, marginRight: 12,
+      marginBottom: 10, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8,
+      backgroundColor: colors.surfaceAlt,
+    },
+    suggestText: { flex: 1, fontSize: 13, color: colors.textMuted },
+    suggestName: { fontWeight: '700', color: colors.text },
+    suggestButtons: { flexDirection: 'row', gap: 6 },
+    suggestYes: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 5 },
+    suggestYesText: { color: colors.primaryText, fontSize: 13, fontWeight: '600' },
+    suggestNo: { backgroundColor: colors.chip, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 5 },
+    suggestNoText: { color: colors.chipText, fontSize: 13, fontWeight: '600' },
     hint: { fontSize: 12, color: colors.textFaint, marginTop: 12, lineHeight: 17 },
     footer: {
       padding: 12, backgroundColor: colors.surface,

@@ -39,6 +39,18 @@ def find_existing_item(db: Session, list_id: int, name: str) -> GroceryItem | No
     )
 
 
+def _find_by_ingredient(
+    db: Session, list_id: int, ingredient_id: int, key_map: dict[str, int] | None
+) -> GroceryItem | None:
+    # Local import: ingredient_review pulls in recipe_match, which the grocery router
+    # doesn't otherwise need.
+    from app.ingredient_review import list_items_by_ingredient
+    from app.recipe_match import ingredient_key_map
+
+    key_map = key_map if key_map is not None else ingredient_key_map(db)
+    return list_items_by_ingredient(db, [list_id], key_map, include_checked=True)[list_id].get(ingredient_id)
+
+
 def get_or_create_category(db: Session, list_id: int, name: str | None) -> GroceryCategory:
     """Find a category by name within a list, creating it if it's new.
 
@@ -99,18 +111,26 @@ def add_or_merge_item(
     quantity: str | None,
     category_name: str | None,
     user_id: int,
+    ingredient_id: int | None = None,
+    key_map: dict[str, int] | None = None,
 ) -> tuple[GroceryItem, bool]:
     """Add an item to a list, or fold it into the matching one already there.
 
     Returns (item, created). An item that was already on the list and ticked off gets
     un-ticked — if you're buying it again it isn't done, which is the behaviour the
     grocery screen has always had for a re-added item.
+
+    With `ingredient_id` (a recipe push), an item spelled differently but meaning the
+    same thing also counts as a match — the recipe's "sugar" lands on the "Sugar (1 bag)"
+    someone typed by hand — and keeps the name the household chose.
     """
     clean_name = " ".join(name.split())[:200]
     if not clean_name:
         raise ValueError("ingredient name is empty")
 
     existing = find_existing_item(db, list_id, clean_name)
+    if existing is None and ingredient_id is not None:
+        existing = _find_by_ingredient(db, list_id, ingredient_id, key_map)
     if existing is not None:
         existing.quantity = merge_quantities(existing.quantity, quantity)
         if existing.checked:

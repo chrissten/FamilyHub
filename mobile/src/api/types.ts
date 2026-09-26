@@ -193,6 +193,24 @@ export interface RecipeDraft {
 }
 
 /** Result of pushing recipe ingredients onto a grocery list. */
+/** One line of the add-to-grocery screen, built server-side so web and mobile agree. */
+export interface ToGroceryRow {
+  recipe_ingredient_id: number;
+  ingredient_id: number | null;
+  name: string;
+  raw_text: string;
+  category: string;
+  optional: boolean;
+  staple: boolean;
+  /** "pantry" or "freezer" when it's already in the kitchen. */
+  have: string | null;
+  /** Grocery list id (as a string, it's a JSON key) -> name of the item already there. */
+  on_lists: Record<string, string>;
+  /** An auto-created ingredient that looks like a known one ("gran. sugar" -> sugar). */
+  suggestion: { id: number; name: string } | null;
+  preselected: boolean;
+}
+
 export interface ToGroceryResult {
   added: number;
   merged: number;

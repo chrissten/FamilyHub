@@ -17,10 +17,11 @@
   servings scaler.
 #}
 <form method="post" action="/recipes/{{ recipe.id }}/to-grocery" class="to-grocery-form"
-      x-data="{ scale: '1' }">
+      x-data="{ scale: '1', listId: '{{ lists[0].id }}' }">
+  <input type="hidden" name="next" value="/recipes/{{ recipe.id }}/to-grocery">
   <div class="recipe-form-row">
     <label>List
-      <select name="list_id" required>
+      <select name="list_id" required x-model="listId">
         {% for l in lists %}
         <option value="{{ l.id }}">{{ l.name }}</option>
         {% endfor %}
@@ -52,15 +53,33 @@
         <span class="tg-raw">{{ row.item.raw_text }}</span>
         <span class="tag-chip small">{{ row.category }}</span>
         {% if row.item.optional %}<span class="tg-note">optional</span>{% endif %}
-        {% if row.item.ingredient and row.item.ingredient.is_staple %}<span class="tg-note">staple</span>{% endif %}
+        {% if row.staple %}<span class="tg-note">staple</span>{% endif %}
+        {% if row.have %}<span class="tg-note tg-have">in {{ row.have }}</span>{% endif %}
+        {% for list_id, existing in row.on_lists.items() %}
+        <span class="tg-note tg-on-list" x-show="listId == '{{ list_id }}'">on list as “{{ existing }}”</span>
+        {% endfor %}
       </label>
+      {% if row.suggestion %}
+      {#
+        Buttons borrow this form via formaction rather than nesting a second form, which
+        HTML doesn't allow. Either answer comes straight back to this page.
+      #}
+      <div class="tg-suggest">
+        Same thing as <strong>{{ row.suggestion.name }}</strong>?
+        <button type="submit" formaction="/ingredients/{{ row.item.ingredient_id }}/merge"
+                name="into_id" value="{{ row.suggestion.id }}">Yes, same</button>
+        <button type="submit" class="tg-suggest-no"
+                formaction="/ingredients/{{ row.item.ingredient_id }}/keep">No, different</button>
+      </div>
+      {% endif %}
     </li>
     {% endfor %}
   </ul>
 
   <p class="field-hint">
-    Staples and optional extras start unticked — they're usually already in the kitchen.
-    Anything already on the list gets its amount combined rather than duplicated.
+    Staples, optional extras and anything in the pantry or freezer start unticked.
+    Anything already on the list — however it's spelled there — gets its amount combined
+    rather than duplicated.
   </p>
 
   <button type="submit">Add to list</button>

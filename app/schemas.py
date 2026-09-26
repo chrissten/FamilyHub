@@ -375,6 +375,38 @@ class ToGroceryResult(BaseModel):
     list_id: int
 
 
+class IngredientSuggestionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
+class ToGroceryRowOut(BaseModel):
+    """One line of the "add to grocery list" screen, with everything needed to decide
+    whether it's worth buying. Built server-side so web and mobile agree."""
+
+    recipe_ingredient_id: int
+    # The canonical ingredient, or null when the line never resolved to one.
+    ingredient_id: int | None
+    name: str
+    raw_text: str
+    category: str
+    optional: bool
+    staple: bool
+    # "pantry" or "freezer" when it's already in the kitchen, else null.
+    have: str | None
+    # {grocery list id: name of the unticked item already there}, matched by ingredient.
+    on_lists: dict[int, str]
+    # An auto-created ingredient that looks like a known one ("gran. sugar" -> Sugar).
+    suggestion: IngredientSuggestionOut | None
+    preselected: bool
+
+
+class IngredientMergeRequest(BaseModel):
+    into_id: int
+
+
 class PantryItemCreate(BaseModel):
     """`name` is free text resolved to a canonical Ingredient, creating one if it's new —
     adding "harissa" to the pantry is also how recipes calling for harissa start

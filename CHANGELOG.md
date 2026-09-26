@@ -51,6 +51,32 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-26
+- **[web] [mobile]** **Adding a recipe to the grocery list now recognizes things you
+  already have under a different name.** A recipe's "gran. sugar" had become its own
+  ingredient and never matched the "Sugar" on the list.
+  - The normalizer now drops size shorthand (`lrg.`, `med.`, `sm.`) and parses `qt`/`qts`
+    and `gal`/`gals` as quart/gallon amounts. About 20 new aliases were added
+    (`gran sugar`, `ground pepper`, `tumeric`, …). Yellow, white and sweet onions are
+    their own ingredients now, never folded into plain onion.
+  - On the add-to-grocery screen, an ingredient the app created on the fly shows "Same
+    thing as **Sugar**? Yes / No". Yes merges it for good and remembers the spelling as an
+    alias. No is remembered, so it isn't asked again. It only ever suggests; "cake flour"
+    is offered "all purpose flour" but never merged without a yes.
+  - Rows show "on list as '…'" when the list already has the item, matched by what it is
+    rather than how it's spelled. The push itself merges the same way, so the recipe's
+    "powdered sugar" combines with a hand-typed "Sugar (Powdered)". This also applies to
+    Cook Now and meal-plan pushes.
+  - Items in the pantry (unless marked low) or the freezer are labelled and start
+    unticked, like staples.
+  - Mobile gets the same screen through the new `GET /api/recipes/{id}/to-grocery/preview`
+    and `/api/ingredients/{id}/merge|keep` endpoints. (v1.8.3)
+- **[web]** One-off production cleanup: the 28 ingredients created from unrecognized
+  recipe wording were reviewed. 17 were merged (e.g. "gran. sugar" → sugar, "qts onions"
+  → onion). 11 were kept, categorized and marked reviewed (e.g. baby spinach, ham steak,
+  yellow onion). Two Mustard Relish lines were re-parsed to get their quart/gallon units
+  back.
+
 ### 2026-09-25
 - **[mobile]** **Fix: importing a recipe from photos failed with "Unsupported FormDataPart
   implementation".** Expo SDK 56 replaces the global `fetch` with `expo/fetch`, which

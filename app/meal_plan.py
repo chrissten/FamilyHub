@@ -166,6 +166,7 @@ def week_shopping_lines(entries: list[MealPlanEntry]) -> list[dict]:
             row = seen.setdefault(key, {
                 "name": name,
                 "category": ingredient.category if ingredient else None,
+                "ingredient_id": ingredient.id if ingredient else None,
                 "ingredient_ids": [],
                 "recipes": [],
                 "scale": scale,
