@@ -51,6 +51,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-26 (2)
+- **[web] [mobile]** **Recipes no longer have a description or tags.** Both are gone from
+  the recipe list, detail page, edit form, import review and print view. The importer
+  stops extracting them. The columns and existing values are still in the database but
+  are no longer written or shown. The API still returns them so apps older than 1.8.4 don't
+  crash, and ignores them on save.
+- **[web] [mobile]** **New Leftovers section on every recipe.** It has a rating from
+  worst to best ("No one ate the leftovers", "Leftovers were just okay", "Good the next
+  day", "Preserves really well") plus free-text notes. The rating shows as a coloured
+  badge on the recipe list. It's set in the edit form and shown on the detail page, which
+  says "Not rated yet" when empty. The API only writes the leftover fields when a client
+  sends them, so saving from an older app can't erase them. (v1.8.4)
+
 ### 2026-09-26
 - **[web] [mobile]** **Adding a recipe to the grocery list now recognizes things you
   already have under a different name.** A recipe's "gran. sugar" had become its own

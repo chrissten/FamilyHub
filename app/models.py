@@ -262,6 +262,10 @@ class Recipe(Base):
     prep_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cook_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # How well it does the next day, on the LEFTOVER_RATINGS scale (null = not rated yet),
+    # plus free-text notes like "freeze in portions" or "sauce splits when reheated".
+    leftover_rating: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    leftover_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     # "manual" | "url" | "photo" | "text" -- how this recipe got here.
     source_type: Mapped[str] = mapped_column(String(20), default="manual")
     source_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
@@ -290,6 +294,10 @@ class Recipe(Base):
     @property
     def tag_names(self) -> list[str]:
         return [tag.name for tag in self.tags]
+
+    @property
+    def leftover_label(self) -> str | None:
+        return LEFTOVER_RATINGS.get(self.leftover_rating) if self.leftover_rating else None
 
     @property
     def image_ids(self) -> list[int]:
@@ -343,6 +351,14 @@ class RecipeIngredient(Base):
 # app/ingredients.py stay in one place instead of being reimplemented in JS and again in
 # TypeScript — and so web and mobile can never disagree about what "1 1/2 cups" is.
 SCALE_OPTIONS = (0.5, 1.0, 1.5, 2.0, 3.0)
+
+# Worst to best. Mirrored in mobile/src/recipes/leftovers.ts; keep the two in step.
+LEFTOVER_RATINGS = {
+    1: "No one ate the leftovers",
+    2: "Leftovers were just okay",
+    3: "Good the next day",
+    4: "Preserves really well",
+}
 
 
 class RecipeStep(Base):

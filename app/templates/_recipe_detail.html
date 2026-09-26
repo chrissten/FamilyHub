@@ -19,13 +19,8 @@
         <span class="item-meta">by {{ recipe.owner.display_name }}</span>
         {% if not recipe.is_public %}<span class="visibility-badge private">Private</span>{% endif %}
       </p>
-      {% if recipe.tag_names %}
-      <p class="recipe-card-tags">{% for name in recipe.tag_names %}<span class="tag-chip small">{{ name }}</span>{% endfor %}</p>
-      {% endif %}
     </div>
   </div>
-
-  {% if recipe.description %}<p class="recipe-description">{{ recipe.description }}</p>{% endif %}
 
   {% if recipe.source_url %}
   <p class="recipe-source">Source:
@@ -81,4 +76,16 @@
     <p>{{ recipe.notes }}</p>
   </section>
   {% endif %}
+
+  {# Always shown, even empty, so it's obvious there's somewhere to record it. #}
+  <section class="recipe-notes recipe-leftovers">
+    <h2>Leftovers</h2>
+    {% if recipe.leftover_label %}
+    <p class="leftover-badge leftover-{{ recipe.leftover_rating }}">{{ recipe.leftover_label }}</p>
+    {% endif %}
+    {% if recipe.leftover_notes %}<p>{{ recipe.leftover_notes }}</p>{% endif %}
+    {% if not recipe.leftover_label and not recipe.leftover_notes %}
+    <p class="empty">Not rated yet. Edit the recipe to note how it held up the next day.</p>
+    {% endif %}
+  </section>
 </article>

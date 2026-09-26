@@ -79,11 +79,9 @@ class DraftIngredient(BaseModel):
 
 class RecipeDraft(BaseModel):
     title: str
-    description: str | None = Field(default=None, description="One sentence describing the dish. Not the author's story.")
     servings: int | None = None
     prep_minutes: int | None = None
     cook_minutes: int | None = None
-    tags: list[str] = Field(default_factory=list, description="A few short labels, e.g. 'weeknight', 'vegetarian'")
     ingredients: list[DraftIngredient] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list, description="Method steps in order, without step numbers")
 
@@ -287,7 +285,6 @@ async def extract_from_url(url: str) -> tuple[RecipeDraft, str | None, str | Non
         else:
             draft = RecipeDraft(title=title, steps=steps)
 
-        draft.description = _json_ld_text(data.get("description")) or draft.description
         draft.servings = _json_ld_servings(data.get("recipeYield")) or draft.servings
         draft.prep_minutes = _iso8601_minutes(data.get("prepTime")) or draft.prep_minutes
         draft.cook_minutes = _iso8601_minutes(data.get("cookTime")) or draft.cook_minutes
@@ -296,12 +293,6 @@ async def extract_from_url(url: str) -> tuple[RecipeDraft, str | None, str | Non
         # paraphrase through would quietly rewrite the method.
         if steps:
             draft.steps = steps
-
-        category = data.get("recipeCategory") or data.get("keywords")
-        if isinstance(category, str):
-            draft.tags = [t.strip() for t in category.split(",") if t.strip()][:5]
-        elif isinstance(category, list):
-            draft.tags = [str(t).strip() for t in category if str(t).strip()][:5]
 
         image_url = _json_ld_text(data.get("image"))
         return draft, site_name, image_url
@@ -473,9 +464,8 @@ def take_scans(token: str | None) -> list[tuple[bytes, str]]:
     return entry[1] if entry else []
 
 
-def draft_to_lines(draft: RecipeDraft) -> tuple[str, str, str]:
+def draft_to_lines(draft: RecipeDraft) -> tuple[str, str]:
     """Flatten a draft into the textarea contents the review form edits."""
     ingredients = "\n".join(i.raw_text.strip() for i in draft.ingredients if i.raw_text.strip())
     steps = "\n".join(s.strip() for s in draft.steps if s.strip())
-    tags = ", ".join(t.strip() for t in draft.tags if t.strip())
-    return ingredients, steps, tags
+    return ingredients, steps

@@ -9,6 +9,7 @@ import { getRecipes } from '../../src/api/client';
 import type { RecipeSummary } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
 import { setPendingRecipeForm, totalMinutes } from '../../src/recipes/formState';
+import { leftoverColors, leftoverLabel } from '../../src/recipes/leftovers';
 
 export default function RecipesScreen() {
   const { colors } = useTheme();
@@ -17,32 +18,19 @@ export default function RecipesScreen() {
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState<string | null>(null);
 
-  useFocusEffect(useCallback(() => { load(); }, [activeTag]));
+  useFocusEffect(useCallback(() => { load(); }, []));
 
   async function load(query?: string) {
     setRefreshing(true);
     try {
-      setRecipes(await getRecipes(query ?? search, activeTag ?? undefined));
+      setRecipes(await getRecipes(query ?? search));
     } catch {
       Alert.alert('Error', 'Could not load recipes');
     } finally {
       setRefreshing(false);
     }
   }
-
-  // Every tag in the current result set, so the filter row reflects what's actually there.
-  const tags = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const recipe of recipes) {
-      for (const name of recipe.tag_names) {
-        const key = name.toLowerCase();
-        if (!seen.has(key)) seen.set(key, name);
-      }
-    }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b));
-  }, [recipes]);
 
   function openNew() {
     setPendingRecipeForm({ recipe: null });
@@ -51,6 +39,8 @@ export default function RecipesScreen() {
 
   function renderCard({ item }: { item: RecipeSummary }) {
     const minutes = totalMinutes(item);
+    const leftovers = leftoverLabel(item.leftover_rating);
+    const badge = leftovers ? leftoverColors(item.leftover_rating!, colors) : null;
     return (
       <TouchableOpacity
         style={styles.card}
@@ -58,20 +48,15 @@ export default function RecipesScreen() {
       >
         <View style={styles.cardMain}>
           <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-          {!!item.description && (
-            <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-          )}
           <View style={styles.cardMeta}>
             {minutes != null && <Text style={styles.metaText}>{minutes} min</Text>}
             {item.servings != null && <Text style={styles.metaText}>Serves {item.servings}</Text>}
             {!item.is_public && <Text style={styles.privateBadge}>Private</Text>}
           </View>
-          {item.tag_names.length > 0 && (
-            <View style={styles.cardTags}>
-              {item.tag_names.map(name => (
-                <Text key={name} style={styles.tagChipSmall}>{name}</Text>
-              ))}
-            </View>
+          {leftovers && badge && (
+            <Text style={[styles.leftoverBadge, { color: badge.fg, backgroundColor: badge.bg }]}>
+              Leftovers: {leftovers.toLowerCase()}
+            </Text>
           )}
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
@@ -120,23 +105,6 @@ export default function RecipesScreen() {
         </TouchableOpacity>
       </View>
 
-      {tags.length > 0 && (
-        <View style={styles.tagRow}>
-          {tags.map(name => {
-            const active = activeTag?.toLowerCase() === name.toLowerCase();
-            return (
-              <TouchableOpacity
-                key={name}
-                onPress={() => setActiveTag(active ? null : name)}
-                style={[styles.tagChip, active && styles.tagChipActive]}
-              >
-                <Text style={[styles.tagChipText, active && styles.tagChipTextActive]}>{name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
-
       <FlatList
         data={recipes}
         keyExtractor={item => String(item.id)}
@@ -145,7 +113,7 @@ export default function RecipesScreen() {
         contentContainerStyle={recipes.length === 0 ? styles.emptyWrap : styles.listContent}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {search || activeTag
+            {search
               ? 'No recipes match that.'
               : 'No recipes yet — import one from a link or a photo, or tap + to type one in.'}
           </Text>
@@ -184,15 +152,6 @@ function createStyles(colors: Colors) {
       backgroundColor: colors.surfaceAlt, borderRadius: 8, paddingVertical: 9,
     },
     kitchenText: { fontSize: 13, fontWeight: '600', color: colors.primary },
-    tagRow: {
-      flexDirection: 'row', flexWrap: 'wrap', gap: 6,
-      paddingHorizontal: 12, paddingVertical: 8,
-      backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border,
-    },
-    tagChip: { backgroundColor: colors.chip, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-    tagChipActive: { backgroundColor: colors.primary },
-    tagChipText: { fontSize: 12, color: colors.chipText },
-    tagChipTextActive: { color: colors.primaryText },
     listContent: { paddingBottom: 80 },
     emptyWrap: { flexGrow: 1, justifyContent: 'center', padding: 24 },
     empty: { textAlign: 'center', color: colors.textMuted, fontSize: 15 },
@@ -203,16 +162,14 @@ function createStyles(colors: Colors) {
     },
     cardMain: { flex: 1 },
     cardTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
-    cardDesc: { fontSize: 13, color: colors.textMuted, marginTop: 2, lineHeight: 18 },
     cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 5, alignItems: 'center' },
     metaText: { fontSize: 12, color: colors.textFaint },
     privateBadge: {
       fontSize: 11, color: colors.warning, backgroundColor: colors.warningBg,
       paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
     },
-    cardTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 6 },
-    tagChipSmall: {
-      fontSize: 11, color: colors.chipText, backgroundColor: colors.chip,
+    leftoverBadge: {
+      alignSelf: 'flex-start', marginTop: 6, fontSize: 11, fontWeight: '600',
       paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, overflow: 'hidden',
     },
   });

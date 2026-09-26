@@ -261,10 +261,9 @@ export const decrementFreezerItem = (itemId: number) =>
 
 // ── Recipes ───────────────────────────────────────────────────────────────────
 
-export const getRecipes = (q?: string, tag?: string) => {
+export const getRecipes = (q?: string) => {
   const params = new URLSearchParams();
   if (q) params.set('q', q);
-  if (tag) params.set('tag', tag);
   const query = params.toString();
   return request<RecipeSummary[]>(`/api/recipes${query ? `?${query}` : ''}`);
 };

@@ -29,9 +29,7 @@
       {% if recipe.servings %}<span>Serves {{ (recipe.servings * scale) | round | int }}</span>{% endif %}
       {% if recipe.prep_minutes %}<span>{{ recipe.prep_minutes }} min prep</span>{% endif %}
       {% if recipe.cook_minutes %}<span>{{ recipe.cook_minutes }} min cook</span>{% endif %}
-      {% if recipe.tag_names %}<span>{{ recipe.tag_names | join(', ') }}</span>{% endif %}
     </p>
-    {% if recipe.description %}<p class="print-description">{{ recipe.description }}</p>{% endif %}
   </header>
 
   {% if scale != 1.0 %}

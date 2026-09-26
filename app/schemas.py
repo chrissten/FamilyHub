@@ -275,11 +275,15 @@ class RecipeStepOut(BaseModel):
 
 class RecipeCreate(BaseModel):
     title: str
-    description: str | None = None
     servings: int | None = None
     prep_minutes: int | None = None
     cook_minutes: int | None = None
     notes: str | None = None
+    # 1-4 on the LEFTOVER_RATINGS scale in app/models.py. Both leftover fields are only
+    # written when the client sends them, so saving from an app version that predates
+    # them doesn't wipe what someone else recorded.
+    leftover_rating: int | None = Field(default=None, ge=1, le=4)
+    leftover_notes: str | None = None
     source_type: Literal["manual", "url", "photo", "text"] = "manual"
     source_url: str | None = None
     source_name: str | None = None
@@ -288,6 +292,9 @@ class RecipeCreate(BaseModel):
     # Set when the recipe came from a photo import: claims the scans stashed at
     # extraction time (see app/recipe_import.stash_scans).
     scan_token: str | None = None
+    # Description and tags were dropped from recipes (2026-09-26). Still accepted so apps
+    # older than 1.8.4 can save, but ignored.
+    description: str | None = None
     tags: list[str] = Field(default_factory=list)
     ingredients: list[RecipeIngredientIn] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
@@ -306,7 +313,6 @@ class RecipeSummaryOut(BaseModel):
 
     id: int
     title: str
-    description: str | None
     servings: int | None
     prep_minutes: int | None
     cook_minutes: int | None
@@ -316,12 +322,16 @@ class RecipeSummaryOut(BaseModel):
     image_url: str | None
     is_public: bool
     owner: UserOut
-    # Flattened by Recipe.tag_names / Recipe.image_ids so from_attributes can read them.
+    leftover_rating: int | None = None
+    # No longer shown or edited anywhere; still sent because apps older than 1.8.4 read
+    # them unguarded and would crash without them.
+    description: str | None = None
     tag_names: list[str] = Field(default_factory=list)
 
 
 class RecipeOut(RecipeSummaryOut):
     notes: str | None
+    leftover_notes: str | None = None
     ingredients: list[RecipeIngredientOut]
     steps: list[RecipeStepOut]
     image_ids: list[int] = Field(default_factory=list)
@@ -346,11 +356,9 @@ class RecipeDraftOut(BaseModel):
     it to /api/recipes — passing `scan_token` back so any uploaded photos get attached."""
 
     title: str
-    description: str | None = None
     servings: int | None = None
     prep_minutes: int | None = None
     cook_minutes: int | None = None
-    tags: list[str] = Field(default_factory=list)
     ingredients: list[DraftIngredientOut] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
     source_url: str | None = None

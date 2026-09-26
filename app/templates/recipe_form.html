@@ -19,11 +19,6 @@
     <input type="text" name="title" value="{{ recipe.title if recipe else (draft.title if draft else '') }}" required {% if not draft %}autofocus{% endif %}>
   </label>
 
-  <label>Short description
-    <input type="text" name="description" value="{{ (recipe.description or '') if recipe else ((draft.description or '') if draft else '') }}"
-           placeholder="One line — what is it?">
-  </label>
-
   <div class="recipe-form-row">
     <label>Serves
       <input type="number" name="servings" min="1" value="{{ (recipe.servings or '') if recipe else ((draft.servings or '') if draft else '') }}">
@@ -49,10 +44,6 @@
     <textarea name="steps" rows="10" placeholder="Preheat the oven to 350°F.&#10;Whisk the dry ingredients together.">{{ step_text }}</textarea>
   </label>
 
-  <label>Tags <span class="field-hint">comma separated</span>
-    <input type="text" name="tags" value="{{ tag_text }}" placeholder="weeknight, instant pot">
-  </label>
-
   <div class="recipe-form-row">
     <label>Source name
       <input type="text" name="source_name" value="{{ (recipe.source_name or '') if recipe else (draft_source_name or '') }}"
@@ -67,6 +58,19 @@
   <label>Notes
     <textarea name="notes" rows="3" placeholder="What you'd do differently next time">{{ (recipe.notes or '') if recipe else '' }}</textarea>
   </label>
+
+  <fieldset class="leftover-fieldset">
+    <legend>Leftovers</legend>
+    <div class="leftover-options">
+      <label class="inline"><input type="radio" name="leftover_rating" value=""
+        {{ 'checked' if not recipe or not recipe.leftover_rating else '' }}> Not rated</label>
+      {% for value, label in leftover_ratings.items() %}
+      <label class="inline"><input type="radio" name="leftover_rating" value="{{ value }}"
+        {{ 'checked' if recipe and recipe.leftover_rating == value else '' }}> {{ label }}</label>
+      {% endfor %}
+    </div>
+    <textarea name="leftover_notes" rows="2" placeholder="e.g. freeze in portions, sauce splits when reheated">{{ (recipe.leftover_notes or '') if recipe else '' }}</textarea>
+  </fieldset>
 
   <label class="inline">
     <input type="checkbox" name="is_public" value="true" {{ 'checked' if not recipe or recipe.is_public else '' }}>

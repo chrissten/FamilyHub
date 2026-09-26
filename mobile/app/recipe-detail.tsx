@@ -8,6 +8,7 @@ import { getRecipe, deleteRecipe, getCurrentUserId } from '../src/api/client';
 import type { Recipe } from '../src/api/types';
 import { useTheme, type Colors } from '../src/theme';
 import { setPendingRecipeForm, totalMinutes } from '../src/recipes/formState';
+import { leftoverColors, leftoverLabel } from '../src/recipes/leftovers';
 
 export default function RecipeDetailScreen() {
   const { colors } = useTheme();
@@ -111,6 +112,8 @@ export default function RecipeDetailScreen() {
   }
 
   const minutes = totalMinutes(recipe);
+  const leftovers = leftoverLabel(recipe.leftover_rating);
+  const badge = leftovers ? leftoverColors(recipe.leftover_rating!, colors) : null;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -125,14 +128,6 @@ export default function RecipeDetailScreen() {
         {recipe.servings != null && <Text style={styles.metaText}>Serves {recipe.servings}</Text>}
         {!recipe.is_public && <Text style={styles.privateBadge}>Private</Text>}
       </View>
-
-      {!!recipe.description && <Text style={styles.description}>{recipe.description}</Text>}
-
-      {recipe.tag_names.length > 0 && (
-        <View style={styles.tagRow}>
-          {recipe.tag_names.map(name => <Text key={name} style={styles.tagChip}>{name}</Text>)}
-        </View>
-      )}
 
       {!!recipe.source_url && (
         <TouchableOpacity onPress={() => Linking.openURL(recipe.source_url!)}>
@@ -196,6 +191,20 @@ export default function RecipeDetailScreen() {
         </>
       )}
 
+      {/* Always shown, even empty, so it's obvious there's somewhere to record it. */}
+      <Text style={styles.sectionHeader}>Leftovers</Text>
+      <View style={styles.card}>
+        {leftovers && badge && (
+          <Text style={[styles.leftoverBadge, { color: badge.fg, backgroundColor: badge.bg }]}>
+            {leftovers}
+          </Text>
+        )}
+        {!!recipe.leftover_notes && <Text style={styles.notesText}>{recipe.leftover_notes}</Text>}
+        {!leftovers && !recipe.leftover_notes && (
+          <Text style={styles.empty}>Not rated yet. Edit the recipe to note how it held up the next day.</Text>
+        )}
+      </View>
+
       <Text style={styles.byline}>Added by {recipe.owner.display_name}</Text>
     </ScrollView>
   );
@@ -224,11 +233,9 @@ function createStyles(colors: Colors) {
       fontSize: 11, color: colors.warning, backgroundColor: colors.warningBg,
       paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
     },
-    description: { fontSize: 15, color: colors.text, marginTop: 10, lineHeight: 21 },
-    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 },
-    tagChip: {
-      fontSize: 11, color: colors.chipText, backgroundColor: colors.chip,
-      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden',
+    leftoverBadge: {
+      alignSelf: 'flex-start', marginTop: 10, fontSize: 13, fontWeight: '600',
+      paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, overflow: 'hidden',
     },
     sourceLink: { marginTop: 10, fontSize: 13, color: colors.primary },
     sourceText: { marginTop: 10, fontSize: 13, color: colors.textMuted },

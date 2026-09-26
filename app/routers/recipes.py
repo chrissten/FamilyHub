@@ -15,6 +15,7 @@ from app.deps import get_current_user
 from app.ingredients import normalize, parse_ingredient_line, resolve, scaled_amount
 from app.list_access import get_visible_list, is_list_visible, visible_lists_query
 from app.models import (
+    LEFTOVER_RATINGS,
     SCALE_OPTIONS,
     GroceryCategory,
     GroceryList,
@@ -104,6 +105,7 @@ def get_visible_recipe(db: Session, recipe_id: int, user: User) -> Recipe:
 
 
 def search_recipes(db: Session, user: User, q: str | None = None, tag: str | None = None) -> list[Recipe]:
+    # `tag` is only used by apps older than 1.8.4; nothing sets tags any more.
     query = visible_recipes_query(db, user).options(
         joinedload(Recipe.owner), selectinload(Recipe.tags)
     )
@@ -123,30 +125,6 @@ def search_recipes(db: Session, user: User, q: str | None = None, tag: str | Non
         tag_key = normalize(tag)
         query = query.filter(Recipe.tags.any(RecipeTagName.norm_key == tag_key))
     return query.all()
-
-
-def parse_tag_names(raw: str | None) -> list[str]:
-    if not raw:
-        return []
-    seen: dict[str, str] = {}
-    for chunk in raw.split(","):
-        name = " ".join(chunk.split())
-        if not name:
-            continue
-        key = normalize(name)
-        if key and key not in seen:
-            seen[key] = name[:60]
-    return list(seen.values())
-
-
-def get_or_create_tag(db: Session, name: str) -> RecipeTagName:
-    key = normalize(name)
-    tag = db.query(RecipeTagName).filter(RecipeTagName.norm_key == key).first()
-    if tag is None:
-        tag = RecipeTagName(name=name[:60], norm_key=key[:60])
-        db.add(tag)
-        db.flush()
-    return tag
 
 
 def split_lines(raw: str | None) -> list[str]:
@@ -200,10 +178,6 @@ def attach_scans(recipe: Recipe, scan_token: str | None) -> None:
         )
 
 
-def apply_tags(db: Session, recipe: Recipe, names: list[str]) -> None:
-    recipe.tags = [get_or_create_tag(db, name) for name in names]
-
-
 def load_recipe_full(db: Session, recipe_id: int, user: User) -> Recipe:
     """Detail view with the relationships eager-loaded, so rendering doesn't fire a
     query per ingredient row.
@@ -236,23 +210,15 @@ def load_recipe_full(db: Session, recipe_id: int, user: User) -> Recipe:
 def recipes_page(
     request: Request,
     q: str | None = None,
-    tag: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     request.session["last_page"] = "/recipes"
-    recipes = search_recipes(db, current_user, q=q, tag=tag)
-    all_tags = db.query(RecipeTagName).order_by(func.lower(RecipeTagName.name)).all()
+    recipes = search_recipes(db, current_user, q=q)
     return templates.TemplateResponse(
         request,
         "recipes.html",
-        {
-            "recipes": recipes,
-            "all_tags": all_tags,
-            "q": q or "",
-            "active_tag": tag or "",
-            "current_user": current_user,
-        },
+        {"recipes": recipes, "q": q or "", "current_user": current_user},
     )
 
 
@@ -269,7 +235,7 @@ def recipe_new_page(
             "draft": None,
             "ingredient_text": "",
             "step_text": "",
-            "tag_text": "",
+            "leftover_ratings": LEFTOVER_RATINGS,
             "draft_source_url": "",
             "draft_source_name": "",
             "draft_image_url": "",
@@ -282,14 +248,14 @@ def recipe_new_page(
 @router.post("/recipes")
 def recipe_create(
     title: str = Form(...),
-    description: str = Form(""),
     servings: str = Form(""),
     prep_minutes: str = Form(""),
     cook_minutes: str = Form(""),
     ingredients: str = Form(""),
     steps: str = Form(""),
-    tags: str = Form(""),
     notes: str = Form(""),
+    leftover_rating: str = Form(""),
+    leftover_notes: str = Form(""),
     source_url: str = Form(""),
     source_name: str = Form(""),
     image_url: str = Form(""),
@@ -301,11 +267,12 @@ def recipe_create(
 ):
     recipe = Recipe(
         title=title.strip()[:300],
-        description=description.strip()[:2000] or None,
         servings=_parse_int(servings),
         prep_minutes=_parse_int(prep_minutes),
         cook_minutes=_parse_int(cook_minutes),
         notes=notes.strip() or None,
+        leftover_rating=_parse_rating(leftover_rating),
+        leftover_notes=leftover_notes.strip() or None,
         source_type=(source_type.strip() or ("url" if source_url.strip() else "manual"))[:20],
         source_url=source_url.strip()[:1000] or None,
         source_name=source_name.strip()[:200] or None,
@@ -317,7 +284,6 @@ def recipe_create(
     db.flush()
     apply_ingredient_lines(db, recipe, split_lines(ingredients))
     apply_step_lines(recipe, split_lines(steps))
-    apply_tags(db, recipe, parse_tag_names(tags))
     attach_scans(recipe, scan_token.strip() or None)
     db.commit()
     return RedirectResponse(url=f"/recipes/{recipe.id}", status_code=status.HTTP_302_FOUND)
@@ -333,7 +299,7 @@ def _render_review(request: Request, current_user: User, draft, *, source_url=""
     get back is a normal recipe form with the fields filled in, so correcting the model
     uses exactly the same controls as writing a recipe by hand.
     """
-    ingredient_text, step_text, tag_text = draft_to_lines(draft)
+    ingredient_text, step_text = draft_to_lines(draft)
     return templates.TemplateResponse(
         request,
         "recipe_form.html",
@@ -342,7 +308,7 @@ def _render_review(request: Request, current_user: User, draft, *, source_url=""
             "draft": draft,
             "ingredient_text": ingredient_text,
             "step_text": step_text,
-            "tag_text": tag_text,
+            "leftover_ratings": LEFTOVER_RATINGS,
             "draft_source_url": source_url or "",
             "draft_source_name": source_name or "",
             "draft_image_url": image_url or "",
@@ -787,7 +753,7 @@ def recipe_edit_page(
             "draft": None,
             "ingredient_text": "\n".join(i.raw_text for i in recipe.ingredients),
             "step_text": "\n".join(s.text for s in recipe.steps),
-            "tag_text": ", ".join(recipe.tag_names),
+            "leftover_ratings": LEFTOVER_RATINGS,
             "current_user": current_user,
         },
     )
@@ -797,14 +763,14 @@ def recipe_edit_page(
 async def recipe_update(
     recipe_id: int,
     title: str = Form(...),
-    description: str = Form(""),
     servings: str = Form(""),
     prep_minutes: str = Form(""),
     cook_minutes: str = Form(""),
     ingredients: str = Form(""),
     steps: str = Form(""),
-    tags: str = Form(""),
     notes: str = Form(""),
+    leftover_rating: str = Form(""),
+    leftover_notes: str = Form(""),
     source_url: str = Form(""),
     source_name: str = Form(""),
     is_public: bool = Form(False),
@@ -813,17 +779,17 @@ async def recipe_update(
 ):
     recipe = get_visible_recipe(db, recipe_id, current_user)
     recipe.title = title.strip()[:300]
-    recipe.description = description.strip()[:2000] or None
     recipe.servings = _parse_int(servings)
     recipe.prep_minutes = _parse_int(prep_minutes)
     recipe.cook_minutes = _parse_int(cook_minutes)
     recipe.notes = notes.strip() or None
+    recipe.leftover_rating = _parse_rating(leftover_rating)
+    recipe.leftover_notes = leftover_notes.strip() or None
     recipe.source_url = source_url.strip()[:1000] or None
     recipe.source_name = source_name.strip()[:200] or None
     recipe.is_public = is_public
     apply_ingredient_lines(db, recipe, split_lines(ingredients))
     apply_step_lines(recipe, split_lines(steps))
-    apply_tags(db, recipe, parse_tag_names(tags))
     db.commit()
 
     fresh = load_recipe_full(db, recipe_id, current_user)
@@ -863,6 +829,11 @@ def recipe_image(
         # Image bytes never change once stored — a new scan is a new row.
         headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
+
+
+def _parse_rating(value: str | None) -> int | None:
+    rating = _parse_int(value)
+    return rating if rating in LEFTOVER_RATINGS else None
 
 
 def _parse_int(value: str | None) -> int | None:
@@ -1133,7 +1104,6 @@ def api_get_recipe(
 
 def _apply_payload(db: Session, recipe: Recipe, payload: RecipeCreate) -> None:
     recipe.title = payload.title.strip()[:300]
-    recipe.description = (payload.description or "").strip()[:2000] or None
     recipe.servings = payload.servings
     recipe.prep_minutes = payload.prep_minutes
     recipe.cook_minutes = payload.cook_minutes
@@ -1143,6 +1113,11 @@ def _apply_payload(db: Session, recipe: Recipe, payload: RecipeCreate) -> None:
     recipe.source_name = (payload.source_name or "").strip()[:200] or None
     recipe.image_url = (payload.image_url or "").strip()[:1000] or None
     recipe.is_public = payload.is_public
+    # Only when sent: an app too old to know about leftovers mustn't erase them on save.
+    if "leftover_rating" in payload.model_fields_set:
+        recipe.leftover_rating = payload.leftover_rating
+    if "leftover_notes" in payload.model_fields_set:
+        recipe.leftover_notes = (payload.leftover_notes or "").strip() or None
 
     if payload.ingredients:
         recipe.ingredients.clear()
@@ -1174,7 +1149,6 @@ def _apply_payload(db: Session, recipe: Recipe, payload: RecipeCreate) -> None:
                 )
             )
     apply_step_lines(recipe, [s for s in payload.steps if s.strip()])
-    apply_tags(db, recipe, parse_tag_names(", ".join(payload.tags)))
 
 
 @router.post("/api/recipes", response_model=RecipeOut)

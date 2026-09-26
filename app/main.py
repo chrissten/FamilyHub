@@ -98,6 +98,13 @@ def on_startup():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE freezer_items ADD COLUMN count INTEGER DEFAULT 1"))
             conn.commit()
+    recipe_cols = [c["name"] for c in inspect(engine).get_columns("recipes")]
+    with engine.connect() as conn:
+        if "leftover_rating" not in recipe_cols:
+            conn.execute(text("ALTER TABLE recipes ADD COLUMN leftover_rating INTEGER"))
+        if "leftover_notes" not in recipe_cols:
+            conn.execute(text("ALTER TABLE recipes ADD COLUMN leftover_notes TEXT"))
+        conn.commit()
     ingredient_cols = [c["name"] for c in inspect(engine).get_columns("ingredients")]
     if "reviewed" not in ingredient_cols:
         with engine.connect() as conn:

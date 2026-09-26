@@ -21,6 +21,8 @@ export interface Colors {
   dangerBg: string;
   warning: string;
   warningBg: string;
+  success: string;
+  successBg: string;
   shadow: string;
   placeholder: string;
   overlay: string;
@@ -42,6 +44,8 @@ const lightColors: Colors = {
   dangerBg: '#fdecec',
   warning: '#8a6d1d',
   warningBg: '#fff3cd',
+  success: '#2f7a4d',
+  successBg: '#e6f4ea',
   shadow: '#000000',
   placeholder: '#bbbbbb',
   overlay: 'rgba(0,0,0,0.4)',
@@ -63,6 +67,8 @@ const darkColors: Colors = {
   dangerBg: '#3a2323',
   warning: '#e0c05a',
   warningBg: '#3a331a',
+  success: '#7ccf9a',
+  successBg: '#1f3326',
   shadow: '#000000',
   placeholder: '#6a6a6a',
   overlay: 'rgba(0,0,0,0.6)',
