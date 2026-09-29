@@ -129,6 +129,14 @@ export default function RecipeDetailScreen() {
         {!recipe.is_public && <Text style={styles.privateBadge}>Private</Text>}
       </View>
 
+      {!!recipe.description && <Text style={styles.description}>{recipe.description}</Text>}
+
+      {recipe.tag_names.length > 0 && (
+        <View style={styles.tagRow}>
+          {recipe.tag_names.map(name => <Text key={name} style={styles.tagChip}>{name}</Text>)}
+        </View>
+      )}
+
       {!!recipe.source_url && (
         <TouchableOpacity onPress={() => Linking.openURL(recipe.source_url!)}>
           <Text style={styles.sourceLink}>{recipe.source_name || recipe.source_url}</Text>
@@ -232,6 +240,12 @@ function createStyles(colors: Colors) {
     privateBadge: {
       fontSize: 11, color: colors.warning, backgroundColor: colors.warningBg,
       paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, overflow: 'hidden',
+    },
+    description: { fontSize: 15, color: colors.text, marginTop: 10, lineHeight: 21 },
+    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 10 },
+    tagChip: {
+      fontSize: 11, color: colors.chipText, backgroundColor: colors.chip,
+      paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden',
     },
     leftoverBadge: {
       alignSelf: 'flex-start', marginTop: 10, fontSize: 13, fontWeight: '600',

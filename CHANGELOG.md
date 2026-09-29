@@ -51,6 +51,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-09-29
+- **[web] [mobile]** **Description and tags are back everywhere except the app's recipe
+  list.** The 1.8.4 removal went further than intended. The goal was only a cleaner
+  recipe list in the app.
+  - Restored on web: the recipe cards, tag filter row, recipe page, edit form and print
+    view.
+  - Restored in the app: the recipe page and edit form. The app's recipe list still shows
+    only title, time, servings and the leftovers badge, with no tag filter row there.
+  - The importer extracts description and tags again.
+  - The API only changes description and tags when a client sends them, so saving from
+    app 1.8.4 (which sent neither) doesn't clear them.
+  - The Leftovers section from 1.8.4 is unchanged. (v1.8.5)
+
 ### 2026-09-26 (2)
 - **[web] [mobile]** **Recipes no longer have a description or tags.** Both are gone from
   the recipe list, detail page, edit form, import review and print view. The importer

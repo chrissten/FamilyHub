@@ -27,11 +27,13 @@ export default function RecipeFormScreen() {
   );
 
   const [title, setTitle] = useState(existing?.title ?? draft?.title ?? '');
+  const [description, setDescription] = useState(existing?.description ?? draft?.description ?? '');
   const [servings, setServings] = useState(String(existing?.servings ?? draft?.servings ?? ''));
   const [prep, setPrep] = useState(String(existing?.prep_minutes ?? draft?.prep_minutes ?? ''));
   const [cook, setCook] = useState(String(existing?.cook_minutes ?? draft?.cook_minutes ?? ''));
   const [ingredients, setIngredients] = useState(initialText.ingredients);
   const [steps, setSteps] = useState(initialText.steps);
+  const [tags, setTags] = useState((existing?.tag_names ?? draft?.tags ?? []).join(', '));
   const [sourceName, setSourceName] = useState(existing?.source_name ?? draft?.source_name ?? '');
   const [sourceUrl, setSourceUrl] = useState(existing?.source_url ?? draft?.source_url ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
@@ -54,6 +56,7 @@ export default function RecipeFormScreen() {
     try {
       const payload = {
         title: title.trim(),
+        description: description.trim() || null,
         servings: toInt(servings),
         prep_minutes: toInt(prep),
         cook_minutes: toInt(cook),
@@ -70,6 +73,7 @@ export default function RecipeFormScreen() {
         // double-tap on Save can't attach them twice.
         scan_token: draft?.scan_token ?? null,
         is_public: isPublic,
+        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         // Sent as raw lines; the server parses quantity, unit and the canonical
         // ingredient out of each one (app/ingredients.py) so matching keeps working.
         ingredients: splitLines(ingredients).map(line => ({ raw_text: line, name: line })),
@@ -123,6 +127,12 @@ export default function RecipeFormScreen() {
         placeholderTextColor={colors.placeholder} autoFocus={!existing && !draft}
       />
 
+      <Text style={styles.label}>Short description</Text>
+      <TextInput
+        style={styles.input} value={description ?? ''} onChangeText={setDescription}
+        placeholder="One line — what is it?" placeholderTextColor={colors.placeholder}
+      />
+
       <View style={styles.row}>
         <View style={styles.rowItem}>
           <Text style={styles.label}>Serves</Text>
@@ -155,6 +165,13 @@ export default function RecipeFormScreen() {
         multiline textAlignVertical="top"
         placeholder={'Preheat the oven to 350F.\nWhisk the dry ingredients together.'}
         placeholderTextColor={colors.placeholder}
+      />
+
+      <Text style={styles.label}>Tags <Text style={styles.hint}>comma separated</Text></Text>
+      <TextInput
+        style={styles.input} value={tags} onChangeText={setTags}
+        placeholder="weeknight, instant pot" placeholderTextColor={colors.placeholder}
+        autoCapitalize="none"
       />
 
       <View style={styles.row}>

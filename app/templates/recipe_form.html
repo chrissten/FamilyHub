@@ -19,6 +19,11 @@
     <input type="text" name="title" value="{{ recipe.title if recipe else (draft.title if draft else '') }}" required {% if not draft %}autofocus{% endif %}>
   </label>
 
+  <label>Short description
+    <input type="text" name="description" value="{{ (recipe.description or '') if recipe else ((draft.description or '') if draft else '') }}"
+           placeholder="One line — what is it?">
+  </label>
+
   <div class="recipe-form-row">
     <label>Serves
       <input type="number" name="servings" min="1" value="{{ (recipe.servings or '') if recipe else ((draft.servings or '') if draft else '') }}">
@@ -42,6 +47,10 @@
 
   <label>Method <span class="field-hint">one step per line</span>
     <textarea name="steps" rows="10" placeholder="Preheat the oven to 350°F.&#10;Whisk the dry ingredients together.">{{ step_text }}</textarea>
+  </label>
+
+  <label>Tags <span class="field-hint">comma separated</span>
+    <input type="text" name="tags" value="{{ tag_text }}" placeholder="weeknight, instant pot">
   </label>
 
   <div class="recipe-form-row">
