@@ -40,6 +40,7 @@ class User(Base):
     color_hex: Mapped[str] = mapped_column(String(7), default="#4A90D9")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     events: Mapped[list["CalendarEvent"]] = relationship(back_populates="owner")
 

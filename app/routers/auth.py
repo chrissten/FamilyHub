@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user
-from app.models import User
+from app.models import User, utcnow
 from app.schemas import Token
 from app.security import create_access_token, hash_password, verify_password
 from app.templating import templates
@@ -31,6 +31,8 @@ def login_submit(
             request, "login.html", {"error": "Invalid username or password"}, status_code=400
         )
 
+    user.last_login_at = utcnow()
+    db.commit()
     last_page = request.session.get("last_page", "/grocery")
     request.session["user_id"] = user.id
     return RedirectResponse(url=last_page, status_code=status.HTTP_302_FOUND)
@@ -86,5 +88,7 @@ def api_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = De
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    user.last_login_at = utcnow()
+    db.commit()
     token = create_access_token(subject=str(user.id))
     return Token(access_token=token)

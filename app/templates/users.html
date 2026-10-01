@@ -15,6 +15,7 @@
     <span class="swatch" style="background-color: {{ member.color_hex }}"></span>
     {% endif %}
     {{ member.display_name }} (@{{ member.username }}){% if member.is_admin %} — admin{% endif %}
+    {% if current_user.is_admin %}<small style="opacity: .65">· {{ member.last_login_at | fmt_last_login }}</small>{% endif %}
   </li>
   {% endfor %}
 </ul>

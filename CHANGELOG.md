@@ -51,6 +51,12 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-10-01
+- **[web]** **Last-login tracking.** Each user now records when they last logged in, via
+  the web login or the app's token login. Admins see it next to each person on the Family
+  page ("last login 10/1/2026 3:45 PM", or "never logged in"). No mobile change needed:
+  the app has no Family admin screen, and its logins are counted server-side.
+
 ### 2026-09-29
 - **[web] [mobile]** **Description and tags are back everywhere except the app's recipe
   list.** The 1.8.4 removal went further than intended. The goal was only a cleaner

@@ -110,6 +110,11 @@ def on_startup():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE ingredients ADD COLUMN reviewed BOOLEAN DEFAULT FALSE"))
             conn.commit()
+    user_cols = [c["name"] for c in inspect(engine).get_columns("users")]
+    if "last_login_at" not in user_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP WITH TIME ZONE"))
+            conn.commit()
     db = SessionLocal()
     try:
         seed_admin(db)

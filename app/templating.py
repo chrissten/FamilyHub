@@ -1,7 +1,10 @@
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
+
+from app.config import settings
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -86,7 +89,17 @@ def expiry_class(exp_date: date | None) -> str:
     return ""
 
 
+def fmt_last_login(dt: datetime | None) -> str:
+    if dt is None:
+        return "never logged in"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)  # SQLite drops tzinfo; values are stored as UTC
+    local = dt.astimezone(ZoneInfo(settings.default_timezone))
+    return f"last login {local.month}/{local.day}/{local.year} {fmt_time(local)}"
+
+
 templates.env.filters["fmt_time"] = fmt_time
+templates.env.filters["fmt_last_login"] = fmt_last_login
 templates.env.filters["expiry_class"] = expiry_class
 templates.env.filters["event_tooltip_range"] = event_tooltip_range
 templates.env.filters["event_time_label"] = event_time_label
