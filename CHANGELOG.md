@@ -4,7 +4,7 @@ Tracks feature history for both the web app (`app/`) and the mobile app (`mobile
 so capability gaps between the two are visible in one place instead of discovered
 by accident (as happened with multi-day events on 2026-07-09).
 
-**Tags:** `[web]` server-rendered app, deployed via Railway on push to master · `[mobile]` Android app, versioned via `mobile/app.json` semver, built locally per `mobile/INSTALL.md`.
+**Tags:** `[web]` server-rendered app, deployed via Railway on push to master · `[mobile]` Android app, versioned via `mobile/app.json` semver, built locally per `mobile/INSTALL.md` · `[tablet]` landscape kiosk app for the shared family tablet, versioned via `tablet/app.json`, built and published by `tablet/scripts/release.ps1`.
 
 **Versioning:** the web app doesn't carry an explicit version number — it deploys continuously, so its "version" is effectively its commit hash/date. The mobile app is pinned to a semver in `app.json`, bumped on every APK build.
 
@@ -52,6 +52,15 @@ by accident (as happened with multi-day events on 2026-07-09).
 ## History (newest first)
 
 ### 2026-10-01
+- **[tablet]** **New FamilyHub Tablet app (1.0.0).** A separate landscape app
+  (`com.familyhub.tablet`) for the 15" family tablet, sharing `mobile/src` for API and
+  calendar code. It opens on a wall-sized week calendar, and anyone can add to and tick
+  off the grocery list. It ignores Back and can pin itself (Android screen pinning), but
+  that lock is off until a grown-up turns it on. A grown-ups PIN opens settings for the
+  lock, updates, the account and keep-screen-on.
+  It updates itself from `familyhub-tablet.json` on the FTP site (a PIN-gated install
+  tap) or silently over adb with `release.ps1 -Push`. Deliberately read-only for
+  calendar events, and it has no to-do, freezer or recipe screens.
 - **[web]** **Last-login tracking.** Each user now records when they last logged in, via
   the web login or the app's token login. Admins see it next to each person on the Family
   page ("last login 10/1/2026 3:45 PM", or "never logged in"). No mobile change needed:

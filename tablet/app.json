@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "FamilyHub Tablet",
+    "slug": "familyhub-tablet",
+    "version": "1.0.0",
+    "orientation": "landscape",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "familyhub-tablet",
+    "android": {
+      "package": "com.familyhub.tablet",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3A7AC8"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.WAKE_LOCK",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
+      "intentFilters": [
+        {
+          "action": "MAIN",
+          "category": ["HOME", "DEFAULT"]
+        }
+      ]
+    },
+    "plugins": ["expo-router"]
+  }
+}
