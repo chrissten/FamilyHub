@@ -455,3 +455,40 @@ class MealPlanEntry(Base):
 
     recipe: Mapped["Recipe"] = relationship()
     added_by: Mapped["User"] = relationship(foreign_keys=[added_by_id])
+
+
+class Chore(Base):
+    """A recurring household chore. `days` is the weekdays it's due, as digits with
+    Sunday=0 (matching app/recurrence.py), e.g. "135" is Mon/Wed/Fri. A NULL assignee
+    means anyone can do it."""
+
+    __tablename__ = "chores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    days: Mapped[str] = mapped_column(String(7), default="0123456")
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    assignee: Mapped["User | None"] = relationship(foreign_keys=[assignee_id])
+    created_by: Mapped["User"] = relationship(foreign_keys=[created_by_id])
+    completions: Mapped[list["ChoreCompletion"]] = relationship(
+        back_populates="chore", cascade="all, delete-orphan"
+    )
+
+
+class ChoreCompletion(Base):
+    """One chore ticked off on one calendar date (the family's local date, not UTC)."""
+
+    __tablename__ = "chore_completions"
+    __table_args__ = (UniqueConstraint("chore_id", "done_on"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chore_id: Mapped[int] = mapped_column(ForeignKey("chores.id"), index=True)
+    done_on: Mapped[date] = mapped_column(Date, index=True)
+    completed_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    chore: Mapped["Chore"] = relationship(back_populates="completions")
+    completed_by: Mapped["User"] = relationship(foreign_keys=[completed_by_id])

@@ -4,7 +4,7 @@ import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
   Recipe, RecipeSummary, RecipeInput, RecipeDraft, ToGroceryResult, ToGroceryRow,
-  PantryItem, RecipeMatch, MealPlanEntry, Ingredient,
+  PantryItem, RecipeMatch, MealPlanEntry, Ingredient, Chore, ChoreCompletion, ChoreToggleResult,
 } from './types';
 
 const DEFAULT_SERVER_URL = '';
@@ -213,6 +213,22 @@ export const toggleTodoItem = (itemId: number) =>
 
 export const deleteTodoItem = (itemId: number) =>
   request<{ ok: boolean }>(`/api/todo/items/${itemId}`, { method: 'DELETE' });
+
+// ── Chores ────────────────────────────────────────────────────────────────────
+
+export const getChores = () =>
+  request<Chore[]>('/api/chores');
+
+/** Completions between two local dates (YYYY-MM-DD), inclusive. */
+export const getChoreCompletions = (start: string, end: string) =>
+  request<ChoreCompletion[]>(`/api/chores/completions?start=${start}&end=${end}`);
+
+/** Ticks the chore off for `date` (YYYY-MM-DD), or unticks it if it was already done. */
+export const toggleChore = (choreId: number, date: string) =>
+  request<ChoreToggleResult>(`/api/chores/${choreId}/toggle`, {
+    method: 'POST',
+    body: JSON.stringify({ date }),
+  });
 
 // ── Freezer ───────────────────────────────────────────────────────────────────
 

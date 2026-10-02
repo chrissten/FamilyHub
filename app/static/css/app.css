@@ -642,3 +642,24 @@ p.empty { color: #9aa5b1; }
   body.print-page .print-sheet h2 { break-after: avoid; }
   @page { margin: 0.6in; }
 }
+
+/* Chores */
+.chore-nav { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.chore-scroll { overflow-x: auto; }
+.chore-table { border-collapse: collapse; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); width: 100%; }
+.chore-table th, .chore-table td { padding: 0.45rem 0.5rem; text-align: center; border-bottom: 1px solid #f0f2f5; }
+.chore-table thead th { font-size: 0.8rem; color: #52606d; font-weight: 600; }
+.chore-table thead th.today, .chore-cell.today { background: #eef5fd; }
+.chore-date { font-size: 1rem; color: #1f2933; }
+.chore-group th { text-align: left; background: #f7f9fb; font-size: 0.85rem; }
+.chore-name { text-align: left !important; font-weight: 500; }
+.chore-dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; margin-right: 0.4rem; }
+.chore-check { width: 2rem; height: 2rem; border: 2px solid #cbd2d9; border-radius: 6px; background: white; color: white; font-size: 1.2rem; line-height: 1; padding: 0; cursor: pointer; }
+.chore-check.done { background: #3a9d4a; border-color: #3a9d4a; }
+.chore-off, .chore-future { color: #cbd2d9; }
+.chore-days { border: 0; padding: 0; margin: 0 0 0.75rem; display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.chore-days legend { font-size: 0.85rem; padding: 0; margin-bottom: 0.25rem; }
+.chore-days label.inline { display: flex; align-items: center; gap: 0.3rem; }
+.chore-days label.inline input { width: auto; }
+.chore-manage summary { cursor: pointer; font-weight: 600; }
+.chore-manage details { width: 100%; }

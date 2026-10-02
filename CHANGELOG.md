@@ -14,6 +14,12 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
+- **Chore chart is web and tablet only (2026-10-02).** `/chores` on the web has the weekly
+  grid plus add/edit/delete, and the tablet has a Chores screen for ticking off today's
+  chores. The phone app has no Chores screen yet. Asked for web and tablet only. The API
+  client functions (`getChores`, `getChoreCompletions`, `toggleChore`) already live in
+  `mobile/src/api`, so a phone screen only needs UI. Creating, editing and deleting
+  chores is web-only (the tablet only ticks them off).
 - **The printable recipe view is web-only (2026-09-22).** `/recipes/{id}/print` has no
   mobile equivalent and isn't getting one: printing is a browser capability, and Android's
   share-to-print would need the page anyway. A phone can open the same URL in Chrome if
@@ -50,6 +56,17 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-10-02
+- **[web]** **Chore chart.** New Chores page (`/chores`, in the top nav): a weekly grid of
+  chores grouped by person (or "Anyone"), with a tick box per due day. Today and past days
+  can be ticked or unticked, future days can't. Chores have a name, an optional person and
+  the weekdays they're due; the page has forms to add, edit and delete them (deleting
+  removes the history). Backed by the `chores` and `chore_completions` tables (created on
+  startup) and a JSON API at `/api/chores`.
+- **[tablet]** **Chores screen (1.1.0).** New Chores tab: one big column per person
+  showing today's chores. Tap to tick off, tap again to undo, "All done!" when a column
+  is finished. Today only; managing chores stays on the web.
 
 ### 2026-10-01
 - **[tablet]** **New FamilyHub Tablet app (1.0.0).** A separate landscape app

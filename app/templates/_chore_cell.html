@@ -1,0 +1,14 @@
+<td id="chore-cell-{{ chore.id }}-{{ day.isoformat() }}" class="chore-cell{% if day == today %} today{% endif %}">
+  {% if not due %}
+    <span class="chore-off">&ndash;</span>
+  {% elif day > today %}
+    <span class="chore-future">&#9675;</span>
+  {% else %}
+    <button type="button" class="chore-check{% if completion %} done{% endif %}"
+            hx-post="/chores/{{ chore.id }}/toggle" hx-vals='{"date": "{{ day.isoformat() }}"}'
+            hx-target="#chore-cell-{{ chore.id }}-{{ day.isoformat() }}" hx-swap="outerHTML"
+            {% if completion %}title="Done by {{ completion.completed_by.display_name }}"{% endif %}>
+      {% if completion %}&#10003;{% endif %}
+    </button>
+  {% endif %}
+</td>

@@ -485,3 +485,33 @@ class MealPlanEntryOut(BaseModel):
     calendar_event_id: int | None
     recipe: RecipeSummaryOut
     added_by: UserOut
+
+
+class ChoreCreate(BaseModel):
+    name: str
+    assignee_id: int | None = None
+    days: list[int] = [0, 1, 2, 3, 4, 5, 6]
+
+
+class ChoreOut(BaseModel):
+    id: int
+    name: str
+    assignee_id: int | None
+    days: list[int]
+
+
+class ChoreCompletionOut(BaseModel):
+    chore_id: int
+    date: date
+    completed_by: UserOut
+
+
+class ChoreToggle(BaseModel):
+    date: date
+
+
+class ChoreToggleOut(BaseModel):
+    chore_id: int
+    date: date
+    done: bool
+    completed_by: UserOut | None

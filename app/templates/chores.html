@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Chores - FamilyHub{% endblock %}
+{% block content %}
+<h1>Chore chart</h1>
+
+<div class="chore-nav">
+  <a href="/chores?start={{ prev_start.isoformat() }}">&laquo; Previous week</a>
+  <strong>{{ days[0].strftime("%b") }} {{ days[0].day }} &ndash; {{ days[6].strftime("%b") }} {{ days[6].day }}</strong>
+  {% if not is_current_week %}<a href="/chores">This week</a>{% endif %}
+  <a href="/chores?start={{ next_start.isoformat() }}">Next week &raquo;</a>
+</div>
+
+{% if not chores %}
+<p class="empty">No chores yet &mdash; add one below.</p>
+{% else %}
+<div class="chore-scroll">
+<table class="chore-table">
+  <thead>
+    <tr>
+      <th></th>
+      {% for d in days %}
+      <th class="{% if d == today %}today{% endif %}">{{ day_names[loop.index0] }}<br><span class="chore-date">{{ d.day }}</span></th>
+      {% endfor %}
+    </tr>
+  </thead>
+  {% for member, group in groups %}
+  <tbody>
+    <tr class="chore-group">
+      <th colspan="8">
+        {% if member %}<span class="chore-dot" style="background: {{ member.color_hex }}"></span>{{ member.display_name }}{% else %}Anyone{% endif %}
+      </th>
+    </tr>
+    {% for chore in group %}
+    <tr>
+      <th class="chore-name">{{ chore.name }}</th>
+      {% for d in days %}{{ render_cell(chore, d, done.get((chore.id, d)), today) | safe }}{% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+  {% endfor %}
+</table>
+</div>
+{% endif %}
+
+<h2>New chore</h2>
+<form method="post" action="/chores" class="new-list-form chore-form">
+  <label>Chore<input type="text" name="name" placeholder="e.g. Empty the dishwasher" required maxlength="200"></label>
+  <label>Who
+    <select name="assignee_id">
+      <option value="">Anyone</option>
+      {% for m in members %}<option value="{{ m.id }}">{{ m.display_name }}</option>{% endfor %}
+    </select>
+  </label>
+  <fieldset class="chore-days">
+    <legend>Days</legend>
+    {% for n in all_days %}
+    <label class="inline"><input type="checkbox" name="days" value="{{ n }}" checked> {{ day_names[n] }}</label>
+    {% endfor %}
+  </fieldset>
+  <button type="submit">Add chore</button>
+</form>
+
+{% if chores %}
+<h2>Manage chores</h2>
+<ul class="list-of-lists chore-manage">
+  {% for chore in chores %}
+  <li>
+    <details>
+      <summary>{{ chore.name }}
+        <span class="item-meta">
+          {{ chore.assignee.display_name if chore.assignee else "Anyone" }} &middot;
+          {% if chore.days == "0123456" %}every day{% else %}{% for c in chore.days %}{{ day_names[c | int] }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}
+        </span>
+      </summary>
+      <form method="post" action="/chores/{{ chore.id }}/update" class="new-list-form chore-form">
+        <label>Chore<input type="text" name="name" value="{{ chore.name }}" required maxlength="200"></label>
+        <label>Who
+          <select name="assignee_id">
+            <option value="">Anyone</option>
+            {% for m in members %}<option value="{{ m.id }}" {% if m.id == chore.assignee_id %}selected{% endif %}>{{ m.display_name }}</option>{% endfor %}
+          </select>
+        </label>
+        <fieldset class="chore-days">
+          <legend>Days</legend>
+          {% for n in all_days %}
+          <label class="inline"><input type="checkbox" name="days" value="{{ n }}" {% if n | string in chore.days %}checked{% endif %}> {{ day_names[n] }}</label>
+          {% endfor %}
+        </fieldset>
+        <div class="form-actions">
+          <button type="submit">Save</button>
+          <button type="submit" formaction="/chores/{{ chore.id }}/delete" class="danger"
+                  data-name="{{ chore.name }}"
+                  onclick="return confirm('Delete ' + this.dataset.name + ' and its history?')">Delete</button>
+        </div>
+      </form>
+    </details>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

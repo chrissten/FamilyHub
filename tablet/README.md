@@ -1,7 +1,7 @@
 # FamilyHub Tablet
 
 A landscape app for the shared 15" family tablet. It opens on the **weekly calendar**,
-lets anyone **add to the grocery list**, and can **pin itself** so kids can't leave it
+lets anyone **add to the grocery list** and **tick off today's chores**, and can **pin itself** so kids can't leave it
 (off until a grown-up turns on "Lock when the app starts"). A grown-ups PIN opens the
 settings screen.
 
@@ -13,6 +13,7 @@ It reuses the phone app's API client, types, theme and calendar maths straight f
 |---|---|
 | Calendar (default) | Week grid sized for the wall, events colour-coded by person, "now" line, tap for details. Refreshes every 2 min and snaps back to this week when left alone. |
 | Grocery | Big "What do we need?" box, store-section chips (defaults to *Other*), tap items to tick them off. No deleting from the tablet. |
+| Chores | Today's chores in a column per person. Tap to tick off, tap again to undo. Chores are added and edited on the web app. |
 | Settings (PIN) | Pin/unpin, open Android settings, keep-screen-on, check/install updates, change account, change PIN. |
 
 After 3 minutes without a touch, the app returns to the calendar.

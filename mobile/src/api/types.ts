@@ -265,3 +265,26 @@ export interface MealPlanEntry {
   recipe: RecipeSummary;
   added_by: User;
 }
+
+export interface Chore {
+  id: number;
+  name: string;
+  /** Null means anyone can do it. */
+  assignee_id: number | null;
+  /** Weekdays it's due, 0 = Sunday .. 6 = Saturday. */
+  days: number[];
+}
+
+export interface ChoreCompletion {
+  chore_id: number;
+  /** Local calendar date, YYYY-MM-DD. */
+  date: string;
+  completed_by: User;
+}
+
+export interface ChoreToggleResult {
+  chore_id: number;
+  date: string;
+  done: boolean;
+  completed_by: User | null;
+}

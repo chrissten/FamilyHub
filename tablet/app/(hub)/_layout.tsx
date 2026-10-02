@@ -15,6 +15,7 @@ type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 const SECTIONS: { href: Href; path: string; label: string; icon: IoniconsName }[] = [
   { href: '/calendar', path: '/calendar', label: 'Calendar', icon: 'calendar' },
   { href: '/grocery', path: '/grocery', label: 'Grocery', icon: 'cart' },
+  { href: '/chores', path: '/chores', label: 'Chores', icon: 'checkbox' },
 ];
 
 const UPDATE_CHECK_MS = 6 * 60 * 60 * 1000;
