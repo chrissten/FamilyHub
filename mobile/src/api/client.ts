@@ -230,6 +230,21 @@ export const toggleChore = (choreId: number, date: string) =>
     body: JSON.stringify({ date }),
   });
 
+export const createChore = (name: string, assigneeId: number | null, days: number[]) =>
+  request<Chore>('/api/chores', {
+    method: 'POST',
+    body: JSON.stringify({ name, assignee_id: assigneeId, days }),
+  });
+
+export const updateChore = (id: number, name: string, assigneeId: number | null, days: number[]) =>
+  request<Chore>(`/api/chores/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, assignee_id: assigneeId, days }),
+  });
+
+export const deleteChore = (id: number) =>
+  request<{ ok: boolean }>(`/api/chores/${id}`, { method: 'DELETE' });
+
 // ── Freezer ───────────────────────────────────────────────────────────────────
 
 export const getFreezers = () =>

@@ -8,7 +8,7 @@ import NotificationBell from '../../src/NotificationBell';
 
 type IoniconsName = ComponentProps<typeof Ionicons>['name'];
 
-const TAB_NAMES: readonly TabName[] = ['index', 'grocery', 'todo', 'freezer', 'recipes', 'settings'];
+const TAB_NAMES: readonly TabName[] = ['index', 'grocery', 'todo', 'chores', 'freezer', 'recipes', 'settings'];
 
 function icon(name: IoniconsName) {
   return ({ color, size }: { color: ColorValue; size: number }) => (
@@ -50,6 +50,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="todo"
         options={{ title: 'To-Do', tabBarIcon: icon('checkmark-circle-outline') }}
+      />
+      <Tabs.Screen
+        name="chores"
+        options={{ title: 'Chores', tabBarIcon: icon('list-outline') }}
       />
       <Tabs.Screen
         name="freezer"

@@ -14,12 +14,6 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## Known parity gaps
 
-- **Chore chart is web and tablet only (2026-10-02).** `/chores` on the web has the weekly
-  grid plus add/edit/delete, and the tablet has a Chores screen for ticking off today's
-  chores. The phone app has no Chores screen yet. Asked for web and tablet only. The API
-  client functions (`getChores`, `getChoreCompletions`, `toggleChore`) already live in
-  `mobile/src/api`, so a phone screen only needs UI. Creating, editing and deleting
-  chores is web-only (the tablet only ticks them off).
 - **The printable recipe view is web-only (2026-09-22).** `/recipes/{id}/print` has no
   mobile equivalent and isn't getting one: printing is a browser capability, and Android's
   share-to-print would need the page anyway. A phone can open the same URL in Chrome if
@@ -56,6 +50,12 @@ by accident (as happened with multi-day events on 2026-07-09).
   build blind (no device to verify against in this environment).
 
 ## History (newest first)
+
+### 2026-10-03
+- **[mobile]** **Chores tab (1.8.6).** New Chores tab: pick a day from the week strip
+  (arrows change week), tick chores off grouped by person, with a done/total count per
+  person. Future days are read-only. The + button adds a chore (name, person, weekdays);
+  long-press a chore to edit or delete it. Same data as the web chart and tablet.
 
 ### 2026-10-02
 - **[web]** **Chore chart.** New Chores page (`/chores`, in the top nav): a weekly grid of
