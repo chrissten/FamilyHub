@@ -57,6 +57,12 @@ by accident (as happened with multi-day events on 2026-07-09).
   person. Future days are read-only. The + button adds a chore (name, person, weekdays);
   long-press a chore to edit or delete it. Same data as the web chart and tablet.
 
+### 2026-10-04
+- **[tablet]** **Grocery search and rolled-up categories (1.2.0).** Typing in the "What do
+  we need?" box now filters the list live to matching items (categories with matches open
+  automatically). Categories start rolled up, showing how many items are left, and open
+  when tapped, as on mobile.
+
 ### 2026-10-02
 - **[web]** **Chore chart.** New Chores page (`/chores`, in the top nav): a weekly grid of
   chores grouped by person (or "Anyone"), with a tick box per due day. Today and past days

@@ -26,6 +26,7 @@ export default function GroceryScreen() {
   const [name, setName] = useState('');
   const [qty, setQty] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const [adding, setAdding] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,6 +98,9 @@ export default function GroceryScreen() {
     }
   }
 
+  // The name box doubles as a search: the list narrows to matching items as you type.
+  const query = name.trim().toLowerCase();
+
   const byCategory = useMemo(() => {
     const known = new Set(categories.map(c => c.id));
     return categories
@@ -104,10 +108,15 @@ export default function GroceryScreen() {
         category: c,
         items: items
           .filter(i => i.category_id === c.id || (c.id === defaultCategoryId && !known.has(i.category_id)))
+          .filter(i => !query || i.name.toLowerCase().includes(query))
           .sort((a, b) => Number(a.checked) - Number(b.checked) || a.name.localeCompare(b.name)),
       }))
       .filter(g => g.items.length > 0);
-  }, [categories, items, defaultCategoryId]);
+  }, [categories, items, defaultCategoryId, query]);
+
+  function toggleCategory(id: number) {
+    setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
+  }
 
   const remaining = items.filter(i => !i.checked).length;
   const selectedCat = categoryId ?? defaultCategoryId;
@@ -180,11 +189,26 @@ export default function GroceryScreen() {
           ))}
         </View>
         <ScrollView contentContainerStyle={styles.cards}>
-          {byCategory.length === 0 && <Text style={styles.empty}>The list is empty.</Text>}
-          {byCategory.map(({ category, items: catItems }) => (
+          {byCategory.length === 0 && (
+            <Text style={styles.empty}>{query ? `Nothing on the list matches "${name.trim()}".` : 'The list is empty.'}</Text>
+          )}
+          {byCategory.map(({ category, items: catItems }) => {
+            // Categories stay rolled up until tapped; a search opens every match.
+            const open = !!query || !!expanded[category.id];
+            return (
             <View key={category.id} style={styles.card}>
-              <Text style={styles.cardTitle}>{category.name}</Text>
-              {catItems.map(item => (
+              <TouchableOpacity
+                style={styles.cardHeader}
+                activeOpacity={query ? 1 : 0.6}
+                disabled={!!query}
+                onPress={() => toggleCategory(category.id)}
+              >
+                <Text style={styles.cardTitle}>{category.name}</Text>
+                {!open && <Text style={styles.cardCount}>{catItems.filter(i => !i.checked).length}</Text>}
+                <View style={{ flex: 1 }} />
+                {!query && <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={22} color={colors.textFaint} />}
+              </TouchableOpacity>
+              {open && catItems.map(item => (
                 <TouchableOpacity key={item.id} style={styles.item} onPress={() => handleToggle(item)}>
                   <Ionicons
                     name={item.checked ? 'checkbox' : 'square-outline'}
@@ -197,7 +221,8 @@ export default function GroceryScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          ))}
+            );
+          })}
         </ScrollView>
       </View>
     </View>
@@ -250,7 +275,9 @@ function createStyles(colors: Colors) {
       width: '31.5%', backgroundColor: colors.surface, borderRadius: 16, padding: 14,
       borderWidth: 1, borderColor: colors.border,
     },
-    cardTitle: { fontSize: 18, fontWeight: '700', color: colors.primary, marginBottom: 6 },
+    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 6 },
+    cardTitle: { fontSize: 18, fontWeight: '700', color: colors.primary },
+    cardCount: { fontSize: 15, color: colors.textMuted },
     item: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
     itemText: { fontSize: 19, color: colors.text, flexShrink: 1 },
     itemChecked: { color: colors.textFaint, textDecorationLine: 'line-through' },
