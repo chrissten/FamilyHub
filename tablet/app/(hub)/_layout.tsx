@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useTheme, useTimeFormat, formatClock, type Colors } from '../../src/shared';
 import { useToggle } from '../../src/settings';
-import { enforceKiosk } from '../../src/kiosk';
+import { enforceKiosk, isKioskPaused, resumeKiosk } from '../../src/kiosk';
 import { checkForUpdate, useUpdateState } from '../../src/updater';
 import { useNow } from '../../src/WeekBoard';
 import PinPrompt from '../../src/PinPrompt';
@@ -41,11 +41,17 @@ export default function HubLayout() {
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
 
-  // Pin on launch and whenever the app comes back to the foreground (e.g. after a
-  // grown-up paused kiosk mode from the admin screen and then returned).
+  // Pin on launch and whenever the app comes back to the foreground. A grown-up's pause
+  // (Unpin, Open Android settings, installing an update) ends when they come back, so the
+  // tablet can't stay unlocked indefinitely, which it otherwise would as the Home app.
   useEffect(() => {
     enforceKiosk();
-    const sub = AppState.addEventListener('change', s => { if (s === 'active') enforceKiosk(); });
+    let away = false;
+    const sub = AppState.addEventListener('change', s => {
+      if (s !== 'active') { away = true; return; }
+      if (away && isKioskPaused()) resumeKiosk(); else enforceKiosk();
+      away = false;
+    });
     return () => sub.remove();
   }, []);
 
@@ -69,6 +75,7 @@ export default function HubLayout() {
   function bumpIdle() {
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(() => {
+      if (isKioskPaused()) resumeKiosk();
       if (pathRef.current !== '/calendar') router.replace('/calendar');
     }, IDLE_RETURN_MS);
   }

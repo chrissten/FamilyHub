@@ -1,8 +1,10 @@
+import { BackHandler } from 'react-native';
 import * as Kiosk from '../modules/kiosk';
 import { getToggle } from './settings';
 
-// Set from the admin screen when a grown-up needs the tablet for something else.
-// Lasts until the app is next launched, so a reboot or update always comes back locked.
+// Set from the admin screen when a grown-up needs the tablet for something else. It is
+// temporary: it ends when the app is brought back to the front, when the grown-up taps
+// Done, after the idle timeout, or when the app next launches (see HubLayout).
 let paused = false;
 
 /** Hides the navigation bar whenever the app is in front (it would otherwise cover the
@@ -24,6 +26,11 @@ export async function pauseKiosk(): Promise<void> {
 export async function resumeKiosk(): Promise<void> {
   paused = false;
   await enforceKiosk();
+}
+
+/** Leaves the app entirely, and ends the process so the next launch starts cleanly. */
+export async function exitApp(): Promise<void> {
+  if (!(await Kiosk.exitApp())) BackHandler.exitApp();
 }
 
 export function isKioskPaused(): boolean {

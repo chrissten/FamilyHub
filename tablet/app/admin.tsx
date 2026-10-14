@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch, BackHandler } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { getServerUrl, getSavedCredentials, useTheme, type Colors } from '../src/shared';
 import { setAdminPin, setToggle, useToggle, PIN_PATTERN } from '../src/settings';
-import { isKioskPaused, isPinned, pauseKiosk, resumeKiosk } from '../src/kiosk';
+import { exitApp, isKioskPaused, isPinned, pauseKiosk, resumeKiosk } from '../src/kiosk';
 import { checkForUpdate, installUpdate, installedVersion, useUpdateState } from '../src/updater';
 
 /** Reached only through the PIN prompt on the hub's rail. */
@@ -34,7 +34,7 @@ export default function AdminScreen() {
 
   async function unlockAndLeave() {
     await pauseKiosk();
-    BackHandler.exitApp();
+    await exitApp();
   }
 
   // The way out to the rest of the tablet, e.g. to change the default Home app.
@@ -64,7 +64,7 @@ export default function AdminScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Tablet settings</Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => { resumeKiosk(); router.back(); }}>
           <Text style={styles.primaryBtnText}>Done</Text>
         </TouchableOpacity>
       </View>

@@ -2,14 +2,14 @@
   "expo": {
     "name": "FamilyHub Tablet",
     "slug": "familyhub-tablet",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "familyhub-tablet",
     "android": {
       "package": "com.familyhub.tablet",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3A7AC8"

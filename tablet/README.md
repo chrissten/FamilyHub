@@ -39,6 +39,10 @@ turns on *Lock when the app starts*, the app re-pins itself on every launch and 
 it returns to the foreground, unless paused from Settings (which lasts until the app
 restarts). Set up the device PIN and "Ask for PIN before unpinning" first.
 
+A pause is temporary: the lock comes back when the app returns to the front (for example
+after *Open Android settings*), when Settings → *Done* is tapped, or after 3 idle minutes.
+*Unpin and leave app* closes the app completely, so the next launch starts clean.
+
 Optional: press Home once and choose **FamilyHub Tablet → Always**. The app then
 becomes the launcher, so it comes back by itself after a reboot or power cut. To undo
 that, use Settings → *Open Android settings* → Apps → Default apps → Home app.

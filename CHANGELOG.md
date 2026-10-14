@@ -70,6 +70,10 @@ by accident (as happened with multi-day events on 2026-07-09).
   also skipped `modules/kiosk/android`, so the native Kiosk module was never compiled
   into the app and "Pin now" did nothing. The script now excludes only the top-level
   `android` folder. The settings cog also no longer sits under the Android taskbar.
+  **1.3.4:** pausing the lock is now temporary (it ends when the app comes back to the
+  front, on *Done*, or after 3 idle minutes; before, it lasted until the process
+  restarted, which as the Home app is effectively never), and *Unpin and leave app* now
+  ends the process so the next launch isn't a blank screen.
 - **[web]** **Token refresh endpoint.** `POST /api/auth/refresh` swaps a still-valid app
   token for a fresh 30-day one, so the mobile app can renew its session while in use.
 - **[mobile]** **Sessions renew themselves and expiry returns you to login (1.8.7).** The

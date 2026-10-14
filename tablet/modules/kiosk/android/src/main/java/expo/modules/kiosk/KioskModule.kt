@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import android.view.View
 import android.view.WindowInsets
@@ -91,6 +92,15 @@ class KioskModule : Module() {
     AsyncFunction("setImmersive") { enabled: Boolean, promise: Promise ->
       immersive = enabled
       appContext.currentActivity?.let { applyImmersive(it, enabled) }
+      promise.resolve(null)
+    }.runOnQueue(Queues.MAIN)
+
+    // Closes the app and ends its process. A plain finish() leaves the process alive, and
+    // Android then reopens the activity (we are the Home app) onto a React surface that was
+    // already stopped: a blank screen until the app is force-stopped.
+    AsyncFunction("exitApp") { promise: Promise ->
+      appContext.currentActivity?.finishAndRemoveTask()
+      handler.postDelayed({ Process.killProcess(Process.myPid()) }, 400)
       promise.resolve(null)
     }.runOnQueue(Queues.MAIN)
 

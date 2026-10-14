@@ -5,6 +5,7 @@ interface KioskNative {
   lock(): Promise<boolean>;
   unlock(): Promise<void>;
   setImmersive(enabled: boolean): Promise<void>;
+  exitApp(): Promise<void>;
 }
 
 // Optional so the JS still runs in Expo Go / on the web during UI work, where there's
@@ -26,4 +27,11 @@ export async function unlock(): Promise<void> {
 /** Hides (or restores) the navigation bar / home pill. */
 export async function setImmersive(enabled: boolean): Promise<void> {
   await native?.setImmersive(enabled);
+}
+
+/** Closes the app and kills its process. Returns false when there is no native side. */
+export async function exitApp(): Promise<boolean> {
+  if (!native) return false;
+  await native.exitApp();
+  return true;
 }
