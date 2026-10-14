@@ -92,3 +92,10 @@ def api_login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = De
     db.commit()
     token = create_access_token(subject=str(user.id))
     return Token(access_token=token)
+
+
+@router.post("/api/auth/refresh", response_model=Token)
+def api_refresh(current_user: User = Depends(get_current_user)):
+    """Swap a still-valid token for a fresh one, so a regularly used mobile app never
+    hits the fixed expiry. An expired token gets a 401 from get_current_user instead."""
+    return Token(access_token=create_access_token(subject=str(current_user.id)))

@@ -70,6 +70,98 @@ export async function clearAuth(): Promise<void> {
   ]);
 }
 
+/** Seconds-since-epoch `exp` claim of a JWT, or null if it can't be read. */
+function tokenExpiry(token: string): number | null {
+  try {
+    const exp = JSON.parse(base64UrlDecode(token.split('.')[1])).exp;
+    return typeof exp === 'number' ? exp : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when a token is stored and hasn't passed its own expiry (the server may still reject it). */
+export async function hasUsableToken(): Promise<boolean> {
+  const token = await getToken();
+  if (!token) return false;
+  const exp = tokenExpiry(token);
+  return exp === null || exp * 1000 > Date.now();
+}
+
+// ── Session expiry ────────────────────────────────────────────────────────────
+
+let authExpiredHandler: (() => void) | null = null;
+
+/** The root layout registers this to send the user to the login screen when the session
+ *  can't be recovered; pass null to unregister. */
+export function setAuthExpiredHandler(handler: (() => void) | null): void {
+  authExpiredHandler = handler;
+}
+
+// Matched by `name` rather than instanceof, which is unreliable for Error subclasses
+// once transpiled.
+class AuthRejectedError extends Error {
+  name = 'AuthRejectedError';
+}
+const isAuthRejected = (e: unknown) => (e as Error | undefined)?.name === 'AuthRejectedError';
+
+// Several requests often 401 at once (a screen firing off three fetches); they share one
+// recovery attempt instead of each logging in separately.
+let recovering: Promise<boolean> | null = null;
+
+/**
+ * Called after a 401. Tries a silent re-login with saved credentials. Returns true if
+ * the session is good again so the caller can retry. If not — no saved credentials, or
+ * the server rejected them — the stored session is wiped and the app is sent to login.
+ * A network failure during recovery is *not* treated as expiry: the user is still signed
+ * in, just offline, so the original error is left to surface.
+ */
+function recoverSession(): Promise<boolean> {
+  if (!recovering) {
+    recovering = (async () => {
+      try {
+        const creds = await getSavedCredentials();
+        if (creds) {
+          await login(await getServerUrl(), creds.username, creds.password);
+          return true;
+        }
+      } catch (e) {
+        if (!isAuthRejected(e)) return false;
+      }
+      await clearAuth();
+      authExpiredHandler?.();
+      return false;
+    })().finally(() => { recovering = null; });
+  }
+  return recovering;
+}
+
+// A token is swapped for a fresh one once less than half its life remains, so anyone who
+// opens the app at least every couple of weeks never reaches the 30-day expiry.
+const REFRESH_WHEN_REMAINING_MS = 15 * 24 * 60 * 60 * 1000;
+let refreshing = false;
+
+async function refreshTokenIfAging(serverUrl: string, token: string | null): Promise<void> {
+  if (!token || refreshing) return;
+  const exp = tokenExpiry(token);
+  if (exp === null || exp * 1000 - Date.now() > REFRESH_WHEN_REMAINING_MS) return;
+  refreshing = true;
+  try {
+    const res = await fetch(`${serverUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      await SecureStore.setItemAsync('auth_token', data.access_token);
+    }
+  } catch {
+    // Best effort — the current token is still valid and the next request tries again.
+  } finally {
+    refreshing = false;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}, _retry = false): Promise<T> {
   const [serverUrl, token] = await Promise.all([getServerUrl(), getToken()]);
   if (!serverUrl) throw new Error('Server URL not configured');
@@ -82,18 +174,10 @@ async function request<T>(path: string, options: RequestInit = {}, _retry = fals
 
   const res = await fetch(`${serverUrl}${path}`, { ...options, headers });
 
-  if (res.status === 401 && !_retry) {
-    const creds = await getSavedCredentials();
-    if (creds) {
-      try {
-        const url = await getServerUrl();
-        await login(url, creds.username, creds.password);
-        return request<T>(path, options, true);
-      } catch {
-        await SecureStore.deleteItemAsync('auth_token');
-      }
-    }
+  if (res.status === 401 && !_retry && await recoverSession()) {
+    return request<T>(path, options, true);
   }
+  if (res.ok) refreshTokenIfAging(serverUrl, token);
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -113,7 +197,8 @@ export async function login(serverUrl: string, username: string, password: strin
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
   });
-  if (!res.ok) throw new Error('Invalid credentials');
+  if (res.status === 401 || res.status === 400) throw new AuthRejectedError('Invalid credentials');
+  if (!res.ok) throw new Error(`Login failed (${res.status})`);
   const data = await res.json();
   await SecureStore.setItemAsync('auth_token', data.access_token);
 }
@@ -329,16 +414,8 @@ async function requestMultipart<T>(path: string, body: FormData, _retry = false)
 
   const res = await fetch(`${serverUrl}${path}`, { method: 'POST', headers, body });
 
-  if (res.status === 401 && !_retry) {
-    const creds = await getSavedCredentials();
-    if (creds) {
-      try {
-        await login(await getServerUrl(), creds.username, creds.password);
-        return requestMultipart<T>(path, body, true);
-      } catch {
-        await SecureStore.deleteItemAsync('auth_token');
-      }
-    }
+  if (res.status === 401 && !_retry && await recoverSession()) {
+    return requestMultipart<T>(path, body, true);
   }
 
   if (!res.ok) {

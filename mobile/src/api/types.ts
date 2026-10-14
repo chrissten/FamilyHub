@@ -44,6 +44,8 @@ export interface GroceryItem {
   name: string;
   quantity?: string;
   checked: boolean;
+  /** Added from the family tablet; a grown-up still needs to approve (or remove) it. */
+  needs_review?: boolean;
   category_id: number;
   added_by: User;
   checked_by?: User | null;

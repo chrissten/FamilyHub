@@ -51,6 +51,16 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-10-14
+- **[web]** **Token refresh endpoint.** `POST /api/auth/refresh` swaps a still-valid app
+  token for a fresh 30-day one, so the mobile app can renew its session while in use.
+- **[mobile]** **Sessions renew themselves and expiry returns you to login (1.8.7).** The
+  app trades its token for a fresh one once less than half its life is left, so regular
+  use never hits the 30-day expiry. If a request still gets rejected, it re-signs in
+  silently (when "Remember me" is on); otherwise it clears the stale session and goes
+  straight to the login screen instead of leaving every screen erroring until you log out
+  by hand. A brief network failure no longer counts as an expired session.
+
 ### 2026-10-03
 - **[mobile]** **Chores tab (1.8.6).** New Chores tab: pick a day from the week strip
   (arrows change week), tick chores off grouped by person, with a done/total count per

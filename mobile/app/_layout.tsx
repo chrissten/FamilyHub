@@ -3,6 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useShareIntent } from 'expo-share-intent';
 import { useTheme } from '../src/theme';
+import { setAuthExpiredHandler } from '../src/api/client';
 import { getLaunchOpensNotificationCenter, subscribeToNotificationTaps } from '../src/notifications';
 import { loadDisplayTimezone, loadTimeFormat } from '../src/preferences';
 import { setPendingShare, shareIntentToSource } from '../src/recipes/shareIntake';
@@ -21,6 +22,14 @@ export default function RootLayout() {
     // state is computed) reflect the stored preference instead of its default.
     loadDisplayTimezone();
     loadTimeFormat();
+  }, []);
+
+  // Any API call that can't recover from a 401 lands here (see recoverSession in the
+  // client), so an expired session returns to the login screen instead of leaving every
+  // screen erroring until the user logs out by hand.
+  useEffect(() => {
+    setAuthExpiredHandler(() => router.replace('/login'));
+    return () => setAuthExpiredHandler(null);
   }, []);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
-import { getToken, getSavedCredentials, getServerUrl, login } from '../src/api/client';
+import { hasUsableToken, getSavedCredentials, getServerUrl, login } from '../src/api/client';
 import { ensureDefaultNotifPrefs } from '../src/notifications';
 import { loadLastTab } from '../src/preferences';
 
@@ -15,8 +15,7 @@ export default function Index() {
 
   useEffect(() => {
     (async () => {
-      const token = await getToken();
-      if (token) {
+      if (await hasUsableToken()) {
         await ensureDefaultNotifPrefs();
         await replaceToLastTab(router);
         return;
