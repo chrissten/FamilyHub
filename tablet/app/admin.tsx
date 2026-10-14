@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { getServerUrl, getSavedCredentials, useTheme, type Colors } from '../src/shared';
 import { setAdminPin, setToggle, useToggle, PIN_PATTERN } from '../src/settings';
-import { exitApp, isKioskPaused, isPinned, pauseKiosk, resumeKiosk } from '../src/kiosk';
+import { exitApp, isKioskPaused, isPinned, pauseKiosk, pinNow, resumeKiosk } from '../src/kiosk';
 import { checkForUpdate, installUpdate, installedVersion, useUpdateState } from '../src/updater';
 
 /** Reached only through the PIN prompt on the hub's rail. */
@@ -20,6 +20,8 @@ export default function AdminScreen() {
   const [account, setAccount] = useState('');
   const [newPin, setNewPin] = useState('');
   const [pinMsg, setPinMsg] = useState<string | null>(null);
+  const [kioskMsg, setKioskMsg] = useState<string | null>(null);
+  const [pinFailed, setPinFailed] = useState(false);
 
   useEffect(() => {
     Promise.all([getServerUrl(), getSavedCredentials()]).then(([url, creds]) => {
@@ -42,6 +44,22 @@ export default function AdminScreen() {
     await pauseKiosk();
     refreshKiosk();
     await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.SETTINGS);
+  }
+
+  async function handlePinNow() {
+    setKioskMsg('Pinning…');
+    const ok = await pinNow();
+    refreshKiosk();
+    setPinFailed(!ok);
+    setKioskMsg(ok ? null
+      : 'Android did not pin the app. Turn on "App pinning" in Android settings (Security, or ' +
+        'Security & privacy → More security settings), then tap Pin now again.');
+  }
+
+  async function openSecuritySettings() {
+    await pauseKiosk();
+    refreshKiosk();
+    await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.SECURITY_SETTINGS);
   }
 
   async function changePin() {
@@ -79,11 +97,17 @@ export default function AdminScreen() {
               <Switch value={kioskEnabled} onValueChange={v => setToggle('kiosk_enabled', v)} />
             </Row>
             <View style={styles.btnRow}>
-              <Btn label="Pin now" onPress={async () => { await resumeKiosk(); refreshKiosk(); }} styles={styles} />
+              <Btn label="Pin now" onPress={handlePinNow} styles={styles} />
               <Btn label="Unpin" onPress={async () => { await pauseKiosk(); refreshKiosk(); }} styles={styles} />
               <Btn label="Open Android settings" onPress={openAndroidSettings} styles={styles} />
               <Btn label="Unpin and leave app" danger onPress={unlockAndLeave} styles={styles} />
             </View>
+            {kioskMsg && <Text style={styles.body}>{kioskMsg}</Text>}
+            {pinFailed && (
+              <View style={styles.btnRow}>
+                <Btn label="Open security settings" primary onPress={openSecuritySettings} styles={styles} />
+              </View>
+            )}
           </Section>
 
           <Section title="Display" styles={styles}>

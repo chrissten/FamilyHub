@@ -74,6 +74,9 @@ by accident (as happened with multi-day events on 2026-07-09).
   front, on *Done*, or after 3 idle minutes; before, it lasted until the process
   restarted, which as the Home app is effectively never), and *Unpin and leave app* now
   ends the process so the next launch isn't a blank screen.
+  **1.3.5:** *Pin now* now pins even when "Lock when the app starts" is off (it used to
+  do nothing unless that switch was also on), and says so when Android refuses to pin
+  because "App pinning" is off in Android's security settings, with a button to open them.
 - **[web]** **Token refresh endpoint.** `POST /api/auth/refresh` swaps a still-valid app
   token for a fresh 30-day one, so the mobile app can renew its session while in use.
 - **[mobile]** **Sessions renew themselves and expiry returns you to login (1.8.7).** The

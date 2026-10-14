@@ -17,6 +17,18 @@ export async function enforceKiosk(): Promise<void> {
   if (!Kiosk.isLocked()) await Kiosk.lock();
 }
 
+/** The "Pin now" button: pins immediately, whether or not the start-up switch is on.
+ *  Resolves to whether Android actually pinned the app, which it won't if "App pinning"
+ *  is off in Android's own security settings. */
+export async function pinNow(): Promise<boolean> {
+  paused = false;
+  await Kiosk.setImmersive(true);
+  if (!Kiosk.isLocked()) await Kiosk.lock();
+  // startLockTask() takes effect asynchronously.
+  await new Promise(resolve => setTimeout(resolve, 700));
+  return Kiosk.isLocked();
+}
+
 export async function pauseKiosk(): Promise<void> {
   paused = true;
   await Kiosk.setImmersive(false);
