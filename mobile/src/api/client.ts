@@ -267,14 +267,17 @@ export const getGroceryItems = (listId: number) =>
   request<GroceryItem[]>(`/api/grocery/lists/${listId}/items`);
 
 export const addGroceryItem = (
-  listId: number, name: string, categoryId: number, quantity?: string,
+  listId: number, name: string, categoryId: number, quantity?: string, needsReview = false,
 ) => request<GroceryItem>(`/api/grocery/lists/${listId}/items`, {
   method: 'POST',
-  body: JSON.stringify({ name, category_id: categoryId, quantity }),
+  body: JSON.stringify({ name, category_id: categoryId, quantity, needs_review: needsReview }),
 });
 
 export const toggleGroceryItem = (itemId: number) =>
   request<GroceryItem>(`/api/grocery/items/${itemId}/toggle`, { method: 'POST' });
+
+export const approveGroceryItem = (itemId: number) =>
+  request<GroceryItem>(`/api/grocery/items/${itemId}/approve`, { method: 'POST' });
 
 export const deleteGroceryItem = (itemId: number) =>
   request<{ ok: boolean }>(`/api/grocery/items/${itemId}`, { method: 'DELETE' });

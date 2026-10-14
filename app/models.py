@@ -130,6 +130,8 @@ class GroceryItem(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    # Set when the shared family tablet adds an item: a grown-up approves it (or deletes it).
+    needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
 
     category: Mapped["GroceryCategory"] = relationship(back_populates="items")
     added_by: Mapped["User"] = relationship(foreign_keys=[added_by_id])

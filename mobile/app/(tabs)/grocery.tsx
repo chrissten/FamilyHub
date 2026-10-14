@@ -6,7 +6,7 @@ import {
 import { useFocusEffect } from 'expo-router';
 import {
   getGroceryLists, getGroceryCategories, getGroceryItems,
-  addGroceryItem, toggleGroceryItem, deleteGroceryItem,
+  addGroceryItem, toggleGroceryItem, deleteGroceryItem, approveGroceryItem,
 } from '../../src/api/client';
 import type { GroceryList, GroceryCategory, GroceryItem } from '../../src/api/types';
 import { useTheme, type Colors } from '../../src/theme';
@@ -70,6 +70,15 @@ export default function GroceryScreen() {
       setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
     } catch {
       Alert.alert('Error', 'Could not update item');
+    }
+  }
+
+  async function handleApprove(item: GroceryItem) {
+    try {
+      const updated = await approveGroceryItem(item.id);
+      setItems(prev => prev.map(i => i.id === updated.id ? updated : i));
+    } catch {
+      Alert.alert('Error', 'Could not approve item');
     }
   }
 
@@ -211,6 +220,7 @@ export default function GroceryScreen() {
   }, [drafts, activeCategoryId, items, categories, storeMode, expandedCategories]);
 
   const remaining = items.filter(i => !i.checked).length;
+  const toReview = items.filter(i => i.needs_review).length;
 
   return (
     <View style={styles.container}>
@@ -234,6 +244,7 @@ export default function GroceryScreen() {
         <View style={styles.statsRow}>
           <Text style={styles.stats}>
             {remaining === 0 ? 'All done!' : `${remaining} item${remaining !== 1 ? 's' : ''} remaining`}
+            {toReview > 0 && <Text style={styles.statsReview}>  ·  {toReview} from the tablet to review</Text>}
           </Text>
           <TouchableOpacity
             style={[styles.storeModeBtn, storeMode && styles.storeModeBtnActive]}
@@ -302,7 +313,11 @@ export default function GroceryScreen() {
         }}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[styles.item, item.id === matchedItemId && styles.itemHighlighted]}
+            style={[
+              styles.item,
+              item.needs_review && styles.itemReview,
+              item.id === matchedItemId && styles.itemHighlighted,
+            ]}
             onPress={() => handleToggle(item)}
             onLongPress={() => !storeMode && handleDelete(item)}
             activeOpacity={0.6}
@@ -317,7 +332,13 @@ export default function GroceryScreen() {
                   <Text style={styles.itemQty}> ({item.quantity})</Text>
                 )}
               </Text>
+              {item.needs_review && <Text style={styles.reviewNote}>Added from the tablet</Text>}
             </View>
+            {item.needs_review && (
+              <TouchableOpacity style={styles.approveBtn} onPress={() => handleApprove(item)}>
+                <Text style={styles.approveBtnText}>Approve</Text>
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
@@ -353,6 +374,7 @@ function createStyles(colors: Colors) {
       paddingHorizontal: 16, paddingVertical: 6,
     },
     stats: { fontSize: 12, color: colors.textFaint },
+    statsReview: { color: colors.warning, fontWeight: '600' },
     storeModeBtn: {
       paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
       borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
@@ -384,6 +406,13 @@ function createStyles(colors: Colors) {
     },
     checkDone: { backgroundColor: colors.primary, borderColor: colors.primary },
     itemHighlighted: { backgroundColor: colors.primary + '22' },
+    itemReview: { backgroundColor: colors.warningBg, borderLeftWidth: 3, borderLeftColor: colors.warning },
+    reviewNote: { fontSize: 12, color: colors.warning, fontWeight: '600', marginTop: 2 },
+    approveBtn: {
+      borderWidth: 1, borderColor: colors.success, borderRadius: 14,
+      paddingHorizontal: 12, paddingVertical: 5, marginLeft: 10,
+    },
+    approveBtnText: { fontSize: 13, color: colors.success, fontWeight: '700' },
     checkMark: { color: '#fff', fontSize: 13, fontWeight: '700' },
     itemBody: { flex: 1 },
     itemName: { fontSize: 16, color: colors.text },

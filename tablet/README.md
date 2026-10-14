@@ -12,7 +12,7 @@ It reuses the phone app's API client, types, theme and calendar maths straight f
 | Area | What it does |
 |---|---|
 | Calendar (default) | Week grid sized for the wall, events colour-coded by person, "now" line, tap for details. Refreshes every 2 min and snaps back to this week when left alone. |
-| Grocery | Big "What do we need?" box, store-section chips (defaults to *Other*), tap items to tick them off. No deleting from the tablet. |
+| Grocery | Big "What do we need?" box, store-section chips (defaults to *Other*), tap items to tick them off. No deleting from the tablet. Items added here are flagged **Waiting for a grown-up** until approved on the web or phone app. |
 | Chores | Today's chores in a column per person. Tap to tick off, tap again to undo. Chores are added and edited on the web app. |
 | Settings (PIN) | Pin/unpin, open Android settings, keep-screen-on, check/install updates, change account, change PIN. |
 
@@ -21,14 +21,17 @@ After 3 minutes without a touch, the app returns to the calendar.
 ## How the lock works
 
 The app uses Android **screen pinning** (`startLockTask`, see `modules/kiosk`). While
-pinned, Home, Recents and the notification shade do nothing. The app also ignores Back.
+pinned, Home, Recents and the notification shade do nothing, and the navigation bar /
+home pill is hidden (an edge swipe only shows it briefly). The app also ignores Back.
 Two ways out:
 
 1. **Settings → Unpin** (behind the grown-ups PIN).
 2. The system unpin gesture (hold **Back + Overview**). Make that ask for the **device**
    PIN: *Settings → Security → More security settings → App pinning → "Ask for PIN
    before unpinning"* (the menu path varies by brand; search Settings for "pin").
-   Without a device screen lock, the gesture unpins freely.
+   Without a device screen lock, the gesture unpins freely. This is the only exit the
+   app can't guard with its own grown-ups PIN: Android handles it, so the **device** PIN
+   is what stops it. Keep "Ask for PIN before unpinning" on.
 
 The lock is **off by default**, so a fresh install can never lock anyone out. Once a grown-up
 turns on *Lock when the app starts*, the app re-pins itself on every launch and whenever

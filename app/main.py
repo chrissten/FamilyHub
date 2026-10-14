@@ -49,6 +49,10 @@ def on_startup():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE grocery_items ADD COLUMN sort_order INTEGER DEFAULT 0"))
             conn.commit()
+    if "needs_review" not in cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE grocery_items ADD COLUMN needs_review BOOLEAN DEFAULT FALSE"))
+            conn.commit()
     # Add recurrence columns to calendar_events if this is an existing deployment
     event_cols = [c["name"] for c in inspect(engine).get_columns("calendar_events")]
     with engine.connect() as conn:

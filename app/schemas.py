@@ -135,6 +135,8 @@ class ItemCreate(BaseModel):
     name: str
     quantity: str | None = None
     category_id: int
+    # The kid-facing tablet sets this so a grown-up can look the item over.
+    needs_review: bool = False
 
 
 class ItemUpdate(BaseModel):
@@ -149,6 +151,7 @@ class ItemOut(BaseModel):
     name: str
     quantity: str | None
     checked: bool
+    needs_review: bool = False
     category_id: int
     added_by: UserOut
     checked_by: UserOut | None

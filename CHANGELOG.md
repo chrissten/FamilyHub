@@ -52,6 +52,19 @@ by accident (as happened with multi-day events on 2026-07-09).
 ## History (newest first)
 
 ### 2026-10-14
+- **[web]** **Grocery items added from the tablet are flagged for review.** The tablet
+  sends `needs_review` when it adds an item, and the item stays flagged until a grown-up
+  approves it (new `POST /api/grocery/items/{id}/approve`, plus `/grocery/items/{id}/approve`
+  for the page) or deletes it. Flagged rows show an amber highlight, a "Review" badge and
+  an Approve link. `needs_review` is also in the item JSON. Items that were already on
+  the list aren't flagged when the tablet re-adds them.
+- **[mobile]** **Tablet-added grocery items are flagged (1.8.8).** Items from the tablet
+  show a "Added from the tablet" note with an Approve button; the stats line counts how
+  many are waiting. Long-press still removes one.
+- **[tablet]** **Items you add wait for a grown-up (1.3.0).** Added items show a "Waiting
+  for a grown-up" tag until approved on the web or phone app. **The navigation bar / home
+  pill is now hidden while the lock is on**; an edge swipe only shows it for a moment.
+  It comes back when the lock is paused from Settings (behind the grown-ups PIN).
 - **[web]** **Token refresh endpoint.** `POST /api/auth/refresh` swaps a still-valid app
   token for a fresh 30-day one, so the mobile app can renew its session while in use.
 - **[mobile]** **Sessions renew themselves and expiry returns you to login (1.8.7).** The

@@ -1,7 +1,7 @@
 {# htmx 2 inserts only the children of a non-outerHTML OOB element, so an insert
    wraps the row in a throwaway <ul> that carries the swap and keeps the <li> whole. #}
 {% if oob_mode == "insert" %}<ul hx-swap-oob="beforeend:#category-{{ item.category_id }}-items">{% endif %}
-<li id="item-{{ item.id }}" class="grocery-item {% if item.checked %}checked{% endif %}" x-data="{ editing: false }"
+<li id="item-{{ item.id }}" class="grocery-item {% if item.checked %}checked{% endif %} {% if item.needs_review %}needs-review{% endif %}" x-data="{ editing: false }"
   {% if oob_mode == "replace" %}hx-swap-oob="true"{% endif %}>
   <div class="item-row" x-show="!editing">
     <span class="drag-handle">⠿</span>
@@ -12,6 +12,10 @@
       {% if item.quantity %}<span class="item-qty">({{ item.quantity }})</span>{% endif %}
     </label>
     <span class="item-meta">added by {{ item.added_by.display_name }}</span>
+    {% if item.needs_review %}
+    <span class="review-badge" title="Added from the family tablet">Review</span>
+    <a href="#" class="item-approve" hx-post="/grocery/items/{{ item.id }}/approve" hx-target="this" hx-swap="none">Approve</a>
+    {% endif %}
     <a href="#" class="item-edit" @click.prevent="editing = true">Edit</a>
     <a href="#" class="item-delete" hx-post="/grocery/items/{{ item.id }}/delete" hx-target="this" hx-swap="none">&times;</a>
   </div>

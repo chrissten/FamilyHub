@@ -229,6 +229,23 @@ async def grocery_toggle_item(
     return HTMLResponse(html)
 
 
+@router.post("/grocery/items/{item_id}/approve", response_class=HTMLResponse)
+async def grocery_approve_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    item, list_id = _get_item_and_list(db, item_id, current_user)
+
+    item.needs_review = False
+    db.commit()
+    db.refresh(item)
+
+    html = render_item(item, oob_mode="replace")
+    await grocery_manager.broadcast(list_id, html)
+    return HTMLResponse(html)
+
+
 @router.post("/grocery/items/{item_id}/update", response_class=HTMLResponse)
 async def grocery_update_item(
     item_id: int,
@@ -376,6 +393,7 @@ async def api_create_item(
         quantity=payload.quantity,
         category_id=payload.category_id,
         added_by_id=current_user.id,
+        needs_review=payload.needs_review,
     )
     db.add(item)
     db.commit()
@@ -415,6 +433,21 @@ async def api_toggle_item(
 
     item.checked = not item.checked
     item.checked_by_id = current_user.id if item.checked else None
+    db.commit()
+    db.refresh(item)
+
+    html = render_item(item, oob_mode="replace")
+    await grocery_manager.broadcast(list_id, html)
+    return item
+
+
+@router.post("/api/grocery/items/{item_id}/approve", response_model=ItemOut)
+async def api_approve_item(
+    item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    item, list_id = _get_item_and_list(db, item_id, current_user)
+
+    item.needs_review = False
     db.commit()
     db.refresh(item)
 

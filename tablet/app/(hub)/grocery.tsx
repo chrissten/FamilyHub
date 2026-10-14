@@ -74,13 +74,14 @@ export default function GroceryScreen() {
     if (!trimmed || !list || cat === null || adding) return;
     setAdding(true);
     try {
-      const item = await addGroceryItem(list.id, trimmed, cat, qty.trim() || undefined);
+      // needsReview: whatever is typed here is for a grown-up to look over before it's trusted.
+      const item = await addGroceryItem(list.id, trimmed, cat, qty.trim() || undefined, true);
       // The server merges duplicates into the existing row, so replace rather than append.
       setItems(prev => [...prev.filter(i => i.id !== item.id), item]);
       setName('');
       setQty('');
       setCategoryId(null);
-      showFlash(`Added ${item.name}!`);
+      showFlash(item.needs_review ? `Added ${item.name}! A grown-up will check it.` : `Added ${item.name}!`);
     } catch {
       showFlash('Could not add that. Try again?');
     } finally {
@@ -215,9 +216,17 @@ export default function GroceryScreen() {
                     size={26}
                     color={item.checked ? colors.success : colors.textFaint}
                   />
-                  <Text style={[styles.itemText, item.checked && styles.itemChecked]} numberOfLines={2}>
-                    {item.name}{item.quantity ? <Text style={styles.itemQty}>  {item.quantity}</Text> : null}
-                  </Text>
+                  <View style={styles.itemBody}>
+                    <Text style={[styles.itemText, item.checked && styles.itemChecked]} numberOfLines={2}>
+                      {item.name}{item.quantity ? <Text style={styles.itemQty}>  {item.quantity}</Text> : null}
+                    </Text>
+                    {item.needs_review && (
+                      <View style={styles.pending}>
+                        <Ionicons name="hourglass-outline" size={14} color={colors.warning} />
+                        <Text style={styles.pendingText}>Waiting for a grown-up</Text>
+                      </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -279,6 +288,12 @@ function createStyles(colors: Colors) {
     cardTitle: { fontSize: 18, fontWeight: '700', color: colors.primary },
     cardCount: { fontSize: 15, color: colors.textMuted },
     item: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+    itemBody: { flexShrink: 1, gap: 2 },
+    pending: {
+      flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+      backgroundColor: colors.warningBg, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2,
+    },
+    pendingText: { fontSize: 13, color: colors.warning, fontWeight: '600' },
     itemText: { fontSize: 19, color: colors.text, flexShrink: 1 },
     itemChecked: { color: colors.textFaint, textDecorationLine: 'line-through' },
     itemQty: { fontSize: 15, color: colors.textMuted },
