@@ -51,9 +51,12 @@ $apk  = Join-Path $dist $apkName
 
 if (-not $SkipBuild) {
 # ── Mirror sources outside OneDrive ─────────────────────────────────────────────
-# /MIR keeps the mirror exact; /XD'd folders (node_modules, android, .expo) are neither
-# copied nor purged, so npm and Gradle caches survive between builds.
-robocopy $tablet "$mirror\tablet" /MIR /XD node_modules android .expo /NFL /NDL /NJH /NJS /NP | Out-Null
+# /MIR keeps the mirror exact; the /XD'd top-level folders (node_modules, android, .expo)
+# are neither copied nor purged, so npm and Gradle caches survive between builds. They are
+# listed by full path: a bare name would also match modules\kiosk\android, the native
+# module's source, which then never reached the build (the app shipped without it).
+$keep = 'node_modules', 'android', '.expo' | ForEach-Object { "$tablet\$_"; "$mirror\tablet\$_" }
+robocopy $tablet "$mirror\tablet" /MIR /XD @keep /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy tablet failed ($LASTEXITCODE)" }
 robocopy "$repo\mobile\src" "$mirror\mobile\src" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy mobile/src failed ($LASTEXITCODE)" }

@@ -21,8 +21,9 @@ After 3 minutes without a touch, the app returns to the calendar.
 ## How the lock works
 
 The app uses Android **screen pinning** (`startLockTask`, see `modules/kiosk`). While
-pinned, Home, Recents and the notification shade do nothing, and the navigation bar /
-home pill is hidden (an edge swipe only shows it briefly). The app also ignores Back.
+pinned, Home, Recents and the notification shade do nothing. The navigation bar / home
+pill is hidden whenever the app is in front, locked or not (an edge swipe only shows it
+briefly); it comes back when Settings → *Open Android settings* or *Unpin* is used. The app also ignores Back.
 Two ways out:
 
 1. **Settings → Unpin** (behind the grown-ups PIN).

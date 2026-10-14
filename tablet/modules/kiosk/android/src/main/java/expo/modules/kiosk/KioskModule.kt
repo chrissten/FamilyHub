@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -32,21 +33,31 @@ class KioskModule : Module() {
   private fun applyImmersive(activity: Activity, enabled: Boolean) {
     val decor = activity.window.decorView
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      val controller = activity.window.insetsController ?: return
-      if (enabled) {
-        controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller.hide(WindowInsets.Type.navigationBars())
-      } else {
-        controller.show(WindowInsets.Type.navigationBars())
-      }
-    } else {
-      decor.systemUiVisibility = if (enabled) {
-        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN or
-          View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-      } else {
-        View.SYSTEM_UI_FLAG_VISIBLE
+      val controller = activity.window.insetsController
+      if (controller != null) {
+        if (enabled) {
+          controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+          controller.hide(WindowInsets.Type.navigationBars())
+        } else {
+          controller.show(WindowInsets.Type.navigationBars())
+        }
       }
     }
+    // The legacy flags too: some tablet firmwares (e.g. the 12L-style taskbar) only react
+    // to these. Harmless on builds that translate them into the same inset request.
+    decor.systemUiVisibility = if (enabled) {
+      decor.systemUiVisibility or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    } else {
+      decor.systemUiVisibility and View.SYSTEM_UI_FLAG_HIDE_NAVIGATION.inv() and
+        View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY.inv()
+    }
+    handler.postDelayed({
+      val visible = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        decor.rootWindowInsets?.isVisible(WindowInsets.Type.navigationBars())
+      } else null
+      Log.d("KioskModule", "setImmersive($enabled): navigation bars visible=$visible flags=${decor.systemUiVisibility}")
+    }, 800)
     // The bar slides back in after an edge swipe or when the keyboard closes; tuck it
     // away again shortly after rather than leaving it up.
     @Suppress("DEPRECATION")

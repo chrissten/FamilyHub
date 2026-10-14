@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, BackHandler, AppState } from 'react-native';
 import { Slot, usePathname, useRouter, type Href } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { useTheme, useTimeFormat, formatClock, type Colors } from '../../src/shared';
@@ -26,6 +27,9 @@ const IDLE_RETURN_MS = 3 * 60 * 1000;
 export default function HubLayout() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // The Android taskbar can stay on screen (the firmware may refuse to hide it); keep the
+  // rail's settings cog from sliding underneath it.
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
   const timeFormat = useTimeFormat();
@@ -76,7 +80,7 @@ export default function HubLayout() {
 
   return (
     <View
-      style={styles.container}
+      style={[styles.container, { paddingBottom: insets.bottom }]}
       onStartShouldSetResponderCapture={() => { bumpIdle(); return false; }}
     >
       <View style={styles.rail}>

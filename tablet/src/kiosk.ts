@@ -5,12 +5,14 @@ import { getToggle } from './settings';
 // Lasts until the app is next launched, so a reboot or update always comes back locked.
 let paused = false;
 
-/** Pins the app and hides the navigation bar unless kiosk mode is off or paused. Safe to
- *  call repeatedly. */
+/** Hides the navigation bar whenever the app is in front (it would otherwise cover the
+ *  settings cog at the bottom of the rail), and pins the app unless kiosk mode is off.
+ *  Both are skipped while paused. Safe to call repeatedly. */
 export async function enforceKiosk(): Promise<void> {
-  if (paused || !(await getToggle('kiosk_enabled'))) return;
-  if (!Kiosk.isLocked()) await Kiosk.lock();
+  if (paused) return;
   await Kiosk.setImmersive(true);
+  if (!(await getToggle('kiosk_enabled'))) return;
+  if (!Kiosk.isLocked()) await Kiosk.lock();
 }
 
 export async function pauseKiosk(): Promise<void> {
