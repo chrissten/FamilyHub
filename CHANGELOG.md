@@ -77,6 +77,14 @@ by accident (as happened with multi-day events on 2026-07-09).
   **1.3.5:** *Pin now* now pins even when "Lock when the app starts" is off (it used to
   do nothing unless that switch was also on), and says so when Android refuses to pin
   because "App pinning" is off in Android's security settings, with a button to open them.
+  **1.3.6:** an expired or rejected login (password changed, account removed) now lands
+  on the sign-in screen with a "The tablet was signed out" notice and the username filled
+  in, instead of the screens silently showing nothing. The tablet's phone-app login
+  handling already renewed and re-signed-in quietly; only the "give up and ask" step was
+  missing here. Setup also tells a refused password apart from an unreachable server.
+- **[web]** **`kiosk` account (2026-11-04).** Added a non-admin `kiosk` user (display name
+  "Kiosk") for the family tablet, so grocery items added there show as added by Kiosk.
+  Data change only (no code), made directly in the production database.
 - **[web]** **Token refresh endpoint.** `POST /api/auth/refresh` swaps a still-valid app
   token for a fresh 30-day one, so the mobile app can renew its session while in use.
 - **[mobile]** **Sessions renew themselves and expiry returns you to login (1.8.7).** The

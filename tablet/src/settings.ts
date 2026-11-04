@@ -18,6 +18,13 @@ export async function checkAdminPin(pin: string): Promise<boolean> {
 
 export const PIN_PATTERN = /^\d{4,8}$/;
 
+// Survives a forced sign-out (clearAuth wipes the saved credentials), so the re-login
+// screen can still say whose password it wants.
+const LAST_USERNAME_KEY = 'last_username';
+
+export const rememberUsername = (username: string) => AsyncStorage.setItem(LAST_USERNAME_KEY, username);
+export const getLastUsername = () => AsyncStorage.getItem(LAST_USERNAME_KEY);
+
 // ── Boolean toggles (AsyncStorage, with a tiny subscription so screens stay in sync) ──
 
 type Toggle = 'kiosk_enabled' | 'keep_awake';

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { login, getServerUrl, getSavedCredentials, saveCredentials, useTheme, type Colors } from '../src/shared';
-import { hasAdminPin, setAdminPin, PIN_PATTERN } from '../src/settings';
+import { hasAdminPin, setAdminPin, PIN_PATTERN, getLastUsername, rememberUsername } from '../src/settings';
 
 /** First-run setup (and "change account" from the admin screen): which FamilyHub server
  *  and account the tablet uses, plus the grown-ups PIN on the very first run. The login
  *  is always remembered — there's nobody to retype it on a wall tablet. */
 export default function SetupScreen() {
   const router = useRouter();
+  // Set by the root layout when the stored login was rejected mid-use.
+  const { expired } = useLocalSearchParams<{ expired?: string }>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [serverUrl, setServerUrl] = useState('');
@@ -21,9 +23,9 @@ export default function SetupScreen() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    Promise.all([getServerUrl(), getSavedCredentials(), hasAdminPin()]).then(([url, creds, hasPin]) => {
+    Promise.all([getServerUrl(), getSavedCredentials(), getLastUsername(), hasAdminPin()]).then(([url, creds, last, hasPin]) => {
       setServerUrl(url);
-      if (creds) setUsername(creds.username);
+      setUsername(creds?.username ?? last ?? '');
       setNeedsPin(!hasPin);
     });
   }, []);
@@ -39,10 +41,15 @@ export default function SetupScreen() {
     try {
       await login(serverUrl.trim(), username.trim(), password);
       await saveCredentials(username.trim(), password);
+      await rememberUsername(username.trim());
       if (needsPin) await setAdminPin(pin);
       router.replace('/calendar');
-    } catch {
-      setError('Could not sign in. Check the server address and account.');
+    } catch (e) {
+      // login() throws AuthRejectedError only when the server said no; anything else means
+      // the server couldn't be reached at all.
+      setError((e as Error)?.name === 'AuthRejectedError'
+        ? 'That username or password wasn’t accepted. Try again.'
+        : 'Could not reach the server. Check the Wi-Fi and the server address.');
     } finally {
       setBusy(false);
     }
@@ -53,8 +60,18 @@ export default function SetupScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Set up FamilyHub Tablet</Text>
         <Text style={styles.hint}>
-          Use a family account. Anything added from the tablet (like grocery items) will show as added by it.
+          Use the shared “kiosk” account. Anything added from the tablet (like grocery items) will show as added by it.
         </Text>
+        {expired === '1' && (
+          <View style={styles.notice}>
+            <Text style={styles.noticeTitle}>The tablet was signed out</Text>
+            <Text style={styles.noticeText}>
+              Its saved login stopped working, most likely because the password was changed. A
+              grown-up needs to enter the password again to get the calendar, grocery list and
+              chores back.
+            </Text>
+          </View>
+        )}
         <TextInput style={styles.input} placeholder="Server URL (https://...)" placeholderTextColor={colors.placeholder}
           value={serverUrl} onChangeText={setServerUrl} autoCapitalize="none" keyboardType="url" />
         <TextInput style={styles.input} placeholder="Username" placeholderTextColor={colors.placeholder}
@@ -95,6 +112,9 @@ function createStyles(colors: Colors) {
     },
     pinRow: { flexDirection: 'row', gap: 12 },
     pinInput: { flex: 1 },
+    notice: { backgroundColor: colors.warningBg, borderRadius: 12, padding: 14, marginBottom: 14 },
+    noticeTitle: { fontSize: 17, fontWeight: '700', color: colors.warning, marginBottom: 4 },
+    noticeText: { fontSize: 15, color: colors.text },
     error: { fontSize: 16, color: colors.danger, marginBottom: 8 },
     button: { backgroundColor: colors.primary, borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
     buttonText: { color: colors.primaryText, fontSize: 19, fontWeight: '700' },
