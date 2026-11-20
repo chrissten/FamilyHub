@@ -277,6 +277,10 @@ class Recipe(Base):
     image_url: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Unguessable token behind the public read-only link (/r/<token>). Null = no link
+    # exists. Deliberately separate from `is_public`, which only means "visible to the
+    # rest of the family once they've logged in". Clearing it revokes the link.
+    share_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

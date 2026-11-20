@@ -9,6 +9,7 @@ import type { Recipe } from '../src/api/types';
 import { useTheme, type Colors } from '../src/theme';
 import { setPendingRecipeForm, totalMinutes } from '../src/recipes/formState';
 import { leftoverColors, leftoverLabel } from '../src/recipes/leftovers';
+import ShareSheet from '../src/recipes/ShareSheet';
 
 export default function RecipeDetailScreen() {
   const { colors } = useTheme();
@@ -19,6 +20,7 @@ export default function RecipeDetailScreen() {
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<number | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Refetch on focus rather than trusting a snapshot: coming back from the editor,
   // or from someone else's edit on the web, should show the current version.
@@ -78,6 +80,9 @@ export default function RecipeDetailScreen() {
               <TouchableOpacity onPress={() => router.push(`/recipe-to-grocery?id=${recipe.id}`)} hitSlop={8}>
                 <Ionicons name="cart-outline" size={22} color="#fff" />
               </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShareOpen(true)} hitSlop={8}>
+                <Ionicons name="share-outline" size={22} color="#fff" />
+              </TouchableOpacity>
               <TouchableOpacity onPress={handleEdit} hitSlop={8}>
                 <Ionicons name="create-outline" size={22} color="#fff" />
               </TouchableOpacity>
@@ -118,6 +123,13 @@ export default function RecipeDetailScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {header}
+      <ShareSheet
+        visible={shareOpen}
+        recipe={recipe}
+        isOwner={recipe.owner.id === userId}
+        onClose={() => setShareOpen(false)}
+        onLinkChanged={load}
+      />
 
       <View style={styles.metaRow}>
         {recipe.prep_minutes != null && <Text style={styles.metaText}>{recipe.prep_minutes} min prep</Text>}

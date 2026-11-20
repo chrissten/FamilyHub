@@ -51,6 +51,23 @@ by accident (as happened with multi-day events on 2026-07-09).
 
 ## History (newest first)
 
+### 2026-11-19
+- **[web]** **Share a recipe: email, PDF, public link.** A new Share menu on the recipe
+  page offers *Email recipe* (opens your mail app with the recipe as text; long recipes
+  are trimmed to fit a `mailto:` link and say so), *Download PDF* (`/recipes/{id}/pdf`,
+  also `/api/recipes/{id}/pdf`; rendered server-side with `fpdf2`, built-in fonts, so
+  unusual characters become plain equivalents or `?`), and a **public read-only link**.
+  The owner can create it (`POST /api/recipes/{id}/share-link`) and turn it off
+  (`DELETE`); it serves `/r/<token>` (plus `/pdf` and the scan images) with no login,
+  no edit controls, no leftover notes, `noindex`, `no-store`. The token is random and
+  unguessable; turning the link off makes it 404 immediately. New `recipes.share_token`
+  column, added on startup. `share_token` is in the recipe JSON.
+- **[mobile]** **Share a recipe (1.9.0).** New share button in the recipe header opens a
+  sheet with *Email*, *Share as PDF* (downloads the same server PDF and opens Android's
+  share menu, so it can be attached, saved to Drive or printed), *Share as text*, and the
+  public link (create / share / turn off; only the owner can create or turn it off).
+  Adds the `expo-sharing` native module (autolinked; no prebuild needed).
+
 ### 2026-10-14
 - **[web]** **Grocery items added from the tablet are flagged for review.** The tablet
   sends `needs_review` when it adds an item, and the item stays flagged until a grown-up

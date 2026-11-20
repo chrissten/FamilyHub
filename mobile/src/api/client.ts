@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import type {
   User, CalendarEvent, GroceryList, GroceryCategory, GroceryItem,
   TodoList, TodoItem, Freezer, FreezerItem,
@@ -398,6 +398,43 @@ export const updateRecipe = (id: number, data: RecipeInput) =>
 
 export const deleteRecipe = (id: number) =>
   request<Record<string, never>>(`/api/recipes/${id}`, { method: 'DELETE' });
+
+/** Create (or fetch the existing) public read-only link. Owner only. */
+export const createRecipeShareLink = (id: number) =>
+  request<{ share_token: string; url: string }>(`/api/recipes/${id}/share-link`, { method: 'POST' });
+
+/** Turn the public link off; anyone holding it gets a 404 from then on. Owner only. */
+export const revokeRecipeShareLink = (id: number) =>
+  request<Record<string, never>>(`/api/recipes/${id}/share-link`, { method: 'DELETE' });
+
+/** The shareable URL for a recipe's public link. */
+export async function recipeShareUrl(token: string): Promise<string> {
+  return `${await getServerUrl()}/r/${token}`;
+}
+
+/** Download the recipe as a PDF into the cache and return its file:// uri, ready to hand
+ *  to the system share sheet. Rendered server-side, so it matches the web export. */
+export async function downloadRecipePdf(id: number, title: string, _retry = false): Promise<string> {
+  const [serverUrl, token] = await Promise.all([getServerUrl(), getToken()]);
+  if (!serverUrl) throw new Error('Server URL not configured');
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'recipe';
+  const destination = new File(Paths.cache, `${slug}.pdf`);
+  try {
+    const file = await File.downloadFileAsync(`${serverUrl}/api/recipes/${id}/pdf`, destination, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      idempotent: true,
+    });
+    // Guard against a login/error page being saved under a .pdf name.
+    const head = (await file.bytes()).slice(0, 4);
+    if (String.fromCharCode(...head) !== '%PDF') throw new Error('401: not a PDF');
+    return file.uri;
+  } catch (err) {
+    if (!_retry && String(err).includes('401') && await recoverSession()) {
+      return downloadRecipePdf(id, title, true);
+    }
+    throw err;
+  }
+}
 
 /**
  * Multipart sibling of `request<T>()`.

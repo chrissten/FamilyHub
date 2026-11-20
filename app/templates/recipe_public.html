@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ recipe.title }} - FamilyHub{% endblock %}
+{% block content %}
+{#
+  The public, read-only view behind /r/<token>. Anyone with the link sees this with no
+  login, so it deliberately carries none of the logged-in page's extras: no nav (base.html
+  only draws it for a logged-in user), no edit/delete, no live-update socket, no private
+  fields (leftover notes, the "unmatched ingredient" markers), and scan images are served
+  from the token's own URL rather than the authenticated one.
+#}
+<p class="public-recipe-banner">
+  <span>Shared from FamilyHub by {{ recipe.owner.display_name }}</span>
+  <a href="/r/{{ token }}/pdf">Download PDF</a>
+  <a href="javascript:window.print()">Print</a>
+</p>
+
+<article id="recipe-body">
+  <h1>{{ recipe.title }}</h1>
+  <p class="recipe-card-meta">
+    {% if recipe.prep_minutes %}<span>{{ recipe.prep_minutes }} min prep</span>{% endif %}
+    {% if recipe.cook_minutes %}<span>{{ recipe.cook_minutes }} min cook</span>{% endif %}
+    {% if recipe.servings %}<span>Serves {{ recipe.servings }}</span>{% endif %}
+  </p>
+  {% if recipe.tag_names %}
+  <p class="recipe-card-tags">{% for name in recipe.tag_names %}<span class="tag-chip small">{{ name }}</span>{% endfor %}</p>
+  {% endif %}
+  {% if recipe.description %}<p class="recipe-description">{{ recipe.description }}</p>{% endif %}
+
+  {% if recipe.source_url %}
+  <p class="recipe-source">Source:
+    <a href="{{ recipe.source_url }}" target="_blank" rel="noopener noreferrer">{{ recipe.source_name or recipe.source_url }}</a>
+  </p>
+  {% elif recipe.source_name %}
+  <p class="recipe-source">Source: {{ recipe.source_name }}</p>
+  {% endif %}
+
+  <div class="recipe-columns">
+    <section class="recipe-ingredients">
+      <h2>Ingredients</h2>
+      <ul>
+        {% for item in recipe.ingredients %}
+        <li class="{{ 'optional' if item.optional else '' }}">{{ item.raw_text }}</li>
+        {% else %}
+        <li class="empty">No ingredients listed.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="recipe-steps">
+      <h2>Method</h2>
+      <ol>
+        {% for step in recipe.steps %}
+        <li>{{ step.text }}</li>
+        {% else %}
+        <li class="empty">No steps listed.</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </div>
+
+  {% if recipe.images %}
+  <section class="recipe-scans">
+    <h2>Scans</h2>
+    <div class="recipe-scan-list">
+      {% for image in recipe.images %}
+      <a href="/r/{{ token }}/images/{{ image.id }}" target="_blank" rel="noopener noreferrer">
+        <img src="/r/{{ token }}/images/{{ image.id }}" alt="Scanned page {{ loop.index }}">
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if recipe.notes %}
+  <section class="recipe-notes">
+    <h2>Notes</h2>
+    <p>{{ recipe.notes }}</p>
+  </section>
+  {% endif %}
+</article>
+{% endblock %}

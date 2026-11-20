@@ -142,6 +142,8 @@ export interface Recipe extends RecipeSummary {
   ingredients: RecipeIngredient[];
   steps: RecipeStep[];
   image_ids: number[];
+  /** Set while a public read-only link exists; the link is `<server>/r/<share_token>`. */
+  share_token?: string | null;
 }
 
 /** Body for creating/updating a recipe. `steps` is plain strings and `ingredients`

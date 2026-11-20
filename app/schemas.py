@@ -336,6 +336,8 @@ class RecipeOut(RecipeSummaryOut):
     ingredients: list[RecipeIngredientOut]
     steps: list[RecipeStepOut]
     image_ids: list[int] = Field(default_factory=list)
+    # Set while a public read-only link exists; clients build <server>/r/<token> from it.
+    share_token: str | None = None
 
 
 class DraftIngredientOut(BaseModel):

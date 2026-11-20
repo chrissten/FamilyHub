@@ -109,6 +109,9 @@ def on_startup():
             conn.execute(text("ALTER TABLE recipes ADD COLUMN leftover_rating INTEGER"))
         if "leftover_notes" not in recipe_cols:
             conn.execute(text("ALTER TABLE recipes ADD COLUMN leftover_notes TEXT"))
+        if "share_token" not in recipe_cols:
+            conn.execute(text("ALTER TABLE recipes ADD COLUMN share_token VARCHAR(64)"))
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_recipes_share_token ON recipes (share_token)"))
         conn.commit()
     ingredient_cols = [c["name"] for c in inspect(engine).get_columns("ingredients")]
     if "reviewed" not in ingredient_cols:

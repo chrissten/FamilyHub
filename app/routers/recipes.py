@@ -38,6 +38,12 @@ from app.meal_plan import (
     week_start,
 )
 from app.ingredient_review import list_items_by_ingredient, needs_review, suggest_match
+from app.recipe_share import (
+    new_share_token,
+    pdf_filename,
+    recipe_mailto,
+    recipe_to_pdf,
+)
 from app.recipe_match import ingredient_key_map, match_recipe, on_hand, rank_recipes
 from app.recipe_import import (
     RecipeImportError,
@@ -709,10 +715,16 @@ def recipe_detail_page(
 ):
     recipe = load_recipe_full(db, recipe_id, current_user)
     request.session["last_page"] = f"/recipes/{recipe_id}"
+    link = _share_link(request, recipe)
     return templates.TemplateResponse(
         request,
         "recipe_detail.html",
-        {"recipe": recipe, "current_user": current_user},
+        {
+            "recipe": recipe,
+            "current_user": current_user,
+            "share_link": link,
+            "mailto": recipe_mailto(recipe, link),
+        },
     )
 
 
@@ -776,6 +788,145 @@ def recipe_print_page(
             "current_user": current_user,
         },
     )
+
+
+# ── Sharing: PDF, email, public permalink ───────────────────────────────────────
+
+
+def _origin(request: Request) -> str:
+    """Public origin of this site, for links that leave it. Railway terminates TLS in
+    front of the app, so the scheme the app itself sees is http; trust the proxy's header."""
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    return f"{scheme}://{host.split(',')[0].strip()}"
+
+
+def _share_link(request: Request, recipe: Recipe) -> str | None:
+    return f"{_origin(request)}/r/{recipe.share_token}" if recipe.share_token else None
+
+
+def _pdf_response(recipe: Recipe, link: str | None) -> Response:
+    return Response(
+        content=recipe_to_pdf(recipe, link),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{pdf_filename(recipe)}"'},
+    )
+
+
+def _owned_recipe(db: Session, recipe_id: int, user: User) -> Recipe:
+    recipe = get_visible_recipe(db, recipe_id, user)
+    # Creating or revoking a link that anyone on the internet can use is the owner's call,
+    # not every family member's.
+    if recipe.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the recipe's owner can manage its public link")
+    return recipe
+
+
+def load_shared_recipe(db: Session, token: str) -> Recipe:
+    recipe = (
+        db.query(Recipe)
+        .options(
+            joinedload(Recipe.owner),
+            selectinload(Recipe.tags),
+            selectinload(Recipe.steps),
+            selectinload(Recipe.images),
+            selectinload(Recipe.ingredients),
+        )
+        .filter(Recipe.share_token == token)
+        .first()
+    )
+    # Same 404 for "never existed" and "revoked": a dead link reveals nothing.
+    if recipe is None or not token:
+        raise HTTPException(status_code=404, detail="This recipe link is no longer available")
+    return recipe
+
+
+@router.get("/recipes/{recipe_id}/pdf")
+def recipe_pdf(
+    recipe_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    return _pdf_response(recipe, _share_link(request, recipe))
+
+
+@router.get("/api/recipes/{recipe_id}/pdf")
+def api_recipe_pdf(
+    recipe_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = load_recipe_full(db, recipe_id, current_user)
+    return _pdf_response(recipe, _share_link(request, recipe))
+
+
+@router.post("/api/recipes/{recipe_id}/share-link")
+def api_create_share_link(
+    recipe_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create the public link, or return the existing one (idempotent, so a double tap
+    can't mint two and orphan the first)."""
+    recipe = _owned_recipe(db, recipe_id, current_user)
+    if not recipe.share_token:
+        recipe.share_token = new_share_token()
+        db.commit()
+    return {"share_token": recipe.share_token, "url": _share_link(request, recipe)}
+
+
+@router.delete("/api/recipes/{recipe_id}/share-link", status_code=204)
+def api_revoke_share_link(
+    recipe_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    recipe = _owned_recipe(db, recipe_id, current_user)
+    recipe.share_token = None
+    db.commit()
+    return Response(status_code=204)
+
+
+# Public, read-only, no login. Everything below is reachable by anyone holding the token,
+# and nothing else: no edit controls, no nav, no other recipes, no websocket.
+_PUBLIC_HEADERS = {
+    "X-Robots-Tag": "noindex, nofollow",
+    "Referrer-Policy": "no-referrer",
+    # So revoking a link takes effect immediately instead of living on in a cache.
+    "Cache-Control": "no-store",
+}
+
+
+@router.get("/r/{token}", response_class=HTMLResponse)
+def public_recipe_page(token: str, request: Request, db: Session = Depends(get_db)):
+    recipe = load_shared_recipe(db, token)
+    return templates.TemplateResponse(
+        request,
+        "recipe_public.html",
+        {"recipe": recipe, "token": token},
+        headers=_PUBLIC_HEADERS,
+    )
+
+
+@router.get("/r/{token}/pdf")
+def public_recipe_pdf(token: str, request: Request, db: Session = Depends(get_db)):
+    recipe = load_shared_recipe(db, token)
+    response = _pdf_response(recipe, _share_link(request, recipe))
+    response.headers.update(_PUBLIC_HEADERS)
+    return response
+
+
+@router.get("/r/{token}/images/{image_id}")
+def public_recipe_image(token: str, image_id: int, db: Session = Depends(get_db)):
+    recipe = load_shared_recipe(db, token)
+    image = db.get(RecipeImage, image_id)
+    if image is None or image.recipe_id != recipe.id:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(content=image.data, media_type=image.content_type, headers=_PUBLIC_HEADERS)
 
 
 @router.get("/recipes/{recipe_id}/edit", response_class=HTMLResponse)
